@@ -1103,3 +1103,14 @@ def test_context_wins_over_frames():
         "When `context` and the frames disagree, context wins and the step is tagged "
         "`[written]` (R-ING-1)" in text
     )
+
+
+
+def test_linked_video_post_credits_the_linked_author():
+    text = flat(REFS / "run-protocol.md")
+    assert "the video came from a linked post" in text
+    review = flat(REFS / "review-screen.md")
+    assert "  video came from a linked post: <url>" in read(REFS / "review-screen.md")
+    assert "names the linked post's author" in review
+    template = flat(REFS / "skill-template.md")
+    assert "names the linked post's author" in template

@@ -129,6 +129,9 @@ Distilled from <title> by <author> (<link>), posted <date>, with SkipWatch. The 
   "Distilled from <title> by <author> (<link>), posted <date>, with SkipWatch. The workflow and wording are the creator's."
   For a local file (metadata `source_url`, `source_author` and `source_date` stay `""`):
   "Distilled from the local recording <title>, with SkipWatch. The workflow and wording are the creator's."
+  When the video came from a linked post (an X post that links another post's video),
+  `source` describes the linked post, so the sentence names the linked post's author and
+  link: the video's creator gets the credit, not the post that linked it.
   Attribution is mandatory and cannot be configured off. Nothing follows it.
 - **Frames:** at most 8 image links, each to a file you copied into `assets/frames/`.
   Put each image directly under the step it supports, never after Attribution, so the

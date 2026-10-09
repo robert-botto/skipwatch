@@ -75,6 +75,20 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Draft:** `W/staging/<name>/`.
 - **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 
+## Extra lines
+
+Zero or more of these lines come right after the `Draft:` line, before the blank line,
+each only when it applies:
+
+```
+  video came from a linked post: <url>
+```
+
+- **Linked post:** the run recorded that the video came from a linked post (stage 3 of
+  `run-protocol.md`); `<url>` is `source.canonical_url`. `source` describes the linked
+  post, so the `Source:` line names the linked post's author, and so does the
+  attribution.
+
 ## The prompt line
 
 - Normal: `Install to <target>? [yes / show draft / test it / rename / cancel]`
