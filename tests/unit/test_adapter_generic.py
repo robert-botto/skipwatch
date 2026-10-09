@@ -75,7 +75,9 @@ def test_recorded_generic_fixtures_build_bundles(tmp_path, monkeypatch, name, ki
         cf, "download_captions", lambda i, w, o, track: (f"captions/x.{track[0]}.vtt", *track)
     )
     monkeypatch.setattr(
-        cf, "download", lambda i, w, o: MediaInfo(path="media/video.mp4", width=1280, height=720)
+        cf,
+        "download",
+        lambda i, w, o, failed=None: MediaInfo(path="media/video.mp4", width=1280, height=720),
     )
     bundle = build(tmp_path / "w", url=info["webpage_url"])
     assert bundle.source.platform == "generic" and bundle.source.kind == "video"

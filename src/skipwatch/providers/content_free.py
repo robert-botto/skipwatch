@@ -15,8 +15,9 @@ import re
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import yt_dlp
 from yt_dlp.networking import Request
@@ -28,6 +29,7 @@ from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.localfile import media_info
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import MediaInfo, ProviderCall
+from skipwatch.output import progress
 from skipwatch.workdir import WorkDir
 
 NODE_MIN = (22, 0, 0)  # yt-dlp's own minimum for node
@@ -37,6 +39,15 @@ CAPTION_EXTS = ("json3", "vtt", "srt")  # the formats skipwatch.captions parses,
 SOCKET_TIMEOUT_S = 30
 
 CaptionKind = Literal["manual", "auto"]
+T = TypeVar("T")
+
+RETRY_DELAY_S = 2.0
+# Failures YouTube's CDN produces intermittently and an immediate retry clears (1 in 5 G1 runs).
+_TRANSIENT = (
+    (re.compile(r"HTTP Error 403"), "403"),
+    (re.compile(r"HTTP Error 429"), "429"),
+    (re.compile(r"connection reset|ConnectionResetError", re.IGNORECASE), "connection reset"),
+)
 
 _VERSION_RE = re.compile(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?")
 _PRIVATE_MARKERS = (
@@ -140,6 +151,30 @@ def classify_error(message: str) -> ExitCode:
     if any(m in folded for m in _NO_CONTENT_MARKERS):
         return ExitCode.NO_CONTENT
     return ExitCode.DOWNLOAD_FAILED
+
+
+def transient_label(exc: FreeRouteError) -> str | None:
+    """ "403", "429" or "connection reset" for a retryable failure. Login, private and bot-check
+    errors classify as PRIVATE_CONTENT and are never retried."""
+    if exc.code != ExitCode.DOWNLOAD_FAILED:
+        return None
+    return next((label for pattern, label in _TRANSIENT if pattern.search(exc.message)), None)
+
+
+def _retry_once(op: str, attempt: Callable[[], T], failed: list[ProviderCall] | None) -> T:
+    """Run attempt; after one transient failure, log it to failed, pause, and run it again."""
+    started = time.monotonic()
+    try:
+        return attempt()
+    except FreeRouteError as exc:
+        label = transient_label(exc)
+        if label is None:
+            raise
+        if failed is not None:
+            failed.append(call_log(f"yt-dlp.{op}", False, started, exc.first_line))
+        progress(f"retrying after a transient {label}")
+        time.sleep(RETRY_DELAY_S)
+        return attempt()
 
 
 def call_log(op: str, ok: bool, started: float, error: str | None = None) -> ProviderCall:
@@ -273,17 +308,28 @@ def _existing_download(work: WorkDir, info: dict[str, Any]) -> MediaInfo | None:
     return None
 
 
-def download(info: dict[str, Any], work: WorkDir, opts: IngestOptions) -> MediaInfo:
+def download(
+    info: dict[str, Any],
+    work: WorkDir,
+    opts: IngestOptions,
+    failed: list[ProviderCall] | None = None,
+) -> MediaInfo:
+    """Download the chosen format. A transient failure is retried once and logged to failed;
+    the caller logs the final attempt."""
     existing = _existing_download(work, info)
     if existing is not None:
         return existing
     spec = select_format(info, opts.max_height)
     params = ydl_params(work.path, opts, download=True) | {"format": spec}
-    try:
-        with yt_dlp.YoutubeDL(params) as ydl:  # pyright: ignore[reportArgumentType]
-            result = ydl.process_ie_result(dict(info), download=True)  # pyright: ignore[reportArgumentType]
-    except DownloadError as exc:
-        raise FreeRouteError("download", str(exc)) from exc
+
+    def attempt() -> dict[str, Any]:
+        try:
+            with yt_dlp.YoutubeDL(params) as ydl:  # pyright: ignore[reportArgumentType]
+                return ydl.process_ie_result(dict(info), download=True)  # pyright: ignore[reportArgumentType, reportReturnType]
+        except DownloadError as exc:
+            raise FreeRouteError("download", str(exc)) from exc
+
+    result = _retry_once("download", attempt, failed)
     downloads = (result or {}).get("requested_downloads") or []
     if not downloads or not downloads[0].get("filepath"):
         raise FreeRouteError("download", "yt-dlp reported no downloaded file")

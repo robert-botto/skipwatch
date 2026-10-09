@@ -206,7 +206,7 @@ def build_video_bundle(
     )
     started = time.monotonic()
     try:
-        media = content_free.download(info, work, opts)
+        media = content_free.download(info, work, opts, calls)
     except FreeRouteError as exc:
         calls.append(content_free.call_log("yt-dlp.download", False, started, exc.first_line))
         _raise_mapped(
