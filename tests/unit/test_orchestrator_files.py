@@ -789,6 +789,8 @@ def test_long_video_question_only_without_yes():
     text = flat(REFS / "run-protocol.md")
     assert "without `--yes`, ask once `Continue? [yes / cancel]`" in text
     assert "Under `--yes` do not ask" in text
+    # N1: an unknown estimate is said, not invented
+    assert "Long video: <mm:ss>, time unknown." in text
 
 
 def test_long_stages_avoid_the_bash_timeout():
