@@ -1,0 +1,179 @@
+import os
+import subprocess
+import wave
+from pathlib import Path
+
+import pytest
+
+from skipwatch.audio import (
+    audio_duration,
+    encode_mp3_chunks,
+    extract_audio,
+    leading_silence_s,
+    load_trimmed,
+    load_wav_float32,
+    media_has_audio,
+)
+from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo
+from tests.unit._media import needs_ffmpeg
+
+
+def make_av(path: Path, seconds: float, audio: bool = True) -> Path:
+    inputs = ["-f", "lavfi", "-i", f"testsrc=size=160x120:rate=5:duration={seconds}"]
+    if audio:
+        inputs += ["-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=44100:duration={seconds}"]
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", *inputs, "-pix_fmt", "yuv420p", "-shortest", str(path)],
+        check=True,
+    )
+    return path
+
+
+def work_for(tmp_path: Path, media_path: str, has_audio: bool = True):
+    from skipwatch.workdir import WorkDir
+
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    (w.path / "media").mkdir(exist_ok=True)
+    bundle = IngestBundle(
+        source=SourceInfo(kind="file", platform="local", path=media_path),
+        media=MediaInfo(path=media_path, has_audio=has_audio),
+        route=Route(context="local", media="local"),
+    )
+    return w, bundle
+
+
+@needs_ffmpeg
+def test_extract_audio_16k_mono(tmp_path):
+    video = make_av(tmp_path / "a.mp4", 2)
+    w, bundle = work_for(tmp_path, str(video))
+    wav = extract_audio(w, bundle)
+    assert wav == w.path / "media" / "audio-16k.wav"
+    with wave.open(str(wav)) as f:
+        assert f.getnchannels() == 1 and f.getframerate() == 16000 and f.getsampwidth() == 2
+        assert abs(f.getnframes() - 32000) < 1600
+    assert abs(audio_duration(wav) - 2.0) < 0.1
+
+
+@needs_ffmpeg
+def test_extract_audio_work_relative_media_path(tmp_path):
+    w, bundle = work_for(tmp_path, "media/clip.mp4")
+    make_av(w.path / "media" / "clip.mp4", 1)
+    assert extract_audio(w, bundle).exists()
+
+
+@needs_ffmpeg
+def test_extract_audio_is_reused(tmp_path):
+    video = make_av(tmp_path / "a.mp4", 1)
+    w, bundle = work_for(tmp_path, str(video))
+    wav = extract_audio(w, bundle)
+    before = wav.stat().st_mtime_ns
+    assert extract_audio(w, bundle) == wav
+    assert wav.stat().st_mtime_ns == before
+
+
+@needs_ffmpeg
+def test_extract_audio_redone_when_media_is_newer(tmp_path):
+    video = make_av(tmp_path / "a.mp4", 1)
+    w, bundle = work_for(tmp_path, str(video))
+    wav = extract_audio(w, bundle)
+    old = wav.stat().st_mtime_ns - 10_000_000_000
+    os.utime(wav, ns=(old, old))
+    extract_audio(w, bundle)
+    assert wav.stat().st_mtime_ns > old
+
+
+@needs_ffmpeg
+def test_no_audio_track_is_exit_7(tmp_path):
+    video = make_av(tmp_path / "mute.mp4", 1, audio=False)
+    w, bundle = work_for(tmp_path, str(video))
+    with pytest.raises(SkipwatchError) as e:
+        extract_audio(w, bundle)
+    assert e.value.code == ExitCode.NO_CONTENT and "no audio track" in e.value.message
+    assert not (w.path / "media" / "audio-16k.wav").exists()
+
+
+def test_no_media_is_exit_7(tmp_path):
+    w, bundle = work_for(tmp_path, "media/x.mp4")
+    with pytest.raises(SkipwatchError) as e:
+        extract_audio(w, bundle.model_copy(update={"media": None}))
+    assert e.value.code == ExitCode.NO_CONTENT
+
+
+def test_load_wav_float32_scales_int16(tmp_path):
+    pytest.importorskip("numpy")  # arrives with the whisper extras
+    wav = tmp_path / "s.wav"
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes((16384).to_bytes(2, "little", signed=True) * 3)
+        f.writeframes((-32768).to_bytes(2, "little", signed=True))
+    arr = load_wav_float32(wav)
+    assert str(arr.dtype) == "float32"
+    assert arr.tolist() == [0.5, 0.5, 0.5, -1.0]
+
+
+@needs_ffmpeg
+def test_mp3_chunks_offsets(tmp_path):
+    wav = tmp_path / "long.wav"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+         "sine=frequency=300:sample_rate=16000:duration=130", "-ac", "1", str(wav)],
+        check=True,
+    )  # fmt: skip
+    chunks = encode_mp3_chunks(wav, tmp_path / "chunks", chunk_s=60)
+    assert [offset for _, offset in chunks] == [0.0, 60.0, 120.0]
+    assert all(p.suffix == ".mp3" and p.stat().st_size > 0 for p, _ in chunks)
+    from skipwatch import media
+
+    last = media.probe(chunks[-1][0])
+    assert abs(float(last["format"]["duration"]) - 10.0) < 0.5
+
+
+def test_media_has_audio(tmp_path):
+    _, bundle = work_for(tmp_path, "media/x.mp4")
+    assert media_has_audio(bundle)
+    no_track = bundle.model_copy(update={"media": MediaInfo(path="m.mp4", has_audio=False)})
+    assert not media_has_audio(no_track)
+    assert not media_has_audio(bundle.model_copy(update={"media": None}))
+
+
+def tone_after(silence_s: float, tone_s: float = 1.0, amp: float = 0.5):
+    np = pytest.importorskip("numpy")
+    t = np.arange(int(16000 * tone_s), dtype=np.float32) / 16000
+    tone = (amp * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    return np.concatenate([np.zeros(int(16000 * silence_s), dtype=np.float32), tone])
+
+
+def test_leading_silence_is_trimmed_to_100_ms_before_sound():
+    assert leading_silence_s(tone_after(1.0)) == pytest.approx(0.9, abs=0.021)
+
+
+def test_no_leading_silence_and_all_silence_trim_nothing():
+    assert leading_silence_s(tone_after(0.0)) == 0.0
+    assert leading_silence_s(tone_after(2.0, amp=0.0)) == 0.0  # nothing loud: keep everything
+    assert leading_silence_s(tone_after(0.0)[:100]) == 0.0  # shorter than one frame
+
+
+def test_quiet_hum_below_minus_35_dbfs_counts_as_silence():
+    np = pytest.importorskip("numpy")
+    a = tone_after(1.0)
+    a[:16000] = 0.005  # about -46 dBFS
+    assert leading_silence_s(np.asarray(a)) == pytest.approx(0.9, abs=0.021)
+
+
+def test_load_trimmed_returns_the_offset_and_the_rest(tmp_path):
+    np = pytest.importorskip("numpy")
+    wav = tmp_path / "t.wav"
+    samples = (tone_after(1.0) * 32767).astype("<i2")
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(samples.tobytes())
+    arr, offset = load_trimmed(wav)
+    assert offset == pytest.approx(0.9, abs=0.021)
+    assert len(arr) == len(samples) - round(offset * 16000)
+    assert np.abs(arr).max() > 0.4

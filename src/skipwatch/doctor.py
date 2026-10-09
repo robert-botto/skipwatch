@@ -17,7 +17,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 from typing import Literal
@@ -26,6 +26,7 @@ import skipwatch
 from skipwatch import media
 from skipwatch.errors import SkipwatchError
 from skipwatch.models import DoctorComponent, DoctorMissing, DoctorReport, Tier
+from skipwatch.providers.whisper_common import DEFAULT_MODELS, MODEL_SIZES, hf_cached
 
 CLOUD_KEYS = ("OPENAI_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY")
 YTDLP_MAX_AGE_DAYS = 60
@@ -78,6 +79,8 @@ class Probe:
     mem0_key: bool = False
     uv_install: UvInstall = "standalone"
     macos: bool = False
+    whisper_model: str | None = None  # the model `auto` would load first
+    whisper_model_cached: bool = False
 
 
 def _version_output(exe: str) -> str | None:
@@ -152,7 +155,7 @@ def probe_machine() -> Probe:
     ffmpeg, source = _probe_ffmpeg()
     node = _version_output("node")
     uv_line = _version_output("uv")
-    return Probe(
+    probe = Probe(
         uv=_second_token(uv_line),
         python=platform.python_version(),
         ffmpeg=ffmpeg,
@@ -169,6 +172,19 @@ def probe_machine() -> Probe:
         uv_install=uv_install_kind(uv_line, _uv_path()),
         macos=sys.platform == "darwin",
     )
+    return with_whisper_model(probe)
+
+
+def with_whisper_model(p: Probe) -> Probe:
+    """Name the default Whisper model and whether it is cached: a folder check, never a
+    download (plan issue 12)."""
+    if p.whisper_mlx and p.apple_silicon:
+        name, repo = DEFAULT_MODELS["mlx"]
+    elif p.whisper_faster:
+        name, repo = DEFAULT_MODELS["faster"]
+    else:
+        return p
+    return replace(p, whisper_model=name, whisper_model_cached=hf_cached(repo))
 
 
 def _node_ok(version: str | None) -> bool:
@@ -333,6 +349,24 @@ def _ffmpeg_detail(p: Probe, plugin_root: str | None) -> str:
     return p.ffmpeg_source
 
 
+def _whisper_model_component(p: Probe) -> list[DoctorComponent]:
+    if p.whisper_model is None:
+        return []
+    detail = (
+        "cached"
+        if p.whisper_model_cached
+        else f"not downloaded, about {MODEL_SIZES[p.whisper_model]}"
+    )
+    return [
+        DoctorComponent(
+            name="whisper-model",
+            found=p.whisper_model_cached,
+            version=p.whisper_model,
+            detail=detail,
+        )
+    ]
+
+
 def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
     return [
         DoctorComponent(name="uv", found=p.uv is not None, version=p.uv),
@@ -353,6 +387,7 @@ def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
         DoctorComponent(name="deno", found=p.deno is not None, version=p.deno),
         DoctorComponent(name="whisper-mlx", found=p.whisper_mlx),
         DoctorComponent(name="whisper-faster", found=p.whisper_faster),
+        *_whisper_model_component(p),
         DoctorComponent(name="apple-silicon", found=p.apple_silicon),
         DoctorComponent(
             name="cloud-keys", found=bool(p.cloud_keys), detail=", ".join(p.cloud_keys)
