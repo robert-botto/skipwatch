@@ -1753,7 +1753,7 @@ Note: the action major versions (`checkout@v4`, `setup-uv@v6`, `setup-node@v4`) 
 | 3 | marketplace add + install works | `export CLAUDE_CONFIG_DIR=$(mktemp -d) && claude plugin marketplace add "$PWD" && claude plugin install skipwatch@skipwatch` | `✔ Successfully added marketplace: skipwatch` and `✔ Successfully installed plugin: skipwatch@skipwatch (scope: user)` |
 | 4 | `claude plugin details` lists 1 skill, 3 agents | same shell as 3: `claude plugin details skipwatch` | contains `Skills (1)  skipwatch` and `Agents (3)` (agent names `frame-reader`, `skill-critic`, `skill-tester`) |
 | 5 | `/skipwatch doctor` prints the tier table | `unset CLAUDE_CONFIG_DIR; claude -p --plugin-dir "$PWD" --allowedTools "Bash" "/skipwatch:skipwatch doctor" < /dev/null` (needs the normal logged-in config; `--plugin-dir` loads without installing) | output contains a line starting `Tier ` and the tier rows from 3.3 |
-| 6 | eval doctor and no-trigger (optional at M0, required at M1) | `claude plugin eval . --trust-plugin --case 'doctor' --case 'no-trigger' --runs 1 --no-publish --threshold 0.8 --max-cost-usd 2 --json evals/results/m0.json < /dev/null` | exit 0 |
+| 6 | eval doctor and no-trigger (optional at M0, required at M1) | `claude plugin eval . --trust-plugin --allow-tools 'Bash(uv run:*)' --case 'doctor' --case 'no-trigger*' --runs 1 --no-publish --threshold 0.8 --max-cost-usd 2 --json evals/results/m0.json < /dev/null` | exit 0 |
 
 Clean up after 3 and 4: `rm -rf "$CLAUDE_CONFIG_DIR"`.
 
@@ -2767,7 +2767,7 @@ def test_check_redacts_and_install_succeeds(work, tmp_path, monkeypatch):
 | 3 | unit suite, lint, types, schemas, versions | `bash scripts/ci_local.sh` | `CI-LOCAL: OK` |
 | 4 | `/skipwatch tests/fixtures/tutorial-60s.mp4` produces an installed skill with at least 5 tagged steps | `D=$(mktemp -d) && claude -p --plugin-dir "$PWD" --allowedTools "Bash,Read,Write,Agent" "/skipwatch:skipwatch $PWD/tests/fixtures/tutorial-60s.mp4 --yes --to $D --name run-skipdemo-tutorial" < /dev/null; grep -Eo '\[(spoken\|on-screen) [0-9]+:[0-9]{2}\]\|\[written\]\|\[inferred\]' "$D/run-skipdemo-tutorial/SKILL.md" \| wc -l` (unescape the pipes when running; they are escaped for the table) | `SKILL.md` and `skipwatch.json` exist in `$D/run-skipdemo-tutorial/`; count is 5 or more; `grep -c sk-proj-FIXTURE "$D"/run-skipdemo-tutorial/SKILL.md` prints `0` |
 | 5 | eval `local-fixture` passes (also 11.2 Claude half) | `uv sync && claude plugin eval . --trust-plugin --scaffold --case local-fixture --runs 1 --threshold 0.8 --no-publish --max-cost-usd 20 --json evals/results/latest.json < /dev/null; echo $?` | `0` |
-| 6 | M0 evals still pass | `claude plugin eval . --trust-plugin --case doctor --case no-trigger --runs 1 --threshold 0.8 --no-publish --max-cost-usd 4 < /dev/null; echo $?` | `0` |
+| 6 | M0 evals still pass | `claude plugin eval . --trust-plugin --allow-tools 'Bash(uv run:*)' --case doctor --case 'no-trigger*' --runs 1 --threshold 0.8 --no-publish --max-cost-usd 4 < /dev/null; echo $?` | `0` |
 
 Item 4 runs in the verifier's real Claude Code config (logged in) but installs only into `$D`; nothing lands in `~/.claude/skills`. Items 5 and 6 spend real money (budget-capped); the orchestrator approves the spend before running them.
 
