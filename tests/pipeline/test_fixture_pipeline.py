@@ -240,7 +240,6 @@ def _sha256_files(skill_dir: Path) -> dict[str, str]:
     }
 
 
-@pytest.mark.xfail(strict=False, reason="M1-E pending")
 def test_f_install_writes_matching_hashes_and_refuses_a_second_time(
     checked: subprocess.CompletedProcess, staging: Path, root: Path, engine: Engine
 ):
