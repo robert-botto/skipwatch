@@ -5,8 +5,10 @@ bundle and supply media when the free route fails.
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
+from skipwatch import runcache
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.adapters.registry import adapter_for
 from skipwatch.config import load_config
@@ -68,7 +70,16 @@ def _media_fallback(
     )
 
 
-def _build(detected: Detected, work: WorkDir, opts: IngestOptions, cfg: Config) -> IngestBundle:
+CacheLookup = Callable[[IngestBundle, list[ContentProvider]], IngestBundle | None]
+
+
+def _build(
+    detected: Detected,
+    work: WorkDir,
+    opts: IngestOptions,
+    cfg: Config,
+    cached: CacheLookup | None = None,
+) -> IngestBundle:
     adapter = adapter_for(detected.platform)
     if adapter is None:
         raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"no adapter for {detected.platform}")
@@ -85,6 +96,11 @@ def _build(detected: Detected, work: WorkDir, opts: IngestOptions, cfg: Config) 
         bundle = text.build(detected, work, opts)
     except DownloadFailed as exc:
         bundle = _media_fallback(detected, work, opts, providers, exc)
+    # R-TR-3: a fresh cached ingest replaces enrichment (treg is never billed twice); media
+    # above was still fetched, frames need it.
+    hit = cached(bundle, providers) if cached is not None else None
+    if hit is not None:
+        return hit
     for provider in providers:
         bundle = provider.enrich(bundle, work, opts)
     return bundle
@@ -112,6 +128,10 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
     write_model(work.file("ingest.json"), bundle)
 
 
+def _cache_lookup(bundle: IngestBundle, providers: list[ContentProvider]) -> IngestBundle | None:
+    return runcache.cached_ingest(bundle, [p.name for p in providers])
+
+
 def run_ingest(
     value: str,
     work: WorkDir,
@@ -123,8 +143,10 @@ def run_ingest(
     detected = run_stage(work, "detect", lambda: detect(value, cwd))
 
     def body() -> IngestBundle:
-        bundle = _build(detected, work, opts, cfg or load_config())
+        bundle = _build(detected, work, opts, cfg or load_config(), _cache_lookup)
         _write(work, bundle)
+        if not bundle.from_cache:
+            runcache.remember(bundle.source, "ingest.json", work.file("ingest.json"))
         return bundle
 
     return run_stage(work, "ingest", body)
