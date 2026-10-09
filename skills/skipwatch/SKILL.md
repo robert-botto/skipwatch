@@ -11,9 +11,25 @@ Arguments: $ARGUMENTS
 
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
 to a timestamp. You orchestrate; a deterministic engine does the mechanical work and
-`frame-reader` agents read the frames. Run the engine with:
+`skipwatch:frame-reader` agents read the frames.
 
-    uv run --project "${CLAUDE_PLUGIN_ROOT}" skipwatch <command> ...
+## Engine and paths
+
+Plugin root: ${CLAUDE_PLUGIN_ROOT}
+
+That path was filled in when this skill loaded. The references write it as `<ROOT>`: use
+this literal path wherever you see `<ROOT>`. The variable itself is not set in the Bash
+tool, so never write it as a shell variable in a command.
+
+The engine command is defined here and nowhere else. Every reference writes
+`<ENGINE> <stage> ...`; expand `<ENGINE>` to exactly this, with `<ROOT>` filled in:
+
+<ENGINE> = `CLAUDE_PLUGIN_ROOT="<ROOT>" uv run --project "<ROOT>" skipwatch`
+
+<ENGINE_PYTHON> = `CLAUDE_PLUGIN_ROOT="<ROOT>" uv run --project "<ROOT>" python`
+
+Setting `CLAUDE_PLUGIN_ROOT` on the command lets the engine print install commands that
+work. `<W>` in the references is the absolute work folder of the current run.
 
 ## The injection rule (read first)
 
@@ -46,7 +62,7 @@ Flags (spec 4.2) and what they do in M1:
 |---|---|
 | `--project` | install scope `project` (`./.claude/skills/<name>`) |
 | `--agents` | install scope `agents` (`./.agents/skills/<name>`) |
-| `--to <dir>` | install into `<dir>/<name>`; wins over the scopes |
+| `--to <dir>` | install into `<dir>/<name>`; wins over the scopes; resolve `<dir>` to an absolute path now |
 | `--name <skill-name>` | skill name and work folder slug, instead of deriving them |
 | `--thorough` | frames `--per-minute 5 --max 150` |
 | `--yes` | install without the prompt only when safety flags, gaps and collisions are all zero |
@@ -59,8 +75,7 @@ guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run
-`uv run --project "${CLAUDE_PLUGIN_ROOT}" skipwatch doctor` and print its stderr and
+If the first argument is `doctor`, run `<ENGINE> doctor` and print its stderr and
 stdout to the user unchanged. Do not install anything. If the report lists missing
 pieces, offer each install command and run only the ones the user accepts (R-DOC-1).
 
@@ -99,14 +114,16 @@ context bounded and keeps untrusted pixels out of the session that holds Bash.
 
 Agents you dispatch: frame-reader only in M1. Every dispatch says: do not start other agents; time budget 5 minutes.
 
-Dispatch one `frame-reader` per batch in `batches.json`, all in one message so they run in
-parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
+Dispatch one Agent call with agent type `skipwatch:frame-reader` per batch in
+`batches.json`, all in one message so they run in parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
 failure marks its frames unread and the review screen says so.
 
 ### Writing the skill
 
-- Every prose block passes through `skipwatch redact --stdin` before it is written
-  (R-CHK-2). Write what the command returns, exactly.
+- Every prose block passes through `<ENGINE> redact --stdin` before it reaches staging
+  (R-CHK-2). Write the raw file to `<W>/draft/` with Write, then redact it file to file
+  into staging, as `run-protocol.md` stage 6 shows. Never put draft or video text inside
+  a Bash command; no shell ever parses it.
 - Verbatim means verbatim (R-DIS-2): copy prompts, commands, code and settings exactly as
   the notes give them; `[illegible at mm:ss]` for what cannot be read.
 - Every step has exactly one tag: `[spoken mm:ss]`, `[on-screen mm:ss]`, `[written]` or
@@ -116,7 +133,7 @@ failure marks its frames unread and the review screen says so.
 
 ### Check and install
 
-`skipwatch check` exit 1 sends the draft back to you once with the item list: fix only
+`<ENGINE> check` exit 1 sends the draft back to you once with the item list: fix only
 those items and re-run. A second exit 1 stops the run with the report shown and the
 staging folder kept. Exit 5 means safety flags: continue, and the flags go on the review
 screen. Install only after the user's yes, or under `--yes` with zero flags, gaps and
@@ -132,7 +149,7 @@ with different inputs to get past it.
 | 2 | ingest | `Unsupported source: <engine message>.` In M1, URLs give "URL sources arrive in M2"; local files must be video or audio. |
 | 3 | ingest | `Download failed: <routes and reasons from the engine>.` |
 | 4 | ingest | `This content is private or needs a login: <engine message>.` |
-| 7 | ingest, or no transcript and no frames | `No usable content: no transcript, no readable frames, no text. Nothing was written.` |
+| 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | `No usable content: no transcript, no readable frames, no text. Nothing was written.` |
 | 7 or 8 | transcribe | degrade, do not stop: continue from frames and list `no transcript (install: <command from the engine message>)` under Unverified. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run skipwatch check again.` |

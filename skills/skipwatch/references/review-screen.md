@@ -30,7 +30,7 @@ Skill ready for review: run-skipdemo-tutorial
   Provider calls: none (free route)
   Draft: /Users/me/.skipwatch/work/tutorial-60s-20261009-142211/staging/run-skipdemo-tutorial/
 
-Install to ./installed/run-skipdemo-tutorial? [yes / show draft / test it / rename / cancel]
+Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / test it / rename / cancel]
 ```
 
 ## Where each line comes from
@@ -53,6 +53,7 @@ Install to ./installed/run-skipdemo-tutorial? [yes / show draft / test it / rena
 - **Provider calls:** `W/calls.json`. Empty means `none (free route)`; otherwise list each
   as `<provider> <op> ($<cost>)` with the total.
 - **Draft:** `W/staging/<name>/`.
+- **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 
 ## The prompt line
 
@@ -68,10 +69,11 @@ Install to ./installed/run-skipdemo-tutorial? [yes / show draft / test it / rena
 - **yes / replace:** run install (stage 9 of `run-protocol.md`); add `--force` only for
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
-- **show draft:** print `W/staging/<name>/SKILL.md`, then the prompt line again.
+- **show draft:** print `W/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
 - **test it:** print `Test runs arrive in M5` and re-show the prompt.
 - **rename:** ask for the new name, check it against the naming rule in
-  `distill-rules.md`, rename the staging folder, set `name:` in SKILL.md, re-run check,
+  `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
+  staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
   then show the whole screen again with the new target.
 - **cancel:** print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
   installed and `W` is kept.

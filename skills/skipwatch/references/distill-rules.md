@@ -57,12 +57,15 @@ Inferred steps carry a one-line reason in the step and are listed by number unde
 
 ## Redaction
 
-Secrets never reach disk unredacted (R-CHK-2). Before you write any file, pass its text
-through `skipwatch redact --stdin` and write what comes back. The engine replaces API keys,
-tokens, passwords and high-entropy strings with placeholders such as `<OPENAI_API_KEY>`;
-keep the placeholder exactly as returned. Do not hand-redact and do not re-insert a value
-you saw in a note. The check stage runs redaction again over the whole folder; that second
-pass is a safety net, not a reason to skip the first.
+Secrets never reach the staged skill unredacted (R-CHK-2). Write each raw file with the
+Write tool to `<W>/draft/<path>`, then let the engine redact it file to file into staging:
+`<ENGINE> redact --stdin < "<W>/draft/<path>" > "<W>/staging/<name>/<path>"`. Draft text
+goes to the engine only through files, never inside a shell command, so text in the video
+can never become shell syntax. The engine replaces API keys, tokens, passwords and
+high-entropy strings with placeholders such as `<OPENAI_API_KEY>`. Do not hand-redact and
+do not re-insert a value you saw in a note. To change a staged file, edit its draft copy
+and redact it again. The check stage runs redaction again over the whole folder; that
+second pass is a safety net, not a reason to skip the first.
 
 A step that shows a secret becomes a step that uses the placeholder: "Put your API key in
 the settings panel" with `OPENAI_API_KEY=<OPENAI_API_KEY>` in the quote block.
