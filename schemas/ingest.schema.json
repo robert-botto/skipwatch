@@ -1,0 +1,428 @@
+{
+  "$defs": {
+    "IngestContext": {
+      "additionalProperties": false,
+      "properties": {
+        "author_replies": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Author Replies",
+          "type": "array"
+        },
+        "captions_available": {
+          "default": false,
+          "title": "Captions Available",
+          "type": "boolean"
+        },
+        "captions_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Path"
+        },
+        "links": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LinkContext"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "post_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Text"
+        },
+        "thread": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Thread",
+          "type": "array"
+        }
+      },
+      "title": "IngestContext",
+      "type": "object"
+    },
+    "LinkContext": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "default": "",
+          "maxLength": 20000,
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "LinkContext",
+      "type": "object"
+    },
+    "MediaInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fps"
+        },
+        "has_audio": {
+          "default": false,
+          "title": "Has Audio",
+          "type": "boolean"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "MediaInfo",
+      "type": "object"
+    },
+    "ProviderCall": {
+      "additionalProperties": false,
+      "properties": {
+        "cost_usd": {
+          "default": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "ms": {
+          "default": 0,
+          "title": "Ms",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "op",
+        "ok"
+      ],
+      "title": "ProviderCall",
+      "type": "object"
+    },
+    "Route": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "title": "Context",
+          "type": "string"
+        },
+        "fallbacks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallbacks",
+          "type": "array"
+        },
+        "media": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media"
+        }
+      },
+      "required": [
+        "context"
+      ],
+      "title": "Route",
+      "type": "object"
+    },
+    "SourceInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "author_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Name"
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Url"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "kind": {
+          "enum": [
+            "video",
+            "audio",
+            "text",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "posted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Posted At"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "kind",
+        "platform"
+      ],
+      "title": "SourceInfo",
+      "type": "object"
+    },
+    "TranscriptHint": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "default": "none",
+          "title": "Origin",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "title": "TranscriptHint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "context": {
+      "$ref": "#/$defs/IngestContext",
+      "default": {
+        "author_replies": [],
+        "captions_available": false,
+        "captions_path": null,
+        "links": [],
+        "post_text": null,
+        "thread": []
+      }
+    },
+    "fetched_with_cookies": {
+      "default": false,
+      "title": "Fetched With Cookies",
+      "type": "boolean"
+    },
+    "media": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "provider_calls": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProviderCall"
+      },
+      "title": "Provider Calls",
+      "type": "array"
+    },
+    "route": {
+      "$ref": "#/$defs/Route"
+    },
+    "schema": {
+      "const": "skipwatch/ingest/1",
+      "default": "skipwatch/ingest/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceInfo"
+    },
+    "transcript_hint": {
+      "$ref": "#/$defs/TranscriptHint",
+      "default": {
+        "origin": "none",
+        "text": null
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "source",
+    "route"
+  ],
+  "title": "IngestBundle",
+  "type": "object"
+}

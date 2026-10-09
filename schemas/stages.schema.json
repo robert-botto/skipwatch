@@ -1,0 +1,96 @@
+{
+  "$defs": {
+    "StageState": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "StageState",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "skipwatch/stages/1",
+      "default": "skipwatch/stages/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "stages": {
+      "additionalProperties": {
+        "$ref": "#/$defs/StageState"
+      },
+      "propertyNames": {
+        "enum": [
+          "detect",
+          "ingest",
+          "transcribe",
+          "frames",
+          "plan",
+          "read",
+          "distill",
+          "critique",
+          "check",
+          "review",
+          "install",
+          "export"
+        ]
+      },
+      "title": "Stages",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "stages"
+  ],
+  "title": "StagesFile",
+  "type": "object"
+}

@@ -377,6 +377,7 @@ All commands: human-readable progress on stderr; machine output on stdout only w
 | 7 | No usable content: no transcript, no readable frames, no text |
 | 8 | Missing dependency for the requested backend; stderr names the install command |
 | 9 | Pack integrity failure: checksum or manifest mismatch |
+| 64 | Usage error (unknown command or flag) |
 
 ```
 skipwatch doctor [--json]

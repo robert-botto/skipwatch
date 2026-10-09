@@ -1077,7 +1077,7 @@ def test_write_model_is_deterministic(tmp_path):
 # src/skipwatch/commands/<name>.py
 import typer
 
-from skipwatch.cli import run_command  # imported lazily inside the function if a cycle appears
+from skipwatch.runner import run_command  # never from skipwatch.cli (test_commands_import_runner_not_cli)
 
 
 def register(app: typer.Typer) -> None:
@@ -1086,7 +1086,7 @@ def register(app: typer.Typer) -> None:
         run_command(lambda: _impl(json_out))
 ```
 
-Import cycle note: `cli.py` imports command modules at import time, and command modules import `run_command` from `cli`. Put `run_command` in `skipwatch/errors.py`'s neighbour `skipwatch/runner.py` if pyright or Python reports a cycle; M0-A owns that file too. Decide once in this task and keep the import path in the interface list.
+Import path (decided in M0-A): `run_command` lives in `skipwatch/runner.py`. `cli.py` imports every command module at import time, so a command module that imported `skipwatch.cli` and was itself imported first would have its `register()` silently skipped. Command modules import `from skipwatch.runner import run_command`; `test_commands_import_runner_not_cli` enforces it. Usage errors (unknown command or flag, no command) exit 64.
 
 - [ ] **Step 1: Write failing tests**
 

@@ -1,0 +1,68 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "canonical_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Canonical Url"
+    },
+    "kind": {
+      "enum": [
+        "video",
+        "audio",
+        "text",
+        "file"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Path"
+    },
+    "platform": {
+      "title": "Platform",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/source/1",
+      "default": "skipwatch/source/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    }
+  },
+  "required": [
+    "schema",
+    "kind",
+    "platform"
+  ],
+  "title": "SourceFile",
+  "type": "object"
+}
