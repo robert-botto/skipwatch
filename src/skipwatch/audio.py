@@ -16,7 +16,7 @@ from skipwatch.models import IngestBundle
 from skipwatch.workdir import WorkDir
 
 if TYPE_CHECKING:
-    import numpy
+    import numpy  # pyright: ignore[reportMissingImports]
 
 AUDIO_NAME = "audio-16k.wav"
 SAMPLE_RATE = 16000
@@ -64,7 +64,7 @@ def audio_duration(wav: Path) -> float:
 
 
 def load_wav_float32(path: Path) -> "numpy.ndarray":
-    import numpy as np
+    import numpy as np  # pyright: ignore[reportMissingImports]
 
     with wave.open(str(path)) as f:
         frames = f.readframes(f.getnframes())

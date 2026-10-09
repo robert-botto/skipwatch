@@ -94,6 +94,7 @@ def test_no_media_is_exit_7(tmp_path):
 
 
 def test_load_wav_float32_scales_int16(tmp_path):
+    pytest.importorskip("numpy")  # arrives with the whisper extras
     wav = tmp_path / "s.wav"
     with wave.open(str(wav), "wb") as f:
         f.setnchannels(1)
