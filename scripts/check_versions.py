@@ -17,6 +17,8 @@ def collect_versions(root: Path) -> dict[str, str]:
     market = json.loads((root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
     for entry in market["plugins"]:
         versions[f"marketplace.json plugins[{entry['name']}]"] = entry["version"]
+    if not any(entry["name"] == "skipwatch" for entry in market["plugins"]):
+        versions["marketplace.json plugins[skipwatch]"] = "missing"
     init = (root / "src/skipwatch/__init__.py").read_text(encoding="utf-8")
     match = re.search(r'__version__ = "([^"]+)"', init)
     versions["skipwatch.__version__"] = match.group(1) if match else "missing"
