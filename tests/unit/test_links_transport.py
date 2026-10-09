@@ -309,3 +309,35 @@ def test_post_budget_holds_against_three_header_trickles(trickle, short_deadline
     assert links.fetch_urls(urls, calls) == []
     assert time.monotonic() - started < 3
     assert "budget" in (calls[-1].error or "")
+
+
+def test_every_pinned_adapter_is_closed(server, loopback, monkeypatch):
+    """Each request's adapter and its pool are closed: on success, on a redirect hop, on a
+    HEAD, on an error status and on a skipped content type."""
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    answers["docs.test"] = ["127.0.0.1"]
+    port = server.server_address[1]
+    server.routes["/hop"] = (302, {"Location": "/readme"}, b"")
+    server.routes["/gone"] = (404, {"Content-Type": "text/plain"}, b"no")
+    server.routes["/img"] = (200, {"Content-Type": "image/png"}, b"\x89PNG")
+    opened, closed = [], []
+    real_init, real_close = links._PinnedAdapter.__init__, links._PinnedAdapter.close
+
+    def init(self, *args, **kwargs):
+        opened.append(self)
+        real_init(self, *args, **kwargs)
+
+    def close(self):
+        closed.append(self)
+        real_close(self)
+
+    monkeypatch.setattr(links._PinnedAdapter, "__init__", init)
+    monkeypatch.setattr(links._PinnedAdapter, "close", close)
+    base = f"http://docs.test:{port}"
+    assert links.fetch_link(f"{base}/hop") is not None
+    assert links.resolve(f"{base}/hop") == f"{base}/readme"
+    assert links.fetch_link(f"{base}/gone") is None
+    assert links.fetch_link(f"{base}/img") is None
+    assert len(opened) == 5
+    assert {id(a) for a in opened} <= {id(a) for a in closed}

@@ -288,6 +288,8 @@ def _send(method: str, url: str, address: str, deadline: float) -> requests.Resp
 
 
 def _close(response: requests.Response) -> None:
+    """Close the response and its per-request _PinnedAdapter with its pool: requests sets
+    response.connection to the adapter that sent it."""
     response.close()
     connection = getattr(response, "connection", None)
     if connection is not None:
