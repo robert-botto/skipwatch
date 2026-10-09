@@ -19,6 +19,12 @@ step uv run pyright
 step uv run python scripts/export_schemas.py --check
 step uv run python scripts/check_versions.py
 step uv run pytest -m "not pipeline" --cov --cov-report=term --cov-fail-under=85
+# The pipeline job, when this machine has ffmpeg (no static-ffmpeg download here).
+if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+  step uv run pytest -m pipeline -v
+else
+  echo "ffmpeg not found; skipping pipeline tests" >&2
+fi
 if command -v claude >/dev/null 2>&1; then
   step claude plugin validate --strict .
   step claude plugin validate --strict .claude-plugin/plugin.json
