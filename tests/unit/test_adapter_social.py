@@ -328,6 +328,10 @@ def test_platform_registers_itself(platform):
         ("https://www.tiktok.com/@github/video/7624273546776153377", "tiktok"),
         ("https://vm.tiktok.com/ZMabc123/", "tiktok"),
         ("https://vt.tiktok.com/ZSabc123/", "tiktok"),
+        ("https://m.tiktok.com/v/7624273546776153377.html", "tiktok"),
+        # lookalike hosts are not the platform
+        ("https://tiktok.com.example/@github/video/1", "generic"),
+        ("https://www.ddinstagram.com/reel/Dd-rJlkE_Z5/", "generic"),
         ("https://www.facebook.com/watch/?v=10154383743583686", "facebook"),
         ("https://www.facebook.com/reel/1234567890", "facebook"),
         ("https://www.facebook.com/gov.sg/videos/10154383743583686/", "facebook"),
