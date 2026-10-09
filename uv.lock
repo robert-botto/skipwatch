@@ -1827,10 +1827,10 @@ requires-dist = [
     { name = "faster-whisper", marker = "extra == 'whisper'", specifier = ">=1.1" },
     { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'mlx'", specifier = ">=0.4" },
     { name = "pillow", specifier = ">=12.0" },
-    { name = "pydantic", specifier = ">=2.14" },
+    { name = "pydantic", specifier = ">=2.14,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "static-ffmpeg", specifier = ">=3.0" },
-    { name = "typer", specifier = ">=0.27" },
+    { name = "typer", specifier = ">=0.27,<0.28" },
     { name = "yt-dlp", specifier = ">=2026.8.19" },
 ]
 provides-extras = ["whisper", "mlx", "cloud", "treg", "mem0"]

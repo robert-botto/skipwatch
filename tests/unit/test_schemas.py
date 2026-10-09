@@ -50,3 +50,8 @@ def test_export_schemas_write_removes_orphans(tmp_path):
     assert _export("--out", str(out)).returncode == 0
     assert not (out / "retired.schema.json").exists()
     assert _export("--check", "--out", str(out)).returncode == 0
+
+
+def test_committed_schemas_are_fresh():
+    r = _export("--check", "--out", str(ROOT / "schemas"))
+    assert r.returncode == 0, r.stdout
