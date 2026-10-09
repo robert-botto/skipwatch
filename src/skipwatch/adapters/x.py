@@ -18,7 +18,12 @@ import time
 from urllib.parse import urlsplit
 
 from skipwatch.adapters.base import IngestOptions
-from skipwatch.adapters.ytdlp_common import _posted_at, author_of, build_video_bundle
+from skipwatch.adapters.ytdlp_common import (
+    _posted_at,
+    author_name_of,
+    author_of,
+    build_video_bundle,
+)
 from skipwatch.detect import Detected, platform_for_host
 from skipwatch.models import IngestBundle, LinkContext, ProviderCall
 from skipwatch.providers import content_free, links
@@ -85,8 +90,8 @@ def _credit_linked_post(
         update={
             "url": url,
             "canonical_url": url,
-            "author": author_of(info),
-            "author_name": info.get("uploader"),
+            "author": author_of(info, "x"),
+            "author_name": author_name_of(info, "x"),
             "title": info.get("title"),
             "posted_at": _posted_at(info),
         }

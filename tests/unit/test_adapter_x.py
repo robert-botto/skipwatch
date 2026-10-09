@@ -236,3 +236,21 @@ def test_x_login_error_names_x(tmp_path, free_route, sw_home):
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "X says this needs a login" in r.output
+
+
+def test_x_author_is_the_handle_never_the_display_name(tmp_path, free_route):
+    """AUTHOR_FIELDS["x"]: uploader_id is the handle, uploader the display name. With no handle
+    the author stays empty rather than passing the display name off as an @handle."""
+    info = recorded("g2-deep-partials")
+    del info["uploader_id"]
+    free_route({G2_URL: info})
+    bundle = build(G2_URL, tmp_path / "w")
+    assert bundle.source.author is None and bundle.source.author_name == "Matt Pocock"
+
+
+def test_x_linked_post_author_uses_the_x_fields(tmp_path, free_route):
+    reply = recorded("link-to-video-post")
+    linked = linked_post_info() | {"uploader_id": None, "uploader": "Someone Else"}
+    free_route({LINKING_URL: reply, LINKED_URL: linked})
+    bundle = build(LINKING_URL, tmp_path / "w")
+    assert bundle.source.author is None and bundle.source.author_name == "Someone Else"
