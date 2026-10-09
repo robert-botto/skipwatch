@@ -192,6 +192,7 @@ REVIEW_LINES = [  # (prefix, full pattern for the filled-in example), in 4.3 ord
         r"  Steps: \d+ \(\d+ spoken, \d+ on-screen, \d+ written, \d+ inferred\), \d+ gaps",
     ),
     ("  Unverified: ", r"  Unverified: .+"),
+    ("  Unread frames: ", r"  Unread frames: (none|f\d+(, f\d+)* \(.+\))"),
     ("  Safety flags: ", r"  Safety flags: .+"),
     ("  Confidence: ", r"  Confidence: (high|medium \(.+\)|low \(.+\))"),
     ("  Source: ", r'  Source: ".+" by .+, .+'),
@@ -955,3 +956,17 @@ def test_redispatch_only_the_missing_frames_and_merge():
     assert "Never re-dispatch the whole batch for a few missing frames" in text
     assert "re-dispatch the whole batch once with the same prompt" in text
     assert "A missing or malformed file gets re-dispatched once, with the same prompt." not in text
+
+
+def test_unread_frames_are_reported_not_counted_as_gaps():
+    # spec 15: unread frames are said on the review screen; they are not gaps (G1 run)
+    review = flat(REFS / "review-screen.md")
+    assert "**Unread frames:**" in review
+    assert "`none` when every frame was read" in review
+    assert "Unread frames are not gaps" in review
+    assert "Unread frames never block `--yes`" in review
+    assert "each unread frame range" not in review  # no longer under Unverified
+    text = flat(REFS / "run-protocol.md")
+    assert "Unread frames are not gaps" in text
+    assert "never write a `GAP:` line for a frame that is only unread" in text
+    assert "unread frames do not count" in text  # the --yes gate in stage 8
