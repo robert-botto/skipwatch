@@ -44,7 +44,7 @@ jobs:
       - run: uv run pyright
       - run: uv run python scripts/export_schemas.py --check
       - run: uv run python scripts/check_versions.py
-      - run: uv run pytest -m "not pipeline" --cov --cov-report=term --cov-fail-under=85
+      - run: uv run pytest -m "not pipeline and not live" --cov --cov-report=term --cov-fail-under=85
 
   # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
   pipeline:
