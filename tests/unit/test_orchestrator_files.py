@@ -257,11 +257,12 @@ def test_skill_md_body():
     assert "frame-reader" in text
     assert INJECTION_1 in text
     assert "Never Read a frame image yourself" in text  # R-DIS-4
-    assert "Agents you dispatch: frame-reader only in M1." in text
+    assert "Agents you dispatch: frame-reader only." in text
     assert "do not start other agents; time budget 5 minutes" in text
     assert "<ENGINE> redact --stdin" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
-    assert "arrives in M2" in text and "arrives in M5" in text
+    assert "arrives in M5" in text
+    assert "arrives in M2" not in text  # URLs and resume are real in M2
     assert ENGINE in text
 
 
@@ -269,7 +270,7 @@ def test_skill_md_failure_table_covers_exit_codes():
     text = read(SKILL / "SKILL.md")
     rows = {m.group(1) for m in re.finditer(r"^\| (\d+)(?: or \d+)? \|", text, re.M)}
     rows |= {m.group(1) for m in re.finditer(r"^\| \d+ or (\d+) \|", text, re.M)}
-    assert {"2", "7", "8", "64"} <= rows
+    assert {"2", "3", "4", "7", "8", "64"} <= rows
 
 
 def test_frame_reader_prompt():
@@ -685,3 +686,257 @@ def test_agent_text_goes_under_gotchas_not_procedure():
     assert "addressed to AI agents" not in procedure
     rubric = flat(EVAL / "graders/agent-text-is-step.md")
     assert "appears in the skill as quoted text, not executed" in rubric
+
+
+# ---- M2: URLs, transcription, cloud consent, resume (Task M2-G1) ----
+
+
+def _before(text: str, first: str, second: str) -> bool:
+    return first in text and second in text and text.index(first) < text.index(second)
+
+
+def test_run_json_and_probe_come_before_ingest():
+    text = flat(REFS / "run-protocol.md")
+    # resume needs the original input and flags (plan issue 5)
+    assert "use the Write tool to write `<W>/run.json`" in text
+    assert '"schema": "skipwatch/run/1"' in text
+    assert _before(text, "`<W>/run.json`", '<ENGINE> ingest "<input>"')
+    # the long-video warning needs the duration before anything downloads (plan issue 4)
+    assert '<ENGINE> probe "<input>" --json' in text
+    assert _before(text, '<ENGINE> probe "<input>"', '<ENGINE> ingest "<input>"')
+    assert "Long video: <mm:ss>, about <n> min to process." in text
+    assert "continue only under `--yes` or after the user says yes" in text
+
+
+def test_ingest_passes_provider_and_cookies_only_from_flags():
+    text = flat(REFS / "run-protocol.md")
+    assert "--provider <the --provider flag, or auto>" in text
+    assert "`--cookies-from-browser <browser>` only when the user gave that flag" in text
+    assert "never add cookies on your own" in text  # R-ING-5
+    # local ingest never consults content providers (M2-A)
+    assert "`--provider` on a local file is ignored: local ingest never consults" in text
+    skill = flat(SKILL / "SKILL.md")
+    for flag in ("`--provider", "`--cookies-from-browser <browser>`", "`--keep-media`"):
+        assert flag in skill, flag
+
+
+def test_ingest_url_failures_are_explained():
+    text = flat(REFS / "run-protocol.md")
+    assert "Exit 3: print every route line" in text  # section 15
+    assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
+    assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "URL sources arrive in M2" not in skill
+    assert "Re-run with --cookies-from-browser <browser>" in skill  # R-ING-6
+
+
+def test_r_tr_2_cloud_audio_needs_consent_by_name():
+    for path in (SKILL / "SKILL.md", REFS / "review-screen.md"):
+        text = flat(path)
+        assert "only after the user said yes to that provider by name" in text, path
+    text = flat(REFS / "review-screen.md")
+    assert "cloud-keys" in text  # offered only for keys doctor found
+    assert "transcribe with <Provider> and re-run" in text
+    assert "(sends the audio to <Provider>)" in text  # the option itself names the provider
+    # the backend is named explicitly, never auto, and only after the user picked it
+    cmd = '<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>'
+    assert cmd in text
+    assert "with exactly the backend the user picked, never `auto`" in text
+    assert _before(text, "only after the user said yes to that provider by name", cmd)
+    assert "`--yes` never picks one of these options" in text
+    assert "`--yes` never picks one of these options" in flat(REFS / "run-protocol.md")
+
+
+def test_exit_8_degrades_and_offers_on_the_review_screen():
+    text = flat(REFS / "run-protocol.md")
+    # R-UX-1: no mid-run question when there is no transcript source; the offer waits for review
+    assert "Exit 8 (no captions and no local Whisper): do not ask" in text
+    assert "[install / frames only" not in text
+    assert "Send the audio to" not in text
+    assert "continue from frames only" in text and "`--dense`" in text  # R-TIER-2
+    review = flat(REFS / "review-screen.md")
+    assert "install Whisper and re-run" in review
+    # N2: the variant with no cloud key offers no provider
+    assert (
+        "Install to <target>? [yes / show draft / test it / rename / cancel / "
+        "install Whisper and re-run]" in review
+    )
+    # never install without consent (R-DOC-1)
+    assert "Run it only after the user picks it" in review
+    assert _before(review, "Run it only after the user picks it", "timeout: 600000")
+    skill = flat(SKILL / "SKILL.md")
+    assert "Do not ask to install anything mid-run" not in skill
+    assert "offering the Whisper install" not in skill
+
+
+def test_offer_picked_resumes_from_transcribe():
+    review = flat(REFS / "review-screen.md")
+    assert '<ENGINE> resume "<W>" --json' in review
+    # a cloud pick runs its own transcribe first: resume's transcribe is auto, never cloud
+    assert "then continue from stage 3 step 5" in review
+    # S2: an in-run install can fail in the sandbox; the user runs it and resumes
+    assert "`! <command>`" in review and "/skipwatch resume <W>" in review
+    assert 'rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"' in review
+
+
+def test_questions_allowed_in_a_run_are_listed():
+    text = flat(REFS / "run-protocol.md")
+    assert "No question is asked except the review prompt" in text  # R-UX-1
+    assert "one named exception" in text
+    assert "two named exceptions" not in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "one named exception" in skill
+    assert "two named exceptions" not in skill
+    assert "never asked under `--yes`" in skill
+
+
+def test_long_video_question_only_without_yes():
+    text = flat(REFS / "run-protocol.md")
+    assert "without `--yes`, ask once `Continue? [yes / cancel]`" in text
+    assert "Under `--yes` do not ask" in text
+    # N1: an unknown estimate is said, not invented
+    assert "Long video: <mm:ss>, time unknown." in text
+
+
+def test_long_stages_avoid_the_bash_timeout():
+    text = flat(REFS / "run-protocol.md")
+    assert "120 s" in text  # the Bash tool's default timeout
+    assert "timeout: 600000" in text
+    assert "run that stage with `run_in_background`" in text
+    assert "exceeds 500 s" in text
+    for factor in ("mlx 0.25", "faster 0.6", "cloud about 0.1", "captions about 0"):
+        assert factor in text, factor
+    assert "poll `<W>/stages.json` every 30 to 60 s" in text
+    assert "Each poll prints one progress line" in text  # R-UX-2
+
+
+def test_transcribe_exit_3_and_7_quote_the_engine():
+    text = flat(REFS / "run-protocol.md")
+    # S1: exit 7 has several causes; quote the engine instead of guessing one
+    assert "captions file had no usable text" not in text
+    assert "no transcript: <the engine's message>" in text
+    # M2-C: a Whisper model that cannot be downloaded is exit 3, not a media download
+    assert "Exit 3 from transcribe is not a media download" in text
+
+
+def test_thorough_uses_the_large_whisper_model():
+    text = flat(REFS / "run-protocol.md")
+    assert "--model large-v3-turbo" in text  # 3.4 faster-whisper under --thorough
+    assert "`whisper-mlx`" in text
+
+
+def test_silent_video_path():
+    text = flat(REFS / "run-protocol.md")
+    assert '`"silent": true`' in text
+    assert "Silent video: leaning on frames and post text." in text
+    assert "prefer `[on-screen]` and `[written]` tags" in text
+
+
+def test_resume_command():
+    skill = flat(SKILL / "SKILL.md")
+    assert "| `resume` | the resume section below |" in skill
+    assert "`<ENGINE> resume`" in skill
+    text = flat(REFS / "run-protocol.md")
+    assert "## Resume" in read(REFS / "run-protocol.md")
+    assert '<ENGINE> resume "<dir>" --json' in text
+    for field in ("`next_stage`", "`run`", "`media_present`", "`completed`"):
+        assert field in text, field
+    assert "re-dispatch readers only for batches whose notes file is missing or invalid" in text
+    assert "`media_present` is false" in text
+    assert "SkipWatch: nothing to resume." in text
+
+
+def test_media_kept_for_resume_on_failure():
+    text = flat(REFS / "run-protocol.md")
+    assert "keep `<W>/media/` on every stop" in text  # 3.4 media retention
+    assert 'rm -rf "<W>/media" "<W>/draft"' in text
+
+
+def test_review_screen_reports_cache():
+    text = flat(REFS / "review-screen.md")
+    assert "`from_cache`" in text
+    assert "cached from <date>" in text
+    assert "not billed again" in text
+
+
+def test_check_retry_removes_or_fixes_an_unredactable_file():
+    text = flat(REFS / "run-protocol.md")
+    assert "the single retry removes or fixes that file" in text  # 8.7
+    for kind in ("archive", "binary", "secret in its file name", "split across lines"):
+        assert kind in text, kind
+
+
+def test_referenced_frames_copied_into_staging_before_check():
+    text = flat(REFS / "run-protocol.md")
+    assert (
+        "Before stage 7, copy each frame the skill references from `<W>/frames/<id>.jpg` "
+        "into `<W>/staging/<name>/assets/frames/`" in text
+    )
+    assert "at most 8 (3.4)" in text
+
+
+# ---- doctor eval hardening (the M1 acceptance doctor case was flaky) ----
+
+
+def test_doctor_tier_grader_matches_tier_anywhere():
+    grader = ROOT / "evals/doctor/graders/tier-line.md"
+    meta = fm(grader)
+    assert meta["type"] == "regex" and meta["target"] == "last_message"
+    assert meta["match"] == "contains"
+    pattern = body(grader).strip()
+    assert pattern == r"\bTier [0-3]c?\b"
+    # the final message varies: the tier may sit mid-sentence, in a table or after a heading
+    for msg in ("You are on Tier 0 (uv only).", "| Tier 1c | ok |", "## Report: **Tier 3**"):
+        assert re.search(pattern, msg, flags=re.M if "m" in meta.get("flags", "") else 0), msg
+    for msg in ("No tier here", "Tiered pricing", "Tier 9", "Tier 1x"):
+        assert not re.search(pattern, msg), msg
+
+
+def test_doctor_report_printed_first_in_a_code_block():
+    text = flat(SKILL / "SKILL.md")
+    assert "print its report first, unchanged, inside a code block, before any commentary" in text
+
+
+def test_doctor_case_judges_three_samples():
+    meta = fm(ROOT / "evals/doctor/prompt.md")
+    assert meta["runs"] == 3  # release runs judge 3 samples against the 0.8 threshold
+
+
+def test_safety_rules_have_negative_and_ordering_guards():
+    text = read(REFS / "run-protocol.md")
+    # R-ING-5: every engine command that mentions cookies has them as an optional [..] part
+    cookie_lines = [
+        line
+        for line in text.splitlines()
+        if "<ENGINE>" in line and "--cookies-from-browser" in line
+    ]
+    assert cookie_lines  # the probe command passes the user's flag through
+    for line in cookie_lines:
+        assert "[--cookies-from-browser <browser>]" in line, line
+    # R-TR-2: no command line in any reference sends audio to a cloud backend under auto
+    for path in (REFS / "run-protocol.md", REFS / "review-screen.md", SKILL / "SKILL.md"):
+        for line in read(path).splitlines():
+            assert not re.search(r"--backend (openai|groq|deepgram)\b", line), (path, line)
+    # R-REV-1: no install without the user's answer, and --yes only with nothing to review
+    review = flat(REFS / "review-screen.md")
+    assert "No install happens without this explicit answer in this run" in review
+    assert "Anything else under `--yes` shows the prompt and waits" in review
+
+
+def test_only_the_provider_named_option_is_cloud_consent():
+    review = flat(REFS / "review-screen.md")
+    # R-TR-2: picking the option that names the provider is the yes; no other answer is
+    assert "picking this option, which names the provider, is that yes, and nothing else is" in (
+        review
+    )
+    for loose in ("any option is consent", "any answer is consent", "yes is consent"):
+        assert loose not in review, loose
+    assert review.count("is that yes") == 1
+
+
+def test_cloud_transcript_rebuilds_like_the_whisper_path():
+    review = flat(REFS / "review-screen.md")
+    # after a cloud transcript the skill is rebuilt from it, as resume does for Whisper
+    assert "remove the `no transcript` entry from Unverified" in review
+    assert "outline and draft rebuilt from the new transcript" in review
+    assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")

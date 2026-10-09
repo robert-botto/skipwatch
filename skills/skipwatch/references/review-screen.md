@@ -50,9 +50,16 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
-  `undated` unless the file carries them.
+  `undated` unless the file carries them. A URL source shows its title, its author handle
+  and its post date.
 - **Provider calls:** `W/calls.json`. Empty means `none (free route)`; otherwise list each
-  as `<provider> <op> ($<cost>)` with the total.
+  as `<provider> <op> ($<cost>)` with the total. When `W/ingest.json` has `from_cache`
+  true, the metadata came from the 7-day run cache (R-TR-3): append
+  `; cached from <date>` (the date from the ingest log's cache line, else
+  `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
+  Cached calls are not billed again. A transcript reused from the cache adds
+  `; transcript cached (<origin>)`. Audio the user sent to a cloud provider adds
+  `<provider> transcription (billed to your <ENV VAR> key)`.
 - **Draft:** `W/staging/<name>/`.
 - **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 
@@ -64,6 +71,47 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - Under `--yes` with zero safety flags, zero gaps and no collision: print the screen
   without a prompt line, then `Installing (--yes, nothing to review)`, and install.
   Anything else under `--yes` shows the prompt and waits (R-REV-1).
+
+## Transcription offers
+
+When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 of
+`run-protocol.md`), the run went on from frames only and the offers wait here, never
+mid-run (R-UX-1). The prompt line gains them at the end:
+
+- No cloud key in `doctor.json`:
+  `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run]`
+- Each key listed under `cloud-keys` in `doctor.json` adds one option, naming the
+  provider (`OPENAI_API_KEY` is OpenAI `openai`, `GROQ_API_KEY` is Groq `groq`,
+  `DEEPGRAM_API_KEY` is Deepgram `deepgram`):
+  `transcribe with <Provider> and re-run (sends the audio to <Provider>)`, for example
+  `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run / transcribe with OpenAI and re-run (sends the audio to OpenAI)]`
+
+The collision prompt gains the same options. `--yes` never picks one of these options:
+under `--yes` a skill that qualifies installs from frames only, and the Unverified line
+still names the install command.
+
+- **install Whisper and re-run:** the install command the engine printed. Run it only
+  after the user picks it (R-DOC-1), with the Bash tool's `timeout: 600000`, output to
+  `<W>/logs/whisper-install.log`. On rc 0, delete the cached doctor report so the next
+  doctor run is fresh: `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`. Then
+  run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
+  the `## Resume` section of `run-protocol.md` says; frames, readers, draft and check run
+  again and this screen is shown anew. On any other rc (the Bash sandbox or no network
+  can stop it), show the last log line, then tell the user to run it themselves in
+  Claude Code as `! <command>` and then `/skipwatch resume <W>`, and show the prompt
+  line again.
+- **transcribe with <Provider> and re-run:** R-TR-2. Audio goes to a cloud provider only
+  after the user said yes to that provider by name; picking this option, which names
+  the provider, is that yes, and nothing else is. Print
+  `Sending the audio to <Provider> for transcription.`, then run
+  `<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>` with exactly the
+  backend the user picked, never `auto`, timed as any stage. On exit 0, remove the
+  `no transcript` entry from Unverified, then continue from stage 3 step 5 of
+  `run-protocol.md`: frames without `--dense`, readers, outline and draft rebuilt from
+  the new transcript, check, and this screen anew, the same rebuild the Whisper path
+  gets from resume. `resume` would run transcribe under `auto`, which never picks a
+  cloud backend. Exit 8
+  (key rejected) or 3 (request failed): show the engine's line and the prompt line again.
 
 ## Answers
 

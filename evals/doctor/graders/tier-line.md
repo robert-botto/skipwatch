@@ -1,6 +1,6 @@
 ---
 type: regex
 target: last_message
-flags: m
+match: contains
 ---
-^\s*(?:[-*]\s+)?\*{0,2}Tier
+\bTier [0-3]c?\b

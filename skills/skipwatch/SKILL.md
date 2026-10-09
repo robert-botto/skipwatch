@@ -27,7 +27,9 @@ The engine command is defined here and nowhere else. Every reference writes
 <ENGINE> = `"<ROOT>/scripts/skipwatch"`
 
 That wrapper runs the engine straight from the plugin's synced environment. Running it
-through uv fails inside the Bash sandbox, so never invoke uv yourself. A session-start hook
+through uv fails inside the Bash sandbox, so never invoke uv yourself to run it; the only uv
+command you ever run is an install the user accepted (doctor, or the Whisper offer in a
+run). A session-start hook
 keeps the environment synced. `<W>` in the references is the absolute work folder of the
 current run.
 
@@ -48,7 +50,7 @@ Look at the first token of the arguments:
 | First token | Do |
 |---|---|
 | `doctor` | the doctor section below |
-| `resume` | reply `SkipWatch: resume arrives in M2.` and stop |
+| `resume` | the resume section below |
 | `list`, `pack`, `install`, `share` | reply `SkipWatch: <token> arrives in M5.` and stop |
 | `update` | reply `SkipWatch: update arrives in v1.1.` and stop |
 | nothing | reply with the usage line below and stop |
@@ -56,7 +58,7 @@ Look at the first token of the arguments:
 
 Usage line: `Usage: /skipwatch <url or path> [--project | --agents | --to <dir>] [--name <skill-name>] [--thorough] [--yes] [--keep-media] [--no-frames]`
 
-Flags (spec 4.2) and what they do in M1:
+Flags (spec 4.2) and what they do in M2:
 
 | Flag | Effect |
 |---|---|
@@ -68,15 +70,18 @@ Flags (spec 4.2) and what they do in M1:
 | `--yes` | install without the prompt only when safety flags, gaps and collisions are all zero |
 | `--keep-media` | keep `W/media/` after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
-| `--fast`, `--test`, `--lang source`, `--provider`, `--cookies-from-browser` | accepted; no effect on a local file in M1 (say so in one line if given) |
+| `--provider free\|treg\|auto` | content providers for a URL (default `auto`); ignored for a local file, which never consults providers |
+| `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used (R-ING-5) |
+| `--fast`, `--test`, `--lang source` | accepted; no effect yet (say so in one line if given) |
 
 A flag not in this table is a usage error: reply with the usage line and stop. Do not
 guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run `<ENGINE> doctor` and print its stderr and
-stdout to the user unchanged. Do not install anything. If the report lists missing
+If the first argument is `doctor`, run `<ENGINE> doctor 2>&1` and print its report first,
+unchanged, inside a code block, before any commentary (its stderr and stdout, starting
+with the `Tier` line). Do not install anything. If the report lists missing
 pieces, offer each install command and run only the ones the user accepts (R-DOC-1).
 
 ## Run the pipeline
@@ -91,20 +96,34 @@ other references when the protocol reaches them:
 - `references/review-screen.md` before printing the review screen.
 - `references/platforms.md` when a source behaves unexpectedly.
 
-Stage order: doctor (cached for a day), work folder, ingest, transcribe, frames, plan,
-read, outline, draft, check, review, install.
+Stage order: doctor (cached for a day), work folder and `run.json`, probe, ingest,
+transcribe, frames, plan, read, outline, draft, check, review, install.
+
+## resume
+
+`/skipwatch resume [dir]` continues an interrupted run: run `<ENGINE> resume` as the
+`## Resume` section of `references/run-protocol.md` says, then carry on from its
+`next_stage` with the flags saved in `run.json`. Failed runs keep `W/media/` for this.
 
 ### How a run talks
 
 - Every line printed during a run is one line. Progress lines name the stage and the
   elapsed seconds, for example `Sampling frames: 21 kept from 1:00 of video (4s)`
   (R-UX-2).
-- The only question in a run is the review prompt (R-UX-1, R-REV-1). Flags decide the
-  rest. One exception: a video over 60 minutes without `--yes` gets one "continue?"
-  question after ingest.
+- The only question in a run is the review prompt (R-UX-1, R-REV-1), with one named
+  exception, never asked under `--yes`: a video over 60 minutes gets one "continue?"
+  question after probe. Flags decide the rest.
+- No captions and no local Whisper is not a question: the run continues from frames
+  only, and the review screen offers "install Whisper and re-run" and, per cloud key
+  doctor found, "transcribe with <Provider> and re-run".
+- Cloud transcription (R-TR-2): audio goes to OpenAI, Groq or Deepgram only after the
+  user said yes to that provider by name, and then only with `--backend <name>`. `--yes`
+  is never that consent.
+- Long stages run with the Bash tool's `timeout: 600000`, or in the background with
+  polling past 500 s (run-protocol.md conventions).
 - Never fail a run for a missing optional dependency. Degrade, keep going, and say so on
-  the review screen (R-TIER-2). Example: no captions and no Whisper means frames only,
-  with the install command listed under Unverified.
+  the review screen (R-TIER-2). Example: no captions, no Whisper and the install declined
+  means frames only, with the install command listed under Unverified.
 
 ### Reading frames
 
@@ -112,7 +131,7 @@ Never Read a frame image yourself (R-DIS-4). Frame images go to `frame-reader` a
 you read only their notes files, each once, plus the transcript once. This keeps your
 context bounded and keeps untrusted pixels out of the session that holds Bash.
 
-Agents you dispatch: frame-reader only in M1. Every dispatch says: do not start other agents; time budget 5 minutes.
+Agents you dispatch: frame-reader only. Every dispatch says: do not start other agents; time budget 5 minutes.
 
 Dispatch one Agent call with agent type `skipwatch:frame-reader` per batch in
 `batches.json`, all in one message so they run in parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
@@ -146,11 +165,11 @@ with different inputs to get past it.
 
 | Exit | Stage | Tell the user |
 |---|---|---|
-| 2 | ingest | `Unsupported source: <engine message>.` In M1, URLs give "URL sources arrive in M2"; local files must be video or audio. |
-| 3 | ingest | `Download failed: <routes and reasons from the engine>.` |
-| 4 | ingest | `This content is private or needs a login: <engine message>.` |
+| 2 | probe, ingest | `Unsupported source: <engine message>.` It names the platform or the extension tried. |
+| 3 | probe, ingest | `Download failed:` then every route line and its reason, then the fix the engine names. |
+| 4 | probe, ingest | `This content is private or needs a login: <engine message>.` then `Re-run with --cookies-from-browser <browser> if you can open it logged in.` |
 | 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | `No usable content: no transcript, no readable frames, no text. Nothing was written.` |
-| 7 or 8 | transcribe | degrade, do not stop: continue from frames and list `no transcript (install: <command from the engine message>)` under Unverified. |
+| 3, 7 or 8 | transcribe | do not stop: continue from frames only and list `no transcript: <the engine's message>` under Unverified; exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run skipwatch check again.` |
 | 6 | install | show the review screen again with the collision prompt. |
