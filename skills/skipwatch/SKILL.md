@@ -156,7 +156,8 @@ with different inputs to get past it.
 | 6 | install | show the review screen again with the collision prompt. |
 | 64 | any | your command was malformed: fix it from the engine's usage text and retry once. |
 | 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |
-| 70 | any | the wrapper could not create the Python environment: same as the row below. |
-| 101, 126, 127, any other code | any | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs), and for exit 70 (the wrapper says "could not create the Python environment", before the engine runs). |
+| 78 | any | `SkipWatch: engine could not start: environment could not be created.` Then the wrapper's stderr (it names the `uv sync` command to run). |
+| 70 | any | `SkipWatch: internal error in skipwatch: <last 3 stderr lines>`. Suggest filing an issue with the files in `<W>/logs`. |
+| 101, 126, 127, any other code | any | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs), and for exit 78 above (the wrapper says "could not create the Python environment", before the engine runs). |
 
 Engine messages are written for users; quote them, do not paraphrase install commands.

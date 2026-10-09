@@ -38,12 +38,19 @@ stage 8.
   Exit 64 means you built the command wrong: fix the command from the engine's usage text
   and retry once; never show a usage error to the user as their fault.
 - Any other code means the engine never started: 101 (uv panicked), 126 (not
-  executable), 127 (command not found), or any code outside 0 to 9 and 64. Also treat
+  executable), 127 (command not found), or any code outside 0 to 9, 64, 70 and 78. Also treat
   exit 2 as this case when the stage log starts with "error: " (uv's own argument error,
-  printed before the engine runs); an engine exit 2 names the source instead. Exit 70
-  (the log says "could not create the Python environment") is the wrapper failing before
-  the engine runs, the same case. Stop with
+  printed before the engine runs); an engine exit 2 names the source instead. Stop with
   `SkipWatch: engine could not start: <last 3 stderr lines>`, keep `<W>`, print its path.
+- Exit 78 (EX_CONFIG) is the wrapper failing before the engine runs: the environment
+  could not be created. Stop with
+  `SkipWatch: engine could not start: environment could not be created.`, then the
+  wrapper's stderr ("could not create the Python environment" and the `uv sync`
+  command to run), keep `<W>`.
+- Exit 70 (EX_SOFTWARE) is a bug in the engine. Stop with
+  `SkipWatch: internal error in skipwatch: <last 3 stderr lines>`, keep `<W>`, and
+  suggest filing an issue with the files in `<W>/logs` attached.
+- 127 is `uv` missing (no synced environment yet), from the wrapper.
 - On any stop, keep `<W>` and print its path so the user can inspect it.
 
 ## Stage 1: doctor (cached for a day)

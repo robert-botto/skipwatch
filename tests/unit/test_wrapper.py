@@ -102,7 +102,7 @@ def test_sync_failure_without_venv_names_the_fix(tmp_path):
     root = make_plugin(tmp_path, venv=False)
     bin_dir, _ = fake_uv(tmp_path, ok=False)
     r = run(root, "doctor", path=f"{bin_dir}:{SYSTEM_PATH}")
-    assert r.returncode == 70  # reserved: the wrapper failed, the engine never ran
+    assert r.returncode == 78  # EX_CONFIG: the wrapper failed, the engine never ran
     assert "could not create the Python environment" in r.stderr and "uv sync" in r.stderr
 
 

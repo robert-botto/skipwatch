@@ -436,7 +436,11 @@ def test_non_engine_exit_codes_mapped():
         assert "engine could not start" in text, path
         assert 'starts with "error: "' in text, path
         assert "could not create the Python environment" in text, path
-        assert "70" in text, path  # the wrapper's reserved exit
+        # 78 (EX_CONFIG) is the wrapper's "no environment"; 70 (EX_SOFTWARE) is the
+        # engine's own internal error, which gets an issue report, not a restart hint
+        assert re.search(r"\b78\b.{0,200}environment could not be created", text), path
+        assert re.search(r"\b70\b.{0,80}internal error in skipwatch", text), path
+        assert "W/logs" in text or "<W>/logs" in text, path
 
 
 def test_no_heredoc_in_prompt_files():
