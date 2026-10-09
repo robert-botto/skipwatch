@@ -469,3 +469,23 @@ def test_cloud_times_are_not_shifted_by_a_silence_trim(real_audio_work, monkeypa
     name, uploaded, mime = fake.calls[0][1]["_file"]
     assert name == "chunk-000.mp3" and mime == "audio/mpeg" and len(uploaded) > 1000
     assert [s.start for s in t.segments] == [1.0, 5.0]  # provider times, chunk offset 0 only
+
+
+def test_explicit_cloud_backend_on_media_without_audio_is_exit_7(tmp_path, monkeypatch):
+    """select_backend (M2-C) stops a silent video before any upload, even when named."""
+    monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    write_model(
+        w.file("ingest.json"),
+        IngestBundle(
+            source=SourceInfo(kind="file", platform="local", path="/x/silent.mp4"),
+            context=IngestContext(),
+            route=Route(context="local", media="local"),
+            media=MediaInfo(path="/x/silent.mp4", has_audio=False),
+        ),
+    )
+    fake = fake_post(monkeypatch)
+    r = CliRunner().invoke(app, ["transcribe", "--work", str(w.path), "--backend", "openai"])
+    assert r.exit_code == 7 and "no audio track" in r.stderr
+    assert fake.calls == [] and not w.file("transcript.json").exists()
