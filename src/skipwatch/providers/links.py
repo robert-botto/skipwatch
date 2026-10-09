@@ -1,11 +1,14 @@
 """Link fetching for post context (R-ING-1): the READMEs, gists and docs pages a post links.
 
-Plain GETs with requests' default User-Agent, no cookies (every hop is a fresh requests.get,
-so no cookie jar carries over), a 10 s timeout and at most 2 MB read per page. Only http and
-https; a host is fetched only when every address it resolves to is public, so a link (or a
-redirect, re-checked at each of at most 3 hops) can never reach localhost, the LAN or a cloud
-metadata address. HTML becomes text through htmltext; markdown and plain text stay as they
-are; anything else is skipped. Text is capped at 20 000 characters, links at 5 per post.
+Plain GETs with a generic User-Agent, through one requests session that ignores the
+environment (no ~/.netrc logins, no proxy variables) and keeps no cookies. Only http and https
+URLs that urllib3 (the parser requests uses) reads the same way, with no userinfo and no
+backslash. A host is fetched only when every address it resolves to is public, and the socket
+then goes to that vetted address, so neither a second DNS answer (rebinding) nor a redirect
+(re-checked at each of at most 3 hops) can reach localhost, the LAN or a cloud metadata
+address. Each link gets 15 s of wall clock and each post 40 s in all; at most 2 MB is read per
+page. HTML becomes text through htmltext; markdown and plain text stay as they are; anything
+else is skipped. Text is capped at 20 000 characters, links at 5 per post.
 """
 
 import ipaddress
@@ -29,6 +32,7 @@ MAX_CHARS = 20_000
 MAX_BYTES = 2_000_000
 MAX_REDIRECTS = 3
 TIMEOUT_S = 10  # per socket operation
+USER_AGENT = "Mozilla/5.0 (compatible; SkipWatch link reader)"  # generic, nothing personal
 LINK_DEADLINE_S = 15.0  # wall clock per link, redirects and body included
 POST_BUDGET_S = 40.0  # wall clock for every fetch and HEAD one post makes
 CHUNK = 65_536
@@ -217,6 +221,7 @@ def _session() -> requests.Session:
         # responses go through the adapter directly, so nothing fills the session's jar.
         _SESSION = requests.Session()
         _SESSION.trust_env = False
+        _SESSION.headers["User-Agent"] = USER_AGENT
     return _SESSION
 
 

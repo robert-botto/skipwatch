@@ -223,3 +223,14 @@ def test_post_budget_spans_every_link_and_head(server, loopback, monkeypatch):
     assert len(calls) == 4 and not any(c.ok for c in calls)
     assert "budget" in (calls[-1].error or "")
     assert len(server.hits) <= 2
+
+
+def test_requests_send_a_generic_user_agent(server, loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    answers["docs.test"] = ["127.0.0.1"]
+    port = server.server_address[1]
+    assert links.fetch_link(f"http://docs.test:{port}/readme") is not None
+    links.resolve(f"http://docs.test:{port}/readme")
+    agents = {headers.get("User-Agent") for _, _, headers in server.hits}
+    assert agents == {"Mozilla/5.0 (compatible; SkipWatch link reader)"}
