@@ -1039,3 +1039,18 @@ def test_unread_cue_frames_stay_gaps_and_others_are_informational():
 
     assert gaps(cue_line) == 1  # blocks --yes
     assert gaps(other_line) == 0  # informational only
+
+
+REVIEW_DONE = '<ENGINE> mark --work "<W>" --stage review --status done'
+
+
+def test_review_done_only_after_install_or_cancel():
+    # a failed or interrupted install must stay resumable, so yes waits for install exit 0
+    text = flat(REFS / "run-protocol.md")
+    assert "mark review done only after install exits 0" in text
+    assert _before(text, '<ENGINE> install "<W>/staging/<name>"', REVIEW_DONE)
+    assert "before stage 9, so a finished" not in text
+    assert "On cancel, mark review done at once" in text
+    review = flat(REFS / "review-screen.md")
+    cancel = review.split("**cancel:**", 1)[1].split("- Anything else", 1)[0]
+    assert REVIEW_DONE in cancel

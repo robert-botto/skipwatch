@@ -136,6 +136,10 @@ still names the install command.
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
   staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
   then show the whole screen again with the new target.
-- **cancel:** print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
+- **cancel:** mark review done at once, so the cancelled run is not offered for resume:
+
+      <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
+
+  Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
   installed and `W` is kept.
 - Anything else: re-show the prompt line once with the five answers.

@@ -416,10 +416,9 @@ all zero; unread frames do not count, except unread cue frames, which are gaps
 screen and wait, even under `--yes` (R-REV-1). The answers are handled in
 `review-screen.md`.
 
-The review ends with yes, replace, cancel, or the `--yes` install. Mark it done then,
-before stage 9, so a finished or cancelled run is not offered for resume:
-
-    <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
+On cancel, mark review done at once (`review-screen.md` shows the command). On yes,
+replace or the `--yes` install, mark review done only after install exits 0 (stage 9),
+so a failed or interrupted install stays resumable.
 
 A transcription offer the user picks (re-run) keeps review running until the new
 screen is answered.
@@ -434,7 +433,11 @@ since the review: show the screen again with the collision. Exit 1 with "staging
 since check": re-run check once, then install; any other install exit 1 stops with its
 message.
 
-On success print two lines:
+On success, first mark review done, so the finished run is not offered for resume:
+
+    <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
+
+Then print two lines:
 
     Installed to <path>. Try it: "<first trigger phrase>".
     This skill credits <author, or "the video's creator">. Source: <url or file name>.
