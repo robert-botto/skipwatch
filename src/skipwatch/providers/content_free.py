@@ -245,8 +245,8 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
     duration = info.get("duration")
     formats = [f for f in info.get("formats") or [] if _usable(f)]
     videos = [f for f in formats if not _is_none(f.get("vcodec")) and _short_side(f)]
+    # vcodec "none" marks audio-only; X leaves acodec out entirely, which still means audio.
     audios = [f for f in formats if _is_none(f.get("vcodec")) and not _is_none(f.get("acodec"))]
-    audios = [f for f in audios if f.get("acodec") is not None]
     best_audio = _pick_audio(audios, info.get("language"), duration)
     if videos:
         video = _pick_video(videos, max_short_side, duration)

@@ -155,3 +155,34 @@ def test_without_language_hints_the_smallest_audio_wins():
         {"format_id": "small", "vcodec": "none", "acodec": "opus", "filesize": 1, "language": "fr"},
     ]
     assert select_format({"duration": 1, "language": None, "formats": audio}) == "small"
+
+
+def test_audio_with_a_missing_codec_field_still_counts_as_audio():
+    """X lists its HLS audio as vcodec "none" with no acodec at all: still audio. A format whose
+    acodec is the string "none" (and vcodec "none") carries nothing and stays out."""
+    info = json.loads((REC.parent / "x" / "g2-deep-partials.info.json").read_text())
+    assert select_format(info) == "hls-324+hls-audio-32000-Audio"
+    empty = {"format_id": "e", "vcodec": "none", "acodec": "none", "filesize": 1}
+    assert select_format({"duration": 10, "formats": [f("v", 1280, 720, 5e6), empty]}) == "v"
+
+
+PINNED = {
+    "facebook/govsg-haze": "1638798497622583v+910880914159004a",
+    "generic/archive-org": "2",
+    "generic/wikimedia-commons": "4",
+    "instagram/g4-gh-secure": "dash-18630250069054910v+dash-18630246724054910a",
+    "tiktok/g3-copilot-cli": "bytevc1_720p_215988-0",
+    "x/g2-deep-partials": "hls-324+hls-audio-32000-Audio",
+    "x/link-to-video-post": "hls-295+hls-audio-32000-Audio",
+    "youtube/auto-only-nonenglish": "247+139",
+    "youtube/dubbed-audio": "398+139",
+    "youtube/manual-captions": "398+139",
+    "youtube/vertical-short": "b+251",
+}
+
+
+@pytest.mark.parametrize(("name", "spec"), sorted(PINNED.items()))
+def test_recorded_fixture_format_choice_is_pinned(name, spec):
+    """Every recorded platform fixture keeps its choice when the format rules change."""
+    info = json.loads((REC.parent / f"{name}.info.json").read_text())
+    assert select_format(info) == spec
