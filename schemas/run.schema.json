@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "description": "run.json: the original input and flags, written by the orchestrator before ingest.",
+  "properties": {
+    "flags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Flags",
+      "type": "array"
+    },
+    "input": {
+      "title": "Input",
+      "type": "string"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "schema": {
+      "const": "skipwatch/run/1",
+      "default": "skipwatch/run/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "input",
+    "started_at"
+  ],
+  "title": "RunFile",
+  "type": "object"
+}
