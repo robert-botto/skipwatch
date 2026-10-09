@@ -1,0 +1,160 @@
+{
+  "_handmade": "shape from provider docs and SDK types, 2026-10-09",
+  "metadata": {
+    "channels": 1,
+    "duration": 9.5,
+    "models": [
+      "SCRUBBED"
+    ],
+    "request_id": "SCRUBBED"
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "confidence": 0.99,
+            "transcript": "First type this command. Then paste the prompt.",
+            "words": [
+              {
+                "confidence": 0.99,
+                "end": 1.5,
+                "punctuated_word": "First",
+                "start": 1.0,
+                "word": "first"
+              },
+              {
+                "confidence": 0.99,
+                "end": 2.0,
+                "punctuated_word": "type",
+                "start": 1.6,
+                "word": "type"
+              },
+              {
+                "confidence": 0.99,
+                "end": 2.5,
+                "punctuated_word": "this",
+                "start": 2.1,
+                "word": "this"
+              },
+              {
+                "confidence": 0.99,
+                "end": 3.4,
+                "punctuated_word": "command.",
+                "start": 2.6,
+                "word": "command"
+              },
+              {
+                "confidence": 0.99,
+                "end": 5.4,
+                "punctuated_word": "Then",
+                "start": 5.0,
+                "word": "then"
+              },
+              {
+                "confidence": 0.99,
+                "end": 6.1,
+                "punctuated_word": "paste",
+                "start": 5.5,
+                "word": "paste"
+              },
+              {
+                "confidence": 0.99,
+                "end": 6.4,
+                "punctuated_word": "the",
+                "start": 6.2,
+                "word": "the"
+              },
+              {
+                "confidence": 0.99,
+                "end": 7.4,
+                "punctuated_word": "prompt.",
+                "start": 6.5,
+                "word": "prompt"
+              }
+            ]
+          }
+        ],
+        "detected_language": "en",
+        "language_confidence": 0.98
+      }
+    ],
+    "utterances": [
+      {
+        "channel": 0,
+        "confidence": 0.99,
+        "end": 3.4,
+        "id": "u0",
+        "start": 1.0,
+        "transcript": "First type this command.",
+        "words": [
+          {
+            "confidence": 0.99,
+            "end": 1.5,
+            "punctuated_word": "First",
+            "start": 1.0,
+            "word": "first"
+          },
+          {
+            "confidence": 0.99,
+            "end": 2.0,
+            "punctuated_word": "type",
+            "start": 1.6,
+            "word": "type"
+          },
+          {
+            "confidence": 0.99,
+            "end": 2.5,
+            "punctuated_word": "this",
+            "start": 2.1,
+            "word": "this"
+          },
+          {
+            "confidence": 0.99,
+            "end": 3.4,
+            "punctuated_word": "command.",
+            "start": 2.6,
+            "word": "command"
+          }
+        ]
+      },
+      {
+        "channel": 0,
+        "confidence": 0.99,
+        "end": 7.4,
+        "id": "u1",
+        "start": 5.0,
+        "transcript": "Then paste the prompt.",
+        "words": [
+          {
+            "confidence": 0.99,
+            "end": 5.4,
+            "start": 5.0,
+            "word": "then"
+          },
+          {
+            "confidence": 0.99,
+            "end": 6.1,
+            "punctuated_word": "paste",
+            "start": 5.5,
+            "word": "paste"
+          },
+          {
+            "confidence": 0.99,
+            "end": 6.4,
+            "punctuated_word": "the",
+            "start": 6.2,
+            "word": "the"
+          },
+          {
+            "confidence": 0.99,
+            "end": 7.4,
+            "punctuated_word": "prompt.",
+            "start": 6.5,
+            "word": "prompt"
+          }
+        ]
+      }
+    ]
+  }
+}
