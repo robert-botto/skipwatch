@@ -72,7 +72,8 @@ def _build(detected: Detected, work: WorkDir, opts: IngestOptions, cfg: Config) 
     adapter = adapter_for(detected.platform)
     if adapter is None:
         raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"no adapter for {detected.platform}")
-    providers = enabled_providers(opts, cfg)
+    # A local file never consults content providers: no network call for the user's own file.
+    providers = [] if detected.platform == "local" else enabled_providers(opts, cfg)
     try:
         bundle = adapter.build(detected, work, opts)
     except NoMediaError as exc:

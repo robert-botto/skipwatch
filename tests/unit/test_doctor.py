@@ -202,21 +202,51 @@ def test_extra_command_is_public():
     )
 
 
-def test_old_uv_warns_with_upgrade_command_for_its_install():
-    brew = doctor.build_report(P(uv="0.9.26", uv_homebrew=True), TODAY, "/plug")
-    assert any("uv 0.9.26" in w and "brew upgrade uv" in w for w in brew.warnings)
-    standalone = doctor.build_report(P(uv="0.9.28"), TODAY, "/plug")
-    assert any("uv 0.9.28" in w and "uv self update" in w for w in standalone.warnings)
+def test_old_uv_on_macos_warns_with_upgrade_command_for_its_install():
+    cases = {
+        "homebrew": "brew upgrade uv",
+        "pipx": "pipx upgrade uv",
+        "pip": "pip install -U uv",
+        "standalone": "uv self update",
+    }
+    for install, command in cases.items():
+        r = doctor.build_report(P(uv="0.9.26", uv_install=install, macos=True), TODAY, "/plug")
+        assert any("uv 0.9.26" in w and command in w for w in r.warnings), install
     for fine in ("0.9.29", "0.10.0", "1.0.0", None, "dev"):
-        r = doctor.build_report(P(uv=fine), TODAY, "/plug")
+        r = doctor.build_report(P(uv=fine, macos=True), TODAY, "/plug")
         assert not any(w.startswith("uv ") for w in r.warnings), fine
 
 
-def test_probe_detects_homebrew_uv_from_version_line(monkeypatch):
+def test_old_uv_off_macos_no_warning_but_version_shown():
+    r = doctor.build_report(P(uv="0.9.26", macos=False), TODAY, "/plug")
+    assert not any(w.startswith("uv ") for w in r.warnings)
+    uv = next(c for c in r.components if c.name == "uv")
+    assert uv.found and uv.version == "0.9.26"
+
+
+def test_uv_install_kind_from_version_line_and_path(tmp_path):
+    def kind(line, path):
+        return doctor.uv_install_kind(line, path)
+
+    assert kind("uv 0.9.26 (Homebrew 2026-01-15)", None) == "homebrew"
+    assert kind("uv 0.9.26", "/opt/homebrew/Cellar/uv/0.9.26/bin/uv") == "homebrew"
+    assert kind("uv 0.9.26", "/Users/a/.local/pipx/venvs/uv/bin/uv") == "pipx"
+    assert kind("uv 0.9.26", "/Users/a/Library/Application Support/pipx/venvs/uv/bin/uv") == (
+        "pipx"
+    )
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python3").write_text("")
+    assert kind("uv 0.9.26", str(venv_bin / "uv")) == "pip"
+    assert kind("uv 0.9.26", "/usr/lib/python3/site-packages/uv/bin/uv") == "pip"
+    assert kind("uv 0.9.30 (abc 2026-10-01)", str(tmp_path / "local" / "uv")) == "standalone"
+
+
+def test_probe_detects_uv_install_and_macos(monkeypatch):
     lines = {"uv": "uv 0.9.26 (Homebrew 2026-01-15)"}
     monkeypatch.setattr(doctor, "_version_output", lambda exe: lines.get(exe))
+    monkeypatch.setattr(doctor.sys, "platform", "darwin")
     p = doctor.probe_machine()
-    assert p.uv == "0.9.26" and p.uv_homebrew is True
-    lines["uv"] = "uv 0.9.30 (abc123 2026-10-01)"
-    p = doctor.probe_machine()
-    assert p.uv == "0.9.30" and p.uv_homebrew is False
+    assert p.uv == "0.9.26" and p.uv_install == "homebrew" and p.macos is True
+    monkeypatch.setattr(doctor.sys, "platform", "linux")
+    assert doctor.probe_machine().macos is False

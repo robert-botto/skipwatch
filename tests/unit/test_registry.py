@@ -242,3 +242,123 @@ def test_enabled_providers_free_auto_and_config_off(tmp_path, monkeypatch):
     assert enabled_providers(IngestOptions(provider="auto"), off) == []
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [down])
     assert enabled_providers(IngestOptions(provider="auto"), Config()) == []
+
+
+# ---- review fixes: local never consults providers, resilient and named registries ----
+
+
+@pytest.fixture
+def fresh_registries():
+    from skipwatch.adapters import registry as adapter_registry
+    from skipwatch.providers import registry as provider_registry
+
+    caches = (
+        adapter_registry._adapters,
+        provider_registry._backends,
+        provider_registry._content_providers,
+    )
+    for c in caches:
+        c.cache_clear()
+    yield
+    for c in caches:
+        c.cache_clear()
+
+
+@pytest.fixture
+def extra_package_dir(tmp_path, monkeypatch, fresh_registries):
+    """Add tmp_path to a package's search path so test modules look like real plugins."""
+    import sys
+
+    added: list[str] = []
+
+    def add(package, files: dict[str, str]):
+        for name, body in files.items():
+            (tmp_path / f"{name}.py").write_text(body, encoding="utf-8")
+            added.append(f"{package.__name__}.{name}")
+        monkeypatch.setattr(package, "__path__", [*package.__path__, str(tmp_path)])
+
+    yield add
+    for name in added:
+        sys.modules.pop(name, None)
+
+
+def test_local_ingest_never_consults_content_providers(tmp_path, monkeypatch):
+    from skipwatch.adapters.base import IngestOptions
+    from skipwatch.ingest import build_bundle
+    from skipwatch.models import Config
+    from skipwatch.workdir import WorkDir
+
+    class Touchy(FakeProvider):
+        def available(self):
+            raise AssertionError("a local ingest must not consult providers")
+
+    class Local:
+        def build(self, detected, work, opts):
+            return bundle()
+
+    monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [Touchy()])
+    monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: Local())
+    video = tmp_path / "a.mp4"
+    video.write_bytes(b"x")
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    for provider in ("auto", "treg"):
+        b = build_bundle(str(video), w, IngestOptions(provider=provider), Config())
+        assert b.source.platform == "local" and b.provider_calls == []
+
+
+def test_missing_whisper_libraries_leave_captions_working(tmp_path, monkeypatch, fresh_registries):
+    import sys
+
+    from skipwatch.providers.registry import transcription_backends as backends
+    from skipwatch.workdir import WorkDir, write_model
+
+    for lib in ("faster_whisper", "mlx_whisper", "mlx"):
+        monkeypatch.setitem(sys.modules, lib, None)  # import raises ImportError
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    (w.path / "captions").mkdir()
+    (w.path / "captions" / "a.en.vtt").write_text(
+        "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nhello there\n", encoding="utf-8"
+    )
+    write_model(w.file("ingest.json"), bundle(captions=True))
+    captions = backends()["captions"]
+    assert captions.available(bundle(captions=True))
+    assert captions.transcribe(w, None).segments[0].text == "hello there"
+
+
+def test_broken_backend_module_is_skipped_and_reported_once(extra_package_dir, capsys, monkeypatch):
+    from skipwatch import providers
+    from skipwatch.providers.registry import transcription_backends as backends
+
+    extra_package_dir(
+        providers,
+        {
+            "transcribe_zz_broken": "import skipwatch_no_such_module_xyz\n",
+            "transcribe_zz_extra": (
+                "class B:\n    name, cloud, auto_rank = 'extra', False, 5\nBACKENDS = (B(),)\n"
+            ),
+        },
+    )
+    first = backends()
+    assert "captions" in first and "extra" in first
+    backends()
+    err = capsys.readouterr().err
+    assert err.count("transcribe_zz_broken") == 1 and "skipwatch_no_such_module_xyz" in err
+
+
+def test_new_adapter_module_is_discovered(extra_package_dir):
+    from skipwatch import adapters
+
+    extra_package_dir(adapters, {"zz_newplat": "PLATFORMS = ('newplat',)\nADAPTER = object()\n"})
+    assert "newplat" in all_platforms() and adapter_for("newplat") is not None
+    assert adapter_for("local") is not None
+
+
+def test_duplicate_platform_names_both_modules(extra_package_dir):
+    from skipwatch import adapters
+
+    extra_package_dir(adapters, {"zz_dup": "PLATFORMS = ('local',)\nADAPTER = object()\n"})
+    with pytest.raises(RuntimeError) as e:
+        adapter_for("local")
+    assert "localfile" in str(e.value) and "zz_dup" in str(e.value)

@@ -34,6 +34,14 @@ UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
 GIT_SOURCE = "git+https://github.com/robert-botto/skipwatch"
 
+UvInstall = Literal["homebrew", "pipx", "pip", "standalone"]
+UV_UPGRADE: dict[UvInstall, str] = {
+    "homebrew": "brew upgrade uv",
+    "pipx": "pipx upgrade uv",
+    "pip": "pip install -U uv",
+    "standalone": "uv self update",
+}
+
 FfmpegSource = Literal["system", "static", "static-unfetched", "static-broken", "none"]
 
 TIER_ROWS: tuple[tuple[Tier, str, str], ...] = (
@@ -68,7 +76,8 @@ class Probe:
     cloud_keys: list[str] = field(default_factory=list)
     treg_on_path: bool = False
     mem0_key: bool = False
-    uv_homebrew: bool = False
+    uv_install: UvInstall = "standalone"
+    macos: bool = False
 
 
 def _version_output(exe: str) -> str | None:
@@ -115,6 +124,27 @@ def _ytdlp_version() -> str | None:
         return None
 
 
+def uv_install_kind(version_line: str | None, path: str | None) -> UvInstall:
+    """How uv was installed, from its --version line and its resolved path."""
+    where = path or ""
+    if "Homebrew" in (version_line or "") or "/Cellar/" in where or "/homebrew/" in where:
+        return "homebrew"
+    if "/pipx/" in where:
+        return "pipx"
+    if path:
+        bin_dir = Path(path).parent
+        if "site-packages" in where or any(
+            (bin_dir / exe).exists() for exe in ("python", "python3")
+        ):
+            return "pip"
+    return "standalone"
+
+
+def _uv_path() -> str | None:
+    found = shutil.which("uv")
+    return str(Path(found).resolve()) if found else None
+
+
 def is_apple_silicon() -> bool:
     return sys.platform == "darwin" and platform.machine() == "arm64"
 
@@ -138,7 +168,8 @@ def probe_machine() -> Probe:
         cloud_keys=[key for key in CLOUD_KEYS if os.environ.get(key)],
         treg_on_path=shutil.which("treg") is not None,
         mem0_key=bool(os.environ.get("MEM0_API_KEY")),
-        uv_homebrew="Homebrew" in (uv_line or ""),
+        uv_install=uv_install_kind(uv_line, _uv_path()),
+        macos=sys.platform == "darwin",
     )
 
 
@@ -272,8 +303,8 @@ def _uv_too_old(version: str | None) -> bool:
 
 def _warnings(p: Probe, today: date, plugin_root: str | None) -> list[str]:
     warnings: list[str] = []
-    if _uv_too_old(p.uv):
-        upgrade_uv = "brew upgrade uv" if p.uv_homebrew else "uv self update"
+    if p.macos and _uv_too_old(p.uv):
+        upgrade_uv = UV_UPGRADE[p.uv_install]
         minimum = ".".join(str(x) for x in UV_MIN)
         warnings.append(
             f"uv {p.uv} is older than {minimum} and can panic in the macOS sandbox; "

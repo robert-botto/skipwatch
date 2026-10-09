@@ -14,6 +14,7 @@ from skipwatch.adapters.base import Adapter
 @cache
 def _adapters() -> dict[str, Adapter]:
     found: dict[str, Adapter] = {}
+    owners: dict[str, str] = {}
     for info in sorted(pkgutil.iter_modules(adapters.__path__), key=lambda m: m.name):
         module = importlib.import_module(f"{adapters.__name__}.{info.name}")
         adapter = getattr(module, "ADAPTER", None)
@@ -22,8 +23,11 @@ def _adapters() -> dict[str, Adapter]:
             continue
         for platform in platforms:
             if platform in found:
-                raise RuntimeError(f"platform {platform} is registered twice ({info.name})")
+                raise RuntimeError(
+                    f"platform {platform} is registered by both {owners[platform]} and {info.name}"
+                )
             found[platform] = adapter
+            owners[platform] = info.name
     return found
 
 

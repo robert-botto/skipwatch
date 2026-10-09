@@ -34,7 +34,7 @@ def test_scrub_removes_cookies_headers_and_signed_queries(tmp_path):
     text = json.dumps(out)
     assert "SECRET" not in text and "1.2.3.4" not in text and "SIGNED" not in text
     assert "Cookie" not in text and "cookies" not in out
-    assert out["formats"][0]["url"] == "https://rr1.googlevideo.com/videoplayback?SCRUBBED"
+    assert out["formats"][0]["url"] == "https://rr1.googlevideo.com"  # host only (plan)
     assert out["uploader"] == "@creator"  # attribution data stays
 
 
@@ -54,3 +54,63 @@ def test_scrub_is_idempotent(tmp_path):
     data = {"formats": [{"url": "https://a.example/v?x=1"}]}
     once = run(tmp_path, data)
     assert run(tmp_path, once) == once
+
+
+def test_scrub_adversarial_nested_mixed_case(tmp_path):
+    secrets = [
+        "BEARERSECRET", "APIKEYSECRET", "PASSSECRET", "AUTHSECRET", "SIGSECRET", "CSRFSECRET",
+        "ACCTSECRET", "USERSECRET", "HDRSECRET", "COOKIESECRET", "SETCOOKIESECRET", "JARSECRET",
+        "operator@example.com", "2001:db8::42", "10.1.2.3", "MIDQUERY", "UPPERQUERY", "FRAGSIG",
+        "PATHSIG1", "PATHSIG2", "MANIFESTPATH", "FRAGPATH", "10.9.8.7", "XKEYSECRET", "APIKEY2",
+        "SESSSECRET", "XSRFSECRET", "TOKSECRET",
+    ]  # fmt: skip
+    data = {
+        "Info": {
+            "headers": {"Authorization": "Bearer BEARERSECRET"},
+            "HTTP_HEADERS": {"X": "HDRSECRET"},
+            "Http_Headers": {"X": "HDRSECRET"},
+            "X-Api-Key": "XKEYSECRET",
+            "api_key": "APIKEYSECRET",
+            "apiKey": "APIKEY2",
+            "Password": "PASSSECRET",
+            "auth": "AUTHSECRET",
+            "signature": "SIGSECRET",
+            "csrf": "CSRFSECRET",
+            "X-XSRF-Token": "XSRFSECRET",
+            "sessionId": "SESSSECRET",
+            "access_token": "TOKSECRET",
+            "account_id": "ACCTSECRET",
+            "userId": "USERSECRET",
+            "COOKIE": "COOKIESECRET",
+            "set-cookie": "SETCOOKIESECRET",
+            "cookie_jar": ["JARSECRET"],
+            "10.9.8.7": "KEYIP",
+        },
+        "description": (
+            "mail operator@example.com from 10.1.2.3 or 2001:db8::42, see "
+            "https://example.com/page?q=MIDQUERY and HTTPS://EXAMPLE.COM/x?Q=UPPERQUERY "
+            "or https://example.com/y#sig=FRAGSIG"
+        ),
+        "webpage_url": "https://rr3.googlevideo.com/videoplayback/signature/PATHSIG1/id/1",
+        "other": "https://cdn.example/v/sig/PATHSIG2/file.mp4",
+        "manifest_url": "https://manifest.googlevideo.com/api/manifest/MANIFESTPATH",
+        "requested_formats": [{"fragment_base_url": "https://a.example/FRAGPATH/"}],
+        "fragments": [{"url": "https://a.example/FRAGPATH/seg1"}],
+        "uploader": "@creator",
+        "author": "Creator Name",
+        "extractor_key": "Youtube",
+        "uploader_url": "https://www.youtube.com/@creator",
+        "timestamp_text": "00:01:02",
+    }
+    out = run(tmp_path, data)
+    text = json.dumps(out)
+    leaked = [s for s in secrets if s.lower() in text.lower()]
+    assert leaked == []
+    assert out["uploader"] == "@creator" and out["author"] == "Creator Name"
+    assert out["extractor_key"] == "Youtube"
+    assert out["uploader_url"] == "https://www.youtube.com/@creator"
+    assert out["timestamp_text"] == "00:01:02"
+    assert out["manifest_url"] == "https://manifest.googlevideo.com"
+    assert out["fragments"][0]["url"] == "https://a.example"
+    assert "https://example.com/page?SCRUBBED" in out["description"]
+    assert run(tmp_path, out) == out  # idempotent on the adversarial case too
