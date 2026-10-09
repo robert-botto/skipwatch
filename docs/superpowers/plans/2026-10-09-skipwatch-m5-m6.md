@@ -30,6 +30,20 @@
 
 ---
 
+## Orchestrator decision: seamless install is an acceptance goal (2026-10-09, binding)
+
+Robert's instruction: "make sure it's seamless for someone to install with best practices". This adds a package **M6-F Install experience** (runs after M6-C, before M6-E) and acceptance items that every M6 builder works against:
+
+1. **One path, two commands.** README quickstart is exactly: `/plugin marketplace add robert-botto/skipwatch` (or the public repo) then `/plugin install skipwatch@skipwatch`, then `/skipwatch <url>`. No manual Python, pip or venv steps. uv is the only prerequisite.
+2. **First session self-setup.** The SessionStart hook syncs the engine venv (outside the sandbox). The first `/skipwatch` run works even if the hook has not finished (the wrapper syncs or explains). Measured: time from install to first doctor output on a clean machine, recorded in the release notes.
+3. **No uv.** The wrapper and the skill print the official one-line uv install command for the user's OS (macOS/Linux curl installer, Windows PowerShell installer, or `brew install uv`) and stop cleanly. They never run a remote installer without explicit consent, and never show a traceback.
+4. **Clean-machine tests in CI.** A CI job installs the plugin from the repo into a fresh CLAUDE_CONFIG_DIR on ubuntu (and on macos and windows where the claude CLI runs), with no pre-existing venv, and runs `skipwatch doctor` through the wrapper. It must exit 0 and print the tier table. A second leg removes uv from PATH and asserts the clean message and exit code.
+5. **Upgrades.** A plugin update (new root) gets a fresh venv via the hook. Doctor reports the plugin version and engine version and warns on mismatch.
+6. **Uninstall.** README documents removal: `/plugin uninstall`, plus deleting `~/.skipwatch` (work folders, cache, backups). Nothing else is left behind.
+7. **Best practices.** Pinned dependencies and uv.lock shipped; reproducible builds (`uv build`); PyPI trusted publishing with attestations; signed git tags; a CHANGELOG entry per release; SECURITY.md with private vulnerability reporting; no telemetry; the minimum permissions documented (what the skill runs and why).
+8. **Docs.** A 30-second quickstart, a "what gets installed where" table, a troubleshooting section keyed by exit code and platform (from platforms.md), and a privacy section (what leaves the machine: only the URL's platform, links in the post, and providers the user enabled).
+9. **Human check.** S1 on a fresh macOS user account (Robert action), plus one Windows run if a machine is available.
+
 ## Spec issues found (M5-M6)
 
 Each item is a genuine gap or contradiction. The plan applies the proposed resolution; the orchestrator confirms or overrules before builders start. None edits the spec text.
