@@ -450,6 +450,7 @@ def test_doctor_eval_grades_the_bash_call_not_the_skill_tool():
     assert all(g.get("tool") != "Skill" for g in graders.values())
     ran = graders["doctor-ran"]
     assert ran["type"] == "tool_used" and ran["tool"] == "Bash"
+    assert ran["min"] == 1 and ran["arm"] == "with-only"  # scored on the plugin arm only
     pattern = ran["input_match"]
     good = 'CLAUDE_PLUGIN_ROOT="/p" uv run --project "/p" skipwatch doctor'
     assert re.search(pattern, good)
