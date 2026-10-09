@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import re
 import subprocess
 from pathlib import Path
 from types import ModuleType
@@ -410,31 +411,76 @@ def test_run_video_timeout_is_a_fail_line(run_mod, tmp_path):
     assert not result.ok and "timed out after 1800 s" in result.line
 
 
-def test_engine_only_runs_the_four_claude_free_stages(run_mod, tmp_path):
-    calls = []
-
+def _engine_fake(calls, fail_stage=None, write=True):
     def fake(cmd, *, env, timeout, **kwargs):
         calls.append(cmd)
+        stage = cmd[1]
+        if stage == fail_stage:
+            return subprocess.CompletedProcess(cmd, 2, "", "warn\nunsupported source\n")
+        if stage == "probe":
+            probe = {"schema": "skipwatch/probe/1", "duration_s": 2183.0, "long_video": False}
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(probe), "")
+        work = Path(cmd[cmd.index("--work") + 1])
+        work.mkdir(parents=True, exist_ok=True)
+        if write and stage == "transcribe":
+            transcript = {"origin": "captions", "segments": [{}, {}, {}], "silent": False}
+            (work / "transcript.json").write_text(json.dumps(transcript))
+        if write and stage == "frames":
+            (work / "frames.json").write_text(json.dumps({"frames": [{}] * 5}))
+        if write and stage == "plan":
+            (work / "batches.json").write_text(json.dumps({"batches": [{}]}))
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
+    return fake
+
+
+def test_engine_only_runs_the_claude_free_stages_on_the_free_provider(run_mod, tmp_path):
+    calls = []
     entry = _entry(needs_cookies=False)
-    result = run_mod.run_engine_only(entry, tmp_path, runner=fake, base_env={})
-    assert result.ok and result.line == "G4 ENGINE-OK ingest transcribe frames plan"
-    stages = [c[1] for c in calls]
+    result = run_mod.run_engine_only(entry, tmp_path, runner=_engine_fake(calls), base_env={})
+    assert result.ok
     assert all(c[0] == run_mod.engine_binary() for c in calls)
-    assert stages == ["ingest", "transcribe", "frames", "plan"]
-    assert calls[0][-3:] == [entry["url"], "--work", str(tmp_path / "G4" / "home" / "work" / "g4")]
+    assert [c[1] for c in calls] == ["probe", "ingest", "transcribe", "frames", "plan"]
+    assert calls[0][2:] == [entry["url"], "--json"]
+    work = str(tmp_path / "G4" / "home" / "work" / "g4")
+    assert calls[1][2:] == [entry["url"], "--work", work, "--provider", "free"]
+    assert "--cookies-from-browser" not in sum(calls, [])
+    line = result.line
+    assert line.startswith("G4 ENGINE-OK probe=0/")
+    for stage in ("ingest", "transcribe", "frames", "plan"):
+        assert re.search(rf" {stage}=0/\d+\.\ds", line), stage
+    assert line.endswith(
+        "duration=2183s long_video=no origin=captions segments=3 frames=5 batches=1"
+    )
+
+
+def test_engine_only_stages_subset_skips_later_stages(run_mod, tmp_path):
+    calls = []
+    result = run_mod.run_engine_only(
+        _entry(), tmp_path, runner=_engine_fake(calls), base_env={}, stages=["probe", "ingest"]
+    )
+    assert result.ok and [c[1] for c in calls] == ["probe", "ingest"]
+    assert "transcribe=" not in result.line and "frames=" not in result.line
 
 
 def test_engine_only_stops_at_first_failing_stage(run_mod, tmp_path):
-    def fake(cmd, *, env, timeout, **kwargs):
-        stage = cmd[1]
-        code = 2 if stage == "ingest" else 0
-        return subprocess.CompletedProcess(cmd, code, "", "unsupported source\n")
-
+    calls = []
+    fake = _engine_fake(calls, fail_stage="ingest")
     result = run_mod.run_engine_only(_entry(), tmp_path, runner=fake, base_env={})
     assert not result.ok
-    assert result.line == "G4 ENGINE-FAIL ingest exit=2 unsupported source"
+    assert [c[1] for c in calls] == ["probe", "ingest"]
+    assert result.line.startswith("G4 ENGINE-FAIL ingest exit=2 probe=0/")
+    assert result.line.endswith(" ingest=2/0.0s unsupported source")
+
+
+def test_engine_only_stages_can_skip_transcribe(run_mod, tmp_path):
+    calls = []
+    fake = _engine_fake(calls, fail_stage="transcribe")
+    result = run_mod.run_engine_only(
+        _entry(), tmp_path, runner=fake, base_env={}, stages=["probe", "ingest", "frames"]
+    )
+    assert [c[1] for c in calls] == ["probe", "ingest", "frames"]
+    assert result.ok and "frames=5" in result.line
 
 
 def test_main_only_selection_and_exit(run_mod, tmp_path, capsys, monkeypatch):

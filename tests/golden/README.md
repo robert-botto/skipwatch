@@ -14,7 +14,8 @@ uv run python scripts/golden_check.py --only G1,G5
 # Full run (paid: one `claude -p` per video, up to 30 minutes each).
 uv run python scripts/golden_run.py --only G1 --out /tmp/sw-golden
 
-# Engine stages only (ingest, transcribe, frames, plan); no Claude, nothing judged.
+# Engine stages only (probe, ingest, transcribe, frames, plan) on the free provider; no Claude, nothing judged.
+uv run python scripts/golden_run.py --engine-only --only G2 --stages probe,ingest,frames --out /tmp/sw-golden
 uv run python scripts/golden_run.py --engine-only --only G1 --out /tmp/sw-golden
 ```
 

@@ -7,7 +7,8 @@ Usage:
 The full run calls `claude -p` once per video (paid, run by hand). Each video gets its own
 SKIPWATCH_HOME under <out>/<id>/home. Judging reads that home's newest check-report.json and
 staged SKILL.md, installed or not (M2-M4 issue 16). `--engine-only` runs just the stages that
-need no Claude (ingest, transcribe, frames, plan) and judges nothing.
+need no Claude (probe, ingest, transcribe, frames, plan) on the free provider and judges
+nothing; `--stages` picks a subset.
 """
 
 import argparse
@@ -16,6 +17,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GOLDEN = ROOT / "tests" / "golden" / "golden.json"
 CLAUDE_TIMEOUT_S = 30 * 60
 STAGE_TIMEOUT_S = 30 * 60
-ENGINE_STAGES = ("ingest", "transcribe", "frames", "plan")
+ENGINE_STAGES = ("probe", "ingest", "transcribe", "frames", "plan")
 COOKIE_ENV = "SKIPWATCH_GOLDEN_COOKIES"
 COOKIE_BROWSERS = {"chrome"}
 
@@ -167,37 +169,75 @@ def engine_binary() -> str:
     return str(local) if local.exists() else (shutil.which("skipwatch") or "skipwatch")
 
 
+def _engine_summary(work: Path, probe: dict[str, Any]) -> str:
+    """What the stages produced, read back from the work folder; absent files are skipped."""
+
+    def load(name: str) -> dict[str, Any] | None:
+        path = work / name
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+    parts = []
+    if probe:
+        duration = probe.get("duration_s")
+        parts.append(f"duration={round(duration)}s" if duration else "duration=?")
+        parts.append(f"long_video={'yes' if probe.get('long_video') else 'no'}")
+    transcript = load("transcript.json")
+    if transcript:
+        silent = " silent" if transcript.get("silent") else ""
+        parts.append(f"origin={transcript['origin']}{silent}")
+        parts.append(f"segments={len(transcript['segments'])}")
+    frames = load("frames.json")
+    if frames:
+        parts.append(f"frames={len(frames['frames'])}")
+    batches = load("batches.json")
+    if batches:
+        parts.append(f"batches={len(batches['batches'])}")
+    return " ".join(parts)
+
+
 def run_engine_only(
     entry: dict[str, Any],
     out: Path,
     runner: Runner = subprocess.run,
     base_env: Mapping[str, str] | None = None,
+    stages: list[str] | None = None,
 ) -> VideoResult:
-    """ingest, transcribe, frames, plan in an isolated home; no Claude, no judging."""
+    """probe, ingest, transcribe, frames, plan in an isolated home on the free provider.
+
+    No Claude, no cookies, no judging. `stages` runs a subset in order (for example
+    probe, ingest and frames for a video no transcription backend can handle yet).
+    """
     base = dict(os.environ if base_env is None else base_env)
     vid = entry["id"]
     home = out / vid / "home"
     work = home / "work" / vid.lower()
     work.parent.mkdir(parents=True, exist_ok=True)
     env = {**base, "SKIPWATCH_HOME": str(home)}
-    engine = [engine_binary()]
-    done = []
-    for stage in ENGINE_STAGES:
-        cmd = [*engine, stage]
-        if stage == "ingest":
-            cmd += [entry["url"]]
-        cmd += ["--work", str(work)]
+    timings: list[str] = []
+    probe: dict[str, Any] = {}
+    for stage in [s for s in ENGINE_STAGES if stages is None or s in stages]:
+        cmd = [engine_binary(), stage]
+        if stage == "probe":
+            cmd += [entry["url"], "--json"]
+        elif stage == "ingest":
+            cmd += [entry["url"], "--work", str(work), "--provider", "free"]
+        else:
+            cmd += ["--work", str(work)]
+        started = time.monotonic()
         try:
             proc = runner(cmd, env=env, timeout=STAGE_TIMEOUT_S, capture_output=True, text=True)
         except subprocess.TimeoutExpired:
             return VideoResult(vid, False, f"{vid} ENGINE-FAIL {stage} timed out")
+        timings.append(f"{stage}={proc.returncode}/{time.monotonic() - started:.1f}s")
         if proc.returncode != 0:
             last = (proc.stderr or "").strip().splitlines()
             reason = last[-1] if last else ""
-            line = f"{vid} ENGINE-FAIL {stage} exit={proc.returncode} {reason}".rstrip()
-            return VideoResult(vid, False, line)
-        done.append(stage)
-    return VideoResult(vid, True, f"{vid} ENGINE-OK {' '.join(done)}")
+            line = f"{vid} ENGINE-FAIL {stage} exit={proc.returncode} {' '.join(timings)} {reason}"
+            return VideoResult(vid, False, line.rstrip())
+        if stage == "probe":
+            probe = json.loads(proc.stdout or "{}")
+    summary = _engine_summary(work, probe)
+    return VideoResult(vid, True, f"{vid} ENGINE-OK {' '.join(timings)} {summary}".rstrip())
 
 
 def select(videos: list[dict[str, Any]], only: str | None) -> list[dict[str, Any]]:
@@ -218,7 +258,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plugin-dir", type=Path, default=ROOT)
     parser.add_argument("--golden", type=Path, default=DEFAULT_GOLDEN)
     parser.add_argument(
-        "--engine-only", action="store_true", help="run ingest to plan only (no Claude)"
+        "--engine-only", action="store_true", help="run probe to plan only (no Claude)"
+    )
+    parser.add_argument(
+        "--stages", help="with --engine-only: comma-separated subset, for example probe,ingest"
     )
     args = parser.parse_args(argv)
     videos = select(json.loads(args.golden.read_text(encoding="utf-8"))["videos"], args.only)
@@ -226,7 +269,10 @@ def main(argv: list[str] | None = None) -> int:
     all_ok = True
     for entry in videos:
         if args.engine_only:
-            result = run_engine_only(entry, out)
+            stages = args.stages.split(",") if args.stages else None
+            if stages and set(stages) - set(ENGINE_STAGES):
+                raise SystemExit(f"--stages takes {','.join(ENGINE_STAGES)}")
+            result = run_engine_only(entry, out, stages=stages)
         else:
             result = run_video(entry, out, args.plugin_dir.resolve(), subprocess.run, None)
         all_ok = all_ok and result.ok
