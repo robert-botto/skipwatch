@@ -325,6 +325,15 @@ def test_judge_ranges(run_mod):
     ]
 
 
+def test_judge_ratio_at_the_ceiling_passes_and_just_above_fails(run_mod):
+    assert run_mod.judge(_report(steps=10, inferred=2), "", EXPECTED) == []  # exactly 0.2
+    assert run_mod.judge(_report(steps=14, inferred=3), "", EXPECTED) == [
+        "inferred=0.21 (want <=0.20)"
+    ]
+    g2_like = {**EXPECTED, "steps": [3, 15], "inferred_ratio_max": 0.3}
+    assert run_mod.judge(_report(steps=10, inferred=3), "", g2_like) == []  # exactly 0.3
+
+
 def test_judge_zero_steps_is_out_of_range_not_a_crash(run_mod):
     assert run_mod.judge(_report(steps=0, inferred=0), "", EXPECTED) == ["steps=0 (want 6..20)"]
 
