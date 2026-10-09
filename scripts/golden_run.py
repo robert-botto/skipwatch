@@ -135,14 +135,15 @@ def claude_command(
     )
     if entry.get("needs_cookies") and cookies:
         prompt += f" --cookies-from-browser {cookies}"
+    # Prompt right after -p: --allowedTools is variadic and would swallow a later prompt.
     return [
         "claude",
         "-p",
+        prompt,
         "--plugin-dir",
         str(plugin_dir),
         "--allowedTools",
         "Bash,Read,Write,Agent",
-        prompt,
     ]
 
 

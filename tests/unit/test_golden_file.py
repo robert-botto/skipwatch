@@ -376,16 +376,23 @@ def _entry(**over):
 def test_claude_command_shape_and_cookie_rule(run_mod, tmp_path):
     repo = Path("/repo")
     cmd = run_mod.claude_command(_entry(), tmp_path / "out", repo, cookies=None)
-    assert cmd[:4] == ["claude", "-p", "--plugin-dir", str(repo)]
-    assert cmd[cmd.index("--allowedTools") + 1] == "Bash,Read,Write,Agent"
-    prompt = cmd[-1]
+    # The prompt goes right after -p: a variadic flag such as --allowedTools placed before it
+    # swallows the prompt and claude exits with "Input must be provided".
+    prompt = cmd[2]
+    assert cmd[:2] == ["claude", "-p"]
+    assert cmd[3:] == [
+        "--plugin-dir",
+        str(repo),
+        "--allowedTools",
+        "Bash,Read,Write,Agent",
+    ]
     assert prompt.startswith("/skipwatch:skipwatch https://example.test/reel/1 --yes --to ")
     assert prompt.endswith(" --name g4-skill")
     assert "--cookies-from-browser" not in prompt
     with_cookies = run_mod.claude_command(_entry(), tmp_path / "out", Path("/repo"), "chrome")
-    assert with_cookies[-1].endswith("--cookies-from-browser chrome")
+    assert with_cookies[2].endswith("--cookies-from-browser chrome")
     no_need = run_mod.claude_command(_entry(needs_cookies=False), tmp_path, Path("/r"), "chrome")
-    assert "--cookies-from-browser" not in no_need[-1]
+    assert "--cookies-from-browser" not in no_need[2]
 
 
 def test_cookies_only_from_env(run_mod):
