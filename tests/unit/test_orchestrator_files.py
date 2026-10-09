@@ -562,3 +562,42 @@ def test_doctor_grant_agrees_between_plan_and_eval():
         assert grant in row, row
         assert "CLAUDE_PLUGIN_ROOT=" not in row, row
     assert grant in read(ROOT / "evals/doctor/prompt.md")
+
+
+# ---- pilot eval fixes: the Write tool can be confined where Bash is not ----
+
+
+def test_stage_2_probes_the_write_tool():
+    text = flat(REFS / "run-protocol.md")
+    # mkdir through Bash can succeed where the Write tool is denied (eval sandboxes)
+    assert "use the Write tool to write `<W>/logs/.write-probe` with the content `ok`" in text
+    assert "If that Write is denied or fails" in text
+    assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
+
+
+def test_later_write_denial_switches_once_then_stops():
+    text = flat(REFS / "run-protocol.md")
+    assert "If a later Write is denied" in text
+    assert "re-run the engine stages already done" in text
+    assert "Switch once; a second denial stops the run" in text
+
+
+def test_fallback_home_is_git_ignored():
+    text = flat(REFS / "run-protocol.md")
+    assert "`<P>/.skipwatch/.gitignore`" in text and "containing `*`" in text
+    assert "printf '*\\n' >" in text  # fixed content, no video text in the shell
+
+
+def test_readers_get_the_current_work_folder():
+    text = flat(REFS / "run-protocol.md")
+    assert "Build every reader prompt from the current `<W>`" in text
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "never substitute another folder" in reader
+    assert "batch N: write denied: <path>" in reader
+
+
+def test_reader_writes_command_dashes_as_ascii():
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "plain ASCII" in reader
+    assert "two hyphens `--`" in reader and "straight quotes" in reader
+    assert "including the creator's typos" in reader  # everything else stays verbatim
