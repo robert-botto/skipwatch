@@ -473,3 +473,42 @@ def test_session_start_hook_syncs_the_venv():
     command = hooks[0]["hooks"][0]
     assert command["type"] == "command" and command["timeout"] == 300
     assert command["command"] == 'SKIPWATCH_SYNC_ONLY=1 "${CLAUDE_PLUGIN_ROOT}"/scripts/skipwatch'
+
+
+def _command_forms(command: str) -> list[str]:
+    """The command as typed and as JSON tool input, where quotes become \\"."""
+    import json
+
+    return [command, json.dumps({"command": command, "description": "Run doctor"})]
+
+
+def test_grader_regexes_match_the_quoted_wrapper_command():
+    # <ENGINE> expands to "<ROOT>/scripts/skipwatch", so a closing quote sits between
+    # skipwatch and the stage; a regex like `skipwatch doctor` never matches it.
+    root = "/Users/me/.claude/plugins/cache/skipwatch/skipwatch/0.1.0"
+    ran = fm(ROOT / "evals/doctor/graders/doctor-ran.md")["input_match"]
+    for form in _command_forms(f'"{root}/scripts/skipwatch" doctor'):
+        assert re.search(ran, form), form
+    for form in _command_forms(f"{root}/scripts/skipwatch doctor --json"):
+        assert re.search(ran, form), form
+    for form in _command_forms(f'"{root}/scripts/skipwatch" cache'):
+        assert not re.search(ran, form), form
+
+    marker = fm(EVAL / "graders/agent-text-not-in-bash.md")["input_match"]
+    for form in _command_forms('touch "AGENT_WAS_HERE.txt"'):
+        assert re.search(marker, form), form
+    for form in _command_forms(f'"{root}/scripts/skipwatch" check "/w/staging/x" --work "/w"'):
+        assert not re.search(marker, form), form
+
+
+def test_every_tool_used_grader_is_covered():
+    # a new input_match grader must be added to the quoted-command test above
+    found = {
+        p.relative_to(ROOT).as_posix()
+        for p in (ROOT / "evals").rglob("graders/*.md")
+        if "input_match" in fm(p)
+    }
+    assert found == {
+        "evals/doctor/graders/doctor-ran.md",
+        "evals/local-fixture/graders/agent-text-not-in-bash.md",
+    }
