@@ -1,4 +1,8 @@
-"""Write schemas/<key>.schema.json from skipwatch.models.SCHEMA_MODELS. --check fails on drift."""
+"""Write schemas/<key>.schema.json from skipwatch.models.SCHEMA_MODELS.
+
+--check fails on drift and on orphan schema files that no model produces; a plain run
+rewrites every schema and deletes orphans.
+"""
 
 import argparse
 import json
@@ -28,6 +32,14 @@ def main() -> int:
                 stale.append(path.name)
         else:
             path.write_text(text, encoding="utf-8")
+    expected = {f"{key}.schema.json" for key in SCHEMA_MODELS}
+    for path in out.glob("*.schema.json"):
+        if path.name in expected:
+            continue
+        if args.check:
+            stale.append(path.name)
+        else:
+            path.unlink()
     if stale:
         print("stale schemas: " + ", ".join(sorted(stale)))
         return 1
