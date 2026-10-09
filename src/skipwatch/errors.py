@@ -13,6 +13,7 @@ class ExitCode(IntEnum):
     MISSING_DEPENDENCY = 8
     PACK_INTEGRITY = 9
     USAGE = 64
+    INTERNAL_ERROR = 70  # an engine bug, not a user error (EX_SOFTWARE in sysexits.h)
 
 
 class SkipwatchError(Exception):

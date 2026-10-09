@@ -1,0 +1,17 @@
+{
+  "schema": "skipwatch/transcript/1",
+  "origin": "captions",
+  "model": null,
+  "language": "en",
+  "segments": [
+    {"start": 1.0, "end": 5.2, "text": "In this tutorial we set up a tiny demo project in the terminal."},
+    {"start": 9.0, "end": 12.4, "text": "First, type this command in the terminal and run it."},
+    {"start": 16.0, "end": 18.3, "text": "You should see the words project ready."},
+    {"start": 24.0, "end": 26.9, "text": "Next, paste this prompt into the prompt box."},
+    {"start": 31.0, "end": 33.4, "text": "The assistant answers with a short poem."},
+    {"start": 39.0, "end": 42.1, "text": "Then copy your API key into the settings panel."},
+    {"start": 49.0, "end": 51.3, "text": "Finally, click run to see the result."},
+    {"start": 55.0, "end": 56.8, "text": "That is the whole workflow."}
+  ],
+  "silent": false
+}

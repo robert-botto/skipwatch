@@ -1,0 +1,21 @@
+{
+  "schema": "skipwatch/ingest/1",
+  "source": {
+    "kind": "video",
+    "platform": "local",
+    "url": null,
+    "canonical_url": null,
+    "path": "tutorial-60s.mp4",
+    "author": null,
+    "author_name": null,
+    "title": "tutorial-60s",
+    "posted_at": null,
+    "duration_s": 60.0
+  },
+  "context": {"captions_available": true, "captions_path": "media/captions.vtt"},
+  "media": {"path": "media/video.mp4", "width": 1280, "height": 720, "fps": 10.0, "has_audio": true},
+  "transcript_hint": {"origin": "none", "text": null},
+  "provider_calls": [],
+  "route": {"context": "local", "media": "local", "fallbacks": []},
+  "fetched_with_cookies": false
+}

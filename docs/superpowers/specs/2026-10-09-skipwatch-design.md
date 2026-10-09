@@ -374,10 +374,11 @@ All commands: human-readable progress on stderr; machine output on stdout only w
 | 4 | Private or login-required content |
 | 5 | Safety flags present; check otherwise passed |
 | 6 | Install target exists and `--force` not given |
-| 7 | No usable content: no transcript, no readable frames, no text |
+| 7 | No usable content: no transcript, no readable frames, no text, or a work-folder file is unreadable or invalid |
 | 8 | Missing dependency for the requested backend; stderr names the install command |
 | 9 | Pack integrity failure: checksum or manifest mismatch |
 | 64 | Usage error (unknown command or flag) |
+| 70 | Internal error: unexpected exception; report with logs |
 
 ```
 skipwatch doctor [--json]
@@ -723,15 +724,18 @@ Rules (also written in `distill-rules.md` and repeated in each agent file):
    within 20 seconds.
 4. **redaction**: API keys, tokens, passwords and high-entropy strings seen in frames or
    transcript are replaced with `<PROVIDER_API_KEY>` style placeholders in every file. The
-   report lists what was replaced, never the value.
+   report lists what was replaced, never the value. Redaction fails (and so the check fails)
+   when it cannot clean a file safely: an archive, a binary that is not an image or media
+   file (a PDF included), a secret in a file name, or a key split across 3 or more lines. The
+   orchestrator's single retry removes or fixes that file; a second failure stops.
 5. **safety**: flags `curl | sh` and equivalents, `sudo`, `rm -rf`, writes outside the
    project, reads of env files or keychains, outbound URLs that receive data, and
    `allowed-tools`. Flags are reported with severity, never auto-removed.
 6. **style**: no character from `style.forbid` in generated prose; quote blocks are exempt.
 
-Failures in 1, 2, 3 and 6 send the draft back to the orchestrator once with the item list;
-a second failure stops with the report shown. Redaction is applied, not failed. Safety
-flags always reach the review screen.
+Failures in 1, 2, 3, 4 and 6 send the draft back to the orchestrator once with the item
+list; a second failure stops with the report shown. Redaction is otherwise applied, not
+failed. Safety flags always reach the review screen.
 
 - R-CHK-1: Every check has a test that fails on a broken input before any test that passes
   on a good one. A check that cannot be shown to fail is not merged.
