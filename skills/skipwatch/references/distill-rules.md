@@ -57,8 +57,10 @@ Inferred steps carry a one-line reason in the step and are listed by number unde
   `GAP: 03:10 to 03:40, the video cuts from install to the finished page`.
 - Illegible text is `[illegible at mm:ss]` inside the quote block, in place of exactly the
   part that cannot be read. Never a guess, never a plausible completion.
-- Frames the readers could not read (a reader failed twice) are a gap too:
-  `GAP: frames f000100 to f000300 unread (reader failed twice)`.
+- Frames the readers could not read are not a gap (section 15): the transcript and the
+  frames around them usually carry the step. List them under "Unverified and gaps" as
+  `Unread frames: f006032 (reader failed twice)`, never with `GAP:`, so they do not count
+  as gaps or block `--yes`. Write a `GAP:` line only when the step itself is missing.
 
 ## Redaction
 

@@ -970,3 +970,18 @@ def test_unread_frames_are_reported_not_counted_as_gaps():
     assert "Unread frames are not gaps" in text
     assert "never write a `GAP:` line for a frame that is only unread" in text
     assert "unread frames do not count" in text  # the --yes gate in stage 8
+
+
+def test_distill_rules_list_unread_frames_without_a_gap_line():
+    from skipwatch.checks.runner import counts_for
+    from skipwatch.skillmd import parse
+
+    text = flat(REFS / "distill-rules.md")
+    assert "Frames the readers could not read are not a gap" in text
+    assert "unread (reader failed twice)`" not in text.split("not a gap", 1)[0]
+    example = re.search(r"`(Unread frames: f\d+ \(reader failed twice\))`", text)
+    assert example, "distill-rules needs the exact unread-frames line"
+    # the line the rules prescribe must not count as a gap in the engine's check
+    skill = f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {example.group(1)}\n"
+    assert counts_for(parse(skill)).gaps == 0
+    assert counts_for(parse(skill.replace("Unread frames:", "GAP: frames"))).gaps == 1

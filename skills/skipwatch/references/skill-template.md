@@ -123,7 +123,8 @@ Distilled from <title> by <author> (<link>), posted <date>, with SkipWatch. The 
 - **Secrets:** the placeholder from `skipwatch redact --stdin` goes in the quote block, for
   example `OPENAI_API_KEY=<OPENAI_API_KEY>`.
 - **Unverified and gaps:** every `[inferred]` step is listed by number; every gap is a
-  `GAP:` line; unread frames and degradations (no transcript) are listed here too.
+  `GAP:` line; unread frames (`Unread frames: <ids> (<reason>)`, not a `GAP:` line) and
+  degradations (no transcript) are listed here too.
 - **Attribution:** use the section 9 sentence verbatim:
   "Distilled from <title> by <author> (<link>), posted <date>, with SkipWatch. The workflow and wording are the creator's."
   For a local file (metadata `source_url`, `source_author` and `source_date` stay `""`):
