@@ -1,10 +1,16 @@
-"""Frame sampling (spec 8.5): scene frames, dHash dedup, cue frames and the frame budget.
+"""Frame sampling (spec 8.5): scene frames, dedup, cue frames and the frame budget.
 
 Scene frames come from one ffmpeg run at 1 fps through mpdecimate, so a still screen yields
 one frame at the moment it appeared and then nothing until it changes. Dedup keeps the last
 frame of each run of near-duplicates (finished code, not half-typed), and also keeps any frame
 that stayed on screen for HELD_SECONDS or more: that frame is the appearance of held text, and
 the last frame of its run can be far later (Review Focus 3).
+
+Two frames are duplicates when under DUP_FRACTION of their pixels changed by more than
+PIXEL_DELTA on a 320x180 grayscale thumbnail. A 64-bit dHash cannot see a new line of code
+(measured distance 0 to 7 for real changes), so it is kept only as the frames.json field.
+Measured fractions: noise 0.00014, a few typed characters 0.0004 to 0.00056, a new line of
+code 0.0059 to 0.0072, command output 0.0031.
 """
 
 import math
@@ -12,24 +18,27 @@ import re
 import shutil
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 from skipwatch.config import load_config
-from skipwatch.dhash import DUPLICATE_DISTANCE, dhash, hamming
+from skipwatch.dhash import dhash
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.media import ffmpeg_paths, probe
 from skipwatch.models import Frame, FramesFile, IngestBundle, Sampling, Transcript
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
 
 HELD_SECONDS = 3.0
+DUP_FRACTION = 0.001
+PIXEL_DELTA = 32
+THUMB_SIZE = (320, 180)
 DENSE_PER_MINUTE = 6
 DEFAULT_CUE_TERMS = ["paste", "prompt", "settings", "click", "type", "run", "copy"]
 CUE_LEAD_S = 2.0
-CUE_SPAN_S = 4.0
+CUE_TAIL_S = 3.0  # spoken cues come about 1 s before the text shows, so look 3 s ahead
 CUE_STEP_S = 0.5
 
 _PTS_RE = re.compile(r"pts_time:\s*(-?[\d.]+)")
@@ -41,6 +50,37 @@ class Candidate:
     path: Path
     reason: Literal["scene", "cue", "spread"]
     dhash: str
+    thumb: Image.Image | None = field(default=None, repr=False, compare=False)
+
+
+def thumbnail(source: Path | Image.Image) -> Image.Image:
+    """Grayscale 320x180 BOX downscale used for duplicate detection."""
+    if isinstance(source, Image.Image):
+        return source.convert("L").resize(THUMB_SIZE, Image.Resampling.BOX)
+    with Image.open(source) as img:
+        return img.convert("L").resize(THUMB_SIZE, Image.Resampling.BOX)
+
+
+def changed_fraction(a: Image.Image, b: Image.Image) -> float:
+    """Fraction of pixels whose gray level differs by more than PIXEL_DELTA."""
+    histogram = ImageChops.difference(a, b).histogram()
+    return sum(histogram[PIXEL_DELTA + 1 :]) / (a.width * a.height)
+
+
+def _thumb(cand: Candidate) -> Image.Image:
+    return cand.thumb if cand.thumb is not None else thumbnail(cand.path)
+
+
+def _changed_flags(cands: list[Candidate]) -> list[bool]:
+    """flags[i]: candidate i differs from candidate i + 1. Two thumbnails in memory at a time."""
+    flags: list[bool] = []
+    current = _thumb(cands[0]) if cands else None
+    for nxt in cands[1:]:
+        following = _thumb(nxt)
+        assert current is not None
+        flags.append(changed_fraction(current, following) >= DUP_FRACTION)
+        current = following
+    return flags
 
 
 def frame_id(t: float) -> str:
@@ -55,16 +95,18 @@ def budget(duration_s: float, per_minute: int, max_frames: int) -> int:
 def dedup_runs(cands: list[Candidate]) -> list[Candidate]:
     """Collapse runs of near-duplicate scene frames; cue frames pass through untouched.
 
-    A run is consecutive scene frames each within DUPLICATE_DISTANCE of the previous one. Each
-    run keeps its last frame, plus any frame held on screen for HELD_SECONDS or more (the gap to
-    the next scene frame, since mpdecimate already dropped the identical frames in between).
+    A run is consecutive scene frames each a duplicate of the previous one (under DUP_FRACTION
+    changed). Each run keeps its last frame, plus any frame held on screen for HELD_SECONDS or
+    more (the gap to the next scene frame, since mpdecimate already dropped the identical frames
+    in between).
     """
     ordered = sorted(cands, key=lambda c: c.t)
     scenes = [c for c in ordered if c.reason != "cue"]
+    changed = _changed_flags(scenes)
     keep: set[int] = set()
     for i, cand in enumerate(scenes):
         nxt = scenes[i + 1] if i + 1 < len(scenes) else None
-        if nxt is None or hamming(cand.dhash, nxt.dhash) > DUPLICATE_DISTANCE:
+        if nxt is None or changed[i]:
             keep.add(i)  # last of its run
         elif nxt.t - cand.t >= HELD_SECONDS:
             keep.add(i)  # held on screen: the appearance of static text
@@ -106,17 +148,23 @@ def _even_subset(items: list[Candidate], k: int) -> list[Candidate]:
     return [items[round(i * step)] for i in range(k)]
 
 
-def select(cands: list[Candidate], n: int) -> list[Candidate]:
-    """Cue frames first, then scene frames evenly spread to fill; never more than n (R-FR-2)."""
+def select(cands: list[Candidate], n: int, max_frames: int | None = None) -> list[Candidate]:
+    """Cue frames first, then scene frames evenly spread to fill the budget n.
+
+    Cue frames are always kept (spec 3.4): they bypass the per-minute budget n and are capped
+    only by max_frames (an even subset when there are more). Scene frames fill whatever of n
+    the cues left. The result never exceeds max_frames, which defaults to n (R-FR-2).
+    """
+    cap = n if max_frames is None else max_frames
     by_id: dict[str, Candidate] = {}
     for cand in sorted(cands, key=lambda c: (c.t, c.reason != "cue")):
         by_id.setdefault(frame_id(cand.t), cand)  # one frame per id; a cue wins a tie
     unique = list(by_id.values())
     cues = [c for c in unique if c.reason == "cue"]
     others = [c for c in unique if c.reason != "cue"]
-    if len(cues) >= n:
-        return _even_subset(cues, n)
-    return sorted(cues + _even_subset(others, n - len(cues)), key=lambda c: c.t)
+    kept_cues = _even_subset(cues, cap)
+    scenes = _even_subset(others, min(n, cap) - len(kept_cues))
+    return sorted(kept_cues + scenes, key=lambda c: c.t)
 
 
 def _run_ffmpeg(cmd: list[str], cwd: Path, video: Path) -> str:
@@ -165,28 +213,45 @@ def sample_scene(ffmpeg: Path, video: Path, out_dir: Path) -> list[Candidate]:
 def sample_cues(
     ffmpeg: Path, video: Path, out_dir: Path, times: list[float], duration: float
 ) -> list[Candidate]:
-    """2 fps from 2 s before each cue for 4 s. Overlapping windows never repeat a frame id."""
+    """2 fps from 2 s before to 3 s after each cue, keeping one frame per on-screen change.
+
+    Within a window a frame is kept when it differs from the frame before it (the moment new
+    text shows). A window with no change keeps the frame nearest the cue. Overlapping windows
+    never repeat a frame id.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()
     cands: list[Candidate] = []
     for i, cue in enumerate(times):
         start = max(0.0, cue - CUE_LEAD_S)
-        if start >= duration:
+        span = min(cue + CUE_TAIL_S, duration) - start
+        if span <= 0:
             continue
         prefix = f"cue-{i:04d}-"
         _run_ffmpeg(
             [str(ffmpeg), "-hide_banner", "-nostdin", "-ss", f"{start:.3f}",
-             "-i", str(video.resolve()), "-t", f"{CUE_SPAN_S}",
+             "-i", str(video.resolve()), "-t", f"{span:.3f}",
              "-vf", "fps=2,scale=1280:-2", "-q:v", "3", f"{prefix}%03d.jpg"],
             out_dir, video,
         )  # fmt: skip
-        for k, path in enumerate(sorted(out_dir.glob(f"{prefix}*.jpg"))):
-            t = round(start + k * CUE_STEP_S, 3)
-            fid = frame_id(t)
-            if t > duration or fid in seen:
+        window = [
+            Candidate(t=round(start + k * CUE_STEP_S, 3), path=path, reason="cue", dhash="")
+            for k, path in enumerate(sorted(out_dir.glob(f"{prefix}*.jpg")))
+        ]
+        window = [c for c in window if c.t <= duration]
+        if not window:
+            continue
+        changed = _changed_flags(window)
+        kept = [c for c, flag in zip(window[1:], changed, strict=True) if flag]
+        if not kept:
+            kept = [min(window, key=lambda c: (abs(c.t - cue), c.t))]
+        for cand in kept:
+            fid = frame_id(cand.t)
+            if fid in seen:
                 continue
             seen.add(fid)
-            cands.append(Candidate(t=t, path=path, reason="cue", dhash=_hash_file(path)))
+            cand.dhash = _hash_file(cand.path)
+            cands.append(cand)
     return sorted(cands, key=lambda c: c.t)
 
 
@@ -228,15 +293,15 @@ def run_frames(
             pm = cfg.per_minute
         terms = list(DEFAULT_CUE_TERMS)
         sampling = Sampling(per_minute=pm, max=max_frames or cfg.max, dense=dense, cue_terms=terms)
-        if ingest.media is None:
-            raise SkipwatchError(ExitCode.NO_CONTENT, "no media to sample frames from")
-
         frames_dir = work.file("frames")
         shutil.rmtree(frames_dir, ignore_errors=True)  # stale frames never survive a rerun
         frames_dir.mkdir(parents=True)
         frames: list[Frame] = []
-        if ingest.source.kind != "audio":
-            video = Path(ingest.media.path)
+        # No video stream (no media, an audio source, or a local .wav ingested as kind "file"
+        # with no width): nothing to sample, so frames.json is written empty.
+        media = ingest.media
+        if media is not None and media.width is not None and ingest.source.kind != "audio":
+            video = Path(media.path)
             video = video if video.is_absolute() else work.path / video
             ffmpeg, _ = ffmpeg_paths(allow_fetch=True)
             duration = _duration(ingest, video)
@@ -249,7 +314,9 @@ def run_frames(
                     for c in sample_scene(ffmpeg, video, Path(raw) / "scene")
                     if frame_id(c.t) not in cue_ids
                 ]
-                chosen = select(dedup_runs(scenes + cues), budget(duration, pm, sampling.max))
+                chosen = select(
+                    dedup_runs(scenes + cues), budget(duration, pm, sampling.max), sampling.max
+                )
                 for cand in chosen:
                     fid = frame_id(cand.t)
                     shutil.copyfile(cand.path, frames_dir / f"{fid}.jpg")

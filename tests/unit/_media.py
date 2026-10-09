@@ -1,10 +1,11 @@
-"""Synthetic media for frame tests: system ffmpeg lavfi sources only (no drawtext)."""
+"""Synthetic media for frame tests: lavfi sources and Pillow stills, no drawtext."""
 
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from PIL import Image, ImageDraw, ImageFont
 
 from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo
 from skipwatch.workdir import WorkDir, write_model
@@ -61,3 +62,35 @@ def make_local_work(tmp_path: Path, video: Path, duration: float | None = None) 
     )
     write_model(w / "ingest.json", bundle)
     return w
+
+
+CODE_LINE = "result = compute_total(items, tax=0.0825)"  # 41 chars, about one editor line
+
+
+def editor_frame(lines: int, extra_chars: int = 0, size=(1280, 720)) -> Image.Image:
+    """A dark code editor showing `lines` full lines, then `extra_chars` of the next one."""
+    img = Image.new("RGB", size, (30, 30, 36))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default(size=26)
+    draw.rectangle((0, 0, size[0], 36), fill=(50, 50, 60))  # title bar
+    for k in range(lines + 1):
+        text = CODE_LINE if k < lines else CODE_LINE[:extra_chars]
+        draw.text((40, 60 + k * 44), text, fill=(220, 220, 220), font=font)
+    return img
+
+
+def make_typed_code_video(path: Path, lines: int = 10, seconds_per_line: int = 2) -> Path:
+    """A new 40-char line appears every `seconds_per_line` s; Pillow frames joined by ffmpeg."""
+    stills = path.parent / f"{path.stem}-stills"
+    stills.mkdir()
+    n = 0
+    for k in range(lines):
+        for _ in range(seconds_per_line):
+            editor_frame(k + 1).save(stills / f"img-{n:04d}.png")
+            n += 1
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-nostdin", "-framerate", "1", "-i", "img-%04d.png",
+         "-r", "10", "-pix_fmt", "yuv420p", str(path.resolve())],
+        check=True, cwd=stills,
+    )  # fmt: skip
+    return path
