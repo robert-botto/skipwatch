@@ -790,6 +790,15 @@ def test_long_stages_avoid_the_bash_timeout():
     assert "Each poll prints one progress line" in text  # R-UX-2
 
 
+def test_transcribe_exit_3_and_7_quote_the_engine():
+    text = flat(REFS / "run-protocol.md")
+    # S1: exit 7 has several causes; quote the engine instead of guessing one
+    assert "captions file had no usable text" not in text
+    assert "no transcript: <the engine's message>" in text
+    # M2-C: a Whisper model that cannot be downloaded is exit 3, not a media download
+    assert "Exit 3 from transcribe is not a media download" in text
+
+
 def test_thorough_uses_the_large_whisper_model():
     text = flat(REFS / "run-protocol.md")
     assert "--model large-v3-turbo" in text  # 3.4 faster-whisper under --thorough

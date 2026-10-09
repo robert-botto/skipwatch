@@ -200,8 +200,12 @@ Run, each timed as above:
      review screen offers `install Whisper and re-run` and, per key,
      `transcribe with <Provider> and re-run` (review-screen.md, "Transcription offers").
      `--yes` never picks one of these options.
-   - Exit 7: the same frames-only degradation without an offer, reason
-     `captions file had no usable text`.
+   - Exit 7 (no captions text, no audio track, or no media): the same frames-only
+     degradation, recording `no transcript: <the engine's message>` quoted from the
+     stage log, with no offer. Exit 3 from transcribe is not a media download: it is a
+     Whisper model that could not be downloaded (the engine says to run once with
+     network). Degrade the same way, recording the engine's message with
+     `(retry: /skipwatch resume <W> once online)`, and make no offer: Whisper is installed.
    - Silent video: when `<W>/transcript.json` has `"silent": true` (check with
      `grep -Eq '"silent": ?true' "<W>/transcript.json" && echo silent`), print
      `Silent video: leaning on frames and post text.`, run frames with `--dense`, and in
