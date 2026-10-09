@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "Frame": {
+      "additionalProperties": false,
+      "properties": {
+        "dhash": {
+          "pattern": "^[0-9a-f]{16}$",
+          "title": "Dhash",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^f\\d{6}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "scene",
+            "cue",
+            "spread"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "t": {
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        },
+        "transcript_window": {
+          "default": "",
+          "title": "Transcript Window",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "t",
+        "path",
+        "reason",
+        "dhash"
+      ],
+      "title": "Frame",
+      "type": "object"
+    },
+    "Sampling": {
+      "additionalProperties": false,
+      "properties": {
+        "cue_terms": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Cue Terms",
+          "type": "array"
+        },
+        "dense": {
+          "default": false,
+          "title": "Dense",
+          "type": "boolean"
+        },
+        "max": {
+          "title": "Max",
+          "type": "integer"
+        },
+        "per_minute": {
+          "title": "Per Minute",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "per_minute",
+        "max"
+      ],
+      "title": "Sampling",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/Frame"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "sampling": {
+      "$ref": "#/$defs/Sampling"
+    },
+    "schema": {
+      "const": "skipwatch/frames/1",
+      "default": "skipwatch/frames/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sampling",
+    "frames"
+  ],
+  "title": "FramesFile",
+  "type": "object"
+}

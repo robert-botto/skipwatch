@@ -1,0 +1,203 @@
+{
+  "$defs": {
+    "CheckItem": {
+      "additionalProperties": false,
+      "properties": {
+        "fix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fix"
+        },
+        "msg": {
+          "title": "Msg",
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        }
+      },
+      "required": [
+        "msg"
+      ],
+      "title": "CheckItem",
+      "type": "object"
+    },
+    "CheckResult": {
+      "additionalProperties": false,
+      "properties": {
+        "check": {
+          "enum": [
+            "frontmatter",
+            "structure",
+            "provenance",
+            "redaction",
+            "safety",
+            "style"
+          ],
+          "title": "Check",
+          "type": "string"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SafetyFlag"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "items": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CheckItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "check",
+        "ok"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "Counts": {
+      "additionalProperties": false,
+      "properties": {
+        "gaps": {
+          "default": 0,
+          "title": "Gaps",
+          "type": "integer"
+        },
+        "illegible": {
+          "default": 0,
+          "title": "Illegible",
+          "type": "integer"
+        },
+        "inferred": {
+          "default": 0,
+          "title": "Inferred",
+          "type": "integer"
+        },
+        "on_screen": {
+          "default": 0,
+          "title": "On Screen",
+          "type": "integer"
+        },
+        "spoken": {
+          "default": 0,
+          "title": "Spoken",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "written": {
+          "default": 0,
+          "title": "Written",
+          "type": "integer"
+        }
+      },
+      "title": "Counts",
+      "type": "object"
+    },
+    "SafetyFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "severity"
+      ],
+      "title": "SafetyFlag",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "counts": {
+      "$ref": "#/$defs/Counts"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/CheckResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/check/1",
+      "default": "skipwatch/check/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "skill": {
+      "title": "Skill",
+      "type": "string"
+    }
+  },
+  "required": [
+    "skill",
+    "passed",
+    "results",
+    "counts"
+  ],
+  "title": "CheckReport",
+  "type": "object"
+}

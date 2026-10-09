@@ -1,0 +1,174 @@
+{
+  "$defs": {
+    "CrossCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "title": "Origin",
+          "type": "string"
+        },
+        "similarity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Similarity"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "text"
+      ],
+      "title": "CrossCheck",
+      "type": "object"
+    },
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "minimum": 0,
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "number"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "words": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Word"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Words"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "text"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "Word": {
+      "additionalProperties": false,
+      "properties": {
+        "e": {
+          "title": "E",
+          "type": "number"
+        },
+        "s": {
+          "title": "S",
+          "type": "number"
+        },
+        "w": {
+          "title": "W",
+          "type": "string"
+        }
+      },
+      "required": [
+        "w",
+        "s",
+        "e"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cross_check": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CrossCheck"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "language": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Language"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "origin": {
+      "enum": [
+        "captions",
+        "mlx-whisper",
+        "faster-whisper",
+        "openai",
+        "groq",
+        "deepgram"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/transcript/1",
+      "default": "skipwatch/transcript/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/Segment"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "silent": {
+      "default": false,
+      "title": "Silent",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "origin",
+    "segments"
+  ],
+  "title": "Transcript",
+  "type": "object"
+}

@@ -1,0 +1,48 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "backup": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Backup"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/install/1",
+      "default": "skipwatch/install/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "scope": {
+      "enum": [
+        "user",
+        "project",
+        "agents",
+        "dir"
+      ],
+      "title": "Scope",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "path",
+    "scope"
+  ],
+  "title": "InstallResult",
+  "type": "object"
+}

@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "Batch": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Frame Ids",
+          "type": "array"
+        },
+        "id": {
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "notes_path": {
+          "title": "Notes Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "frame_ids",
+        "notes_path"
+      ],
+      "title": "Batch",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "batches": {
+      "items": {
+        "$ref": "#/$defs/Batch"
+      },
+      "title": "Batches",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/batches/1",
+      "default": "skipwatch/batches/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "batches"
+  ],
+  "title": "BatchesFile",
+  "type": "object"
+}

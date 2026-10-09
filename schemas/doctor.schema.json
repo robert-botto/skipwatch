@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "DoctorComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "found": {
+          "title": "Found",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "name",
+        "found"
+      ],
+      "title": "DoctorComponent",
+      "type": "object"
+    },
+    "DoctorMissing": {
+      "additionalProperties": false,
+      "properties": {
+        "install_command": {
+          "title": "Install Command",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "unlocks": {
+          "title": "Unlocks",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "unlocks",
+        "install_command"
+      ],
+      "title": "DoctorMissing",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "components": {
+      "items": {
+        "$ref": "#/$defs/DoctorComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "missing": {
+      "items": {
+        "$ref": "#/$defs/DoctorMissing"
+      },
+      "title": "Missing",
+      "type": "array"
+    },
+    "next_tier": {
+      "anyOf": [
+        {
+          "enum": [
+            "none",
+            "0",
+            "1",
+            "1c",
+            "2",
+            "3"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Tier"
+    },
+    "schema": {
+      "const": "skipwatch/doctor/1",
+      "default": "skipwatch/doctor/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "tier": {
+      "enum": [
+        "none",
+        "0",
+        "1",
+        "1c",
+        "2",
+        "3"
+      ],
+      "title": "Tier",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "tier",
+    "components",
+    "missing"
+  ],
+  "title": "DoctorReport",
+  "type": "object"
+}

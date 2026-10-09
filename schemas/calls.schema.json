@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "ProviderCall": {
+      "additionalProperties": false,
+      "properties": {
+        "cost_usd": {
+          "default": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "ms": {
+          "default": 0,
+          "title": "Ms",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "op",
+        "ok"
+      ],
+      "title": "ProviderCall",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "calls": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProviderCall"
+      },
+      "title": "Calls",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/calls/1",
+      "default": "skipwatch/calls/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "title": "CallsFile",
+  "type": "object"
+}

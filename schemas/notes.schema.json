@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "FrameNote": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "illegible": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Illegible",
+          "type": "array"
+        },
+        "new_since_previous": {
+          "default": true,
+          "title": "New Since Previous",
+          "type": "boolean"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "shows": {
+          "enum": [
+            "terminal",
+            "code editor",
+            "browser ui",
+            "slide",
+            "prompt box",
+            "settings panel",
+            "other"
+          ],
+          "title": "Shows",
+          "type": "string"
+        },
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "verbatim": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VerbatimItem"
+          },
+          "title": "Verbatim",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "t",
+        "shows"
+      ],
+      "title": "FrameNote",
+      "type": "object"
+    },
+    "VerbatimItem": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "kind": {
+          "enum": [
+            "command",
+            "code",
+            "prompt",
+            "setting",
+            "ui_path",
+            "url",
+            "text"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "confidence"
+      ],
+      "title": "VerbatimItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "batch": {
+      "title": "Batch",
+      "type": "integer"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/FrameNote"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/notes/1",
+      "default": "skipwatch/notes/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "batch",
+    "frames"
+  ],
+  "title": "NotesFile",
+  "type": "object"
+}

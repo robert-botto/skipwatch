@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "CritiqueFix": {
+      "additionalProperties": false,
+      "properties": {
+        "fix": {
+          "title": "Fix",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timestamp"
+        }
+      },
+      "required": [
+        "step",
+        "fix"
+      ],
+      "title": "CritiqueFix",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "fixes": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CritiqueFix"
+      },
+      "maxItems": 8,
+      "title": "Fixes",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/critique/1",
+      "default": "skipwatch/critique/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "score": {
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Score",
+      "type": "number"
+    },
+    "scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "propertyNames": {
+        "enum": [
+          "completeness",
+          "verifiability",
+          "actionability",
+          "trigger_quality",
+          "safety_hygiene"
+        ]
+      },
+      "title": "Scores",
+      "type": "object"
+    }
+  },
+  "required": [
+    "scores",
+    "score"
+  ],
+  "title": "Critique",
+  "type": "object"
+}
