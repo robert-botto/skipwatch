@@ -993,3 +993,23 @@ def test_frame_reader_writes_one_entry_per_listed_frame():
     assert '`"note": "same as <id>"`' in reader and "empty `verbatim`" in reader
     assert "count your entries against the list" in reader
     assert _before(reader, "count your entries against the list", "Write to the output path")
+
+
+def test_claude_stages_are_marked_in_stages_json():
+    text = flat(REFS / "run-protocol.md")
+
+    def mark(stage, status):
+        return f'<ENGINE> mark --work "<W>" --stage {stage} --status {status}'
+
+    for stage in ("read", "distill", "review"):
+        assert mark(stage, "running") in text, stage
+        assert mark(stage, "done") in text, stage
+        assert _before(text, mark(stage, "running"), mark(stage, "done")), stage
+    assert mark("critique", "done") in text  # no critic agent yet; resume must move past it
+    assert "`--status failed`" in text
+    # read is marked before the readers go out, and done only after validation
+    assert _before(text, mark("read", "running"), "all in one message")
+    assert _before(text, "<ENGINE> validate-notes", mark("read", "done"))
+    assert _before(text, mark("read", "done"), mark("distill", "running"))
+    assert _before(text, mark("distill", "done"), "<ENGINE> check")
+    assert _before(text, mark("review", "running"), "## Stage 9")
