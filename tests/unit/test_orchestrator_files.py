@@ -985,3 +985,11 @@ def test_distill_rules_list_unread_frames_without_a_gap_line():
     skill = f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {example.group(1)}\n"
     assert counts_for(parse(skill)).gaps == 0
     assert counts_for(parse(skill.replace("Unread frames:", "GAP: frames"))).gaps == 1
+
+
+def test_frame_reader_writes_one_entry_per_listed_frame():
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "exactly one entry per listed frame id, in the order given" in reader
+    assert '`"note": "same as <id>"`' in reader and "empty `verbatim`" in reader
+    assert "count your entries against the list" in reader
+    assert _before(reader, "count your entries against the list", "Write to the output path")
