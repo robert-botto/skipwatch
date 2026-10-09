@@ -15,6 +15,9 @@ import time
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.exceptions import LocationParseError
 from urllib3.util import parse_url
 
@@ -93,8 +96,9 @@ def _is_public(address: str) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
-def _check(url: str) -> None:
-    """Raise Refused unless url is http(s) on a host whose every address is public.
+def _check(url: str) -> str:
+    """The address to connect to, or Refused unless url is http(s) on a host whose every
+    address is public.
 
     The host is read with urllib3's parse_url, the parser requests itself uses, so the host
     checked is the host connected to. A backslash or userinfo (`user@`) anywhere is refused:
@@ -124,21 +128,86 @@ def _check(url: str) -> None:
         raise Refused(f"cannot resolve {host}") from exc
     if not public:
         raise Refused(f"refused: {host} resolves to a private or local address")
+    return str(infos[0][4][0])
+
+
+# ---- the pinned transport ----
+
+
+def _pinned(base: type[HTTPConnection], address: str) -> type[HTTPConnection]:
+    """A connection class that opens its socket to `address`, the one SkipWatch vetted, so a
+    second DNS answer (rebinding) is never used. The Host header, TLS SNI and certificate
+    check still use the URL's hostname: only the socket's destination changes."""
+
+    class Pinned(base):
+        def _new_conn(self):
+            hostname = self._dns_host
+            self._dns_host = address
+            try:
+                return super()._new_conn()
+            finally:
+                self._dns_host = hostname
+
+    return Pinned
+
+
+class _PinnedAdapter(HTTPAdapter):
+    def __init__(self, address: str):
+        self.address = address  # read by init_poolmanager, which HTTPAdapter.__init__ calls
+        super().__init__(max_retries=0)
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        super().init_poolmanager(connections, maxsize, block=block, **pool_kwargs)
+        http = _pinned(HTTPConnection, self.address)
+        https = _pinned(HTTPSConnection, self.address)
+        self.poolmanager.pool_classes_by_scheme = {
+            "http": type("PinnedHTTPPool", (HTTPConnectionPool,), {"ConnectionCls": http}),
+            "https": type("PinnedHTTPSPool", (HTTPSConnectionPool,), {"ConnectionCls": https}),
+        }
+
+
+_SESSION: requests.Session | None = None
+
+
+def _session() -> requests.Session:
+    global _SESSION
+    if _SESSION is None:
+        _SESSION = requests.Session()
+    return _SESSION
+
+
+def _send(method: str, url: str, address: str, timeout: float) -> requests.Response:
+    """One request to `url` over a socket to `address`; redirects are never followed here."""
+    adapter = _PinnedAdapter(address)
+    try:
+        prepared = _session().prepare_request(requests.Request(method, url))
+        # proxies={} also suits yt-dlp's select_proxy, which replaces requests' on import
+        return adapter.send(prepared, stream=True, timeout=timeout, proxies={})
+    except BaseException:
+        adapter.close()
+        raise
+
+
+def _close(response: requests.Response) -> None:
+    response.close()
+    connection = getattr(response, "connection", None)
+    if connection is not None:
+        connection.close()
 
 
 # ---- fetching ----
 
 
 def _get(url: str) -> requests.Response:
-    """GET with redirects followed by hand, each hop re-checked; at most 3 hops."""
+    """GET with redirects followed by hand; every hop is re-checked and pinned; at most 3."""
     current = url
     for _ in range(MAX_REDIRECTS + 1):
-        _check(current)
-        response = requests.get(current, timeout=TIMEOUT_S, stream=True, allow_redirects=False)
+        address = _check(current)
+        response = _send("GET", current, address, TIMEOUT_S)
         location = response.headers.get("Location")
         if response.status_code not in REDIRECT_CODES or not location:
             return response
-        response.close()
+        _close(response)
         current = urljoin(current, location)
     raise Refused(f"more than {MAX_REDIRECTS} redirects")
 
@@ -174,7 +243,7 @@ def _fetch(url: str) -> LinkContext:
         except requests.RequestException as exc:
             raise Refused(type(exc).__name__) from exc
     finally:
-        response.close()
+        _close(response)
     try:
         decoded = body.decode(_charset(content_type), errors="replace")
     except LookupError:
@@ -235,9 +304,8 @@ def resolve(url: str, calls: list[ProviderCall] | None = None) -> str | None:
     """Where a short link (t.co) points: one HEAD, no cookies, the Location not followed."""
     started = time.monotonic()
     try:
-        _check(url)
-        response = requests.head(url, timeout=TIMEOUT_S, allow_redirects=False)
-        response.close()
+        response = _send("HEAD", url, _check(url), TIMEOUT_S)
+        _close(response)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))
         return None

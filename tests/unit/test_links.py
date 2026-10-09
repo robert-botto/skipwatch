@@ -42,22 +42,14 @@ def net(monkeypatch):
         family = socket.AF_INET6 if ":" in address else socket.AF_INET
         return [(family, socket.SOCK_STREAM, 6, "", (address, port or 0))]
 
-    def get(url, **kwargs):
+    def send(method, url, address, timeout):
         state["requested"].append(url)
-        state["kwargs"].append(kwargs)
+        state["kwargs"].append({"method": method, "address": address, "timeout": timeout})
         page = state["pages"].get(url)
-        if page is None:
-            return FakeResponse(404, b"", "text/html")
-        return page
-
-    def head(url, **kwargs):
-        state["requested"].append(url)
-        state["kwargs"].append(kwargs)
-        return state["pages"].get(url) or FakeResponse(404)
+        return page if page is not None else FakeResponse(404, b"", "text/html")
 
     monkeypatch.setattr(links.socket, "getaddrinfo", getaddrinfo)
-    monkeypatch.setattr(links.requests, "get", get)
-    monkeypatch.setattr(links.requests, "head", head)
+    monkeypatch.setattr(links, "_send", send)
     return state
 
 
@@ -152,14 +144,10 @@ def test_relative_redirect_is_resolved_against_the_current_url(net):
     assert got is not None and got.url == "https://b.example.com/old" and "moved" in got.text
 
 
-def test_requests_carry_no_cookies_timeout_and_no_auto_redirects(net):
+def test_requests_go_to_the_vetted_address_with_a_timeout(net):
     net["pages"]["https://c.example.com/"] = FakeResponse(body=html("<p>hi</p>"))
     links.fetch_link("https://c.example.com/")
-    kwargs = net["kwargs"][0]
-    assert kwargs["timeout"] == 10 and kwargs["allow_redirects"] is False
-    assert kwargs.get("stream") is True
-    assert "cookies" not in kwargs
-    assert "User-Agent" not in (kwargs.get("headers") or {})  # requests' default, nothing personal
+    assert net["kwargs"] == [{"method": "GET", "address": PUBLIC_IP, "timeout": 10}]
 
 
 def test_github_repo_url_fetches_readme(net):
@@ -222,10 +210,10 @@ def test_http_error_status_is_none(net):
 
 
 def test_request_exception_is_none(net, monkeypatch):
-    def boom(url, **kwargs):
+    def boom(*args, **kwargs):
         raise links.requests.ConnectionError("refused")
 
-    monkeypatch.setattr(links.requests, "get", boom)
+    monkeypatch.setattr(links, "_send", boom)
     assert links.fetch_link("https://g.example.com/") is None
 
 
@@ -267,7 +255,7 @@ def test_resolve_follows_one_redirect_with_head(net):
     calls: list[ProviderCall] = []
     assert links.resolve("https://t.co/abc", calls) == "https://twitter.com/someone/status/123"
     assert net["requested"] == ["https://t.co/abc"]
-    assert net["kwargs"][0]["allow_redirects"] is False
+    assert net["kwargs"][0]["method"] == "HEAD"
     assert [(c.op, c.ok, c.endpoint) for c in calls] == [("link.resolve", True, "t.co")]
 
 
