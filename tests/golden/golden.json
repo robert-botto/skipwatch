@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "selected_at": "2026-10-09",
+  "videos": [
+    {
+      "id": "G1",
+      "url": "https://www.youtube.com/watch?v=YrVR09v78Dc",
+      "platform": "youtube",
+      "title": "You've been parsing JSON Wrong",
+      "author": "@devopstoolbox",
+      "duration_s": 807,
+      "captions": "manual",
+      "why": "jq tutorial from DevOps Toolbox (136k subscribers, uploaded 2025-10-10) with manual English captions; its worked example (a team JSON file, select by salary, raw output, del of keys) runs offline with jq alone.",
+      "needs_cookies": false,
+      "expected": {
+        "steps": [6, 20],
+        "inferred_ratio_max": 0.2,
+        "gaps_max": 1,
+        "safety_flags_max": 0,
+        "illegible_in_quotes_max": 0
+      },
+      "s2": {
+        "task": "Using jq, create team.json describing a small startup: an object with \"startup\", \"location\" and a \"team\" array of at least four members, each with \"name\", \"salary\" (a number) and \"skills\" (an array), with at least one salary above 115000 and at least one at or below it. Then, as in the video, write the raw names (no quotes) of the members whose salary is over 115000 to high_earners.txt, one per line, and write the team array with every member's \"skills\" key deleted to team_no_skills.json.",
+        "verify": "test -s high_earners.txt && jq -e '(.team | length) >= 4 and (.team | map(.salary > 115000) | any) and (.team | map(.salary <= 115000) | any)' team.json > /dev/null && jq -r '.team[] | select(.salary > 115000) | .name' team.json | diff - high_earners.txt > /dev/null && ! grep -q '\"' high_earners.txt && jq -e 'type == \"array\" and length >= 4 and all(.[]; has(\"skills\") | not)' team_no_skills.json > /dev/null"
+      }
+    },
+    {
+      "id": "G2",
+      "url": "https://x.com/claudeai/status/2010805682434666759",
+      "platform": "x",
+      "title": "Introducing Cowork: Claude Code for the rest of your work.",
+      "author": "@claudeai",
+      "duration_s": 69,
+      "captions": "none",
+      "why": "Official @claudeai post (1.88M followers, 2026-01-12) with a native 1:09 screen-recorded walkthrough of Cowork prompts and UI; logged out it shows a five-post author thread with three links (claude.com/download, a waitlist form, the blog post).",
+      "needs_cookies": false,
+      "expected": {
+        "steps": [3, 15],
+        "inferred_ratio_max": 0.3,
+        "gaps_max": 2,
+        "safety_flags_max": 0,
+        "illegible_in_quotes_max": 0,
+        "context": {"thread_min": 4, "replies_min": 0, "links_min": 2}
+      }
+    },
+    {
+      "id": "G3",
+      "url": "https://www.tiktok.com/@github/video/7624273546776153377",
+      "platform": "tiktok",
+      "title": "Get GitHub Copilot directly in your terminal. Here's how to set it up.",
+      "author": "@github",
+      "duration_s": 35,
+      "captions": "none",
+      "why": "Official GitHub TikTok (2026-04-02, 11k views), a 35 s setup tutorial for Copilot CLI with terminal commands on screen.",
+      "needs_cookies": false,
+      "expected": {
+        "steps": [3, 15],
+        "inferred_ratio_max": 0.3,
+        "gaps_max": 2,
+        "safety_flags_max": 0,
+        "illegible_in_quotes_max": 0
+      }
+    },
+    {
+      "id": "G4",
+      "url": "https://www.instagram.com/reel/Dd-rJlkE_Z5/",
+      "platform": "instagram",
+      "title": "Just one command can help you stop leaking secrets into your public code.",
+      "author": "@github",
+      "duration_s": null,
+      "captions": "none",
+      "why": "Official GitHub reel (2026-10-02) showing one command (gh-secure) to add security hygiene to a repository; metadata and 720p/1080p formats load without cookies, but logged-out Instagram omits the duration and only lists the 12 newest reels, so no reel older than 3 months could be reached.",
+      "needs_cookies": false,
+      "expected": {
+        "steps": [3, 15],
+        "inferred_ratio_max": 0.3,
+        "gaps_max": 2,
+        "safety_flags_max": 0,
+        "illegible_in_quotes_max": 0
+      }
+    },
+    {
+      "id": "G5",
+      "url": "https://www.youtube.com/watch?v=CqZA_KmygKw",
+      "platform": "youtube",
+      "title": "\"Lessons from building GitHub code search\" by Luke Francl (Strange Loop 2023)",
+      "author": "@StrangeLoopConf",
+      "duration_s": 2183,
+      "captions": "auto",
+      "why": "Strange Loop 2023 talk (88k subscribers, 2023-10-04, the conference has ended so the channel is archival) with slides throughout and English auto captions.",
+      "needs_cookies": false,
+      "expected": {
+        "steps": [8, 40],
+        "inferred_ratio_max": 0.3,
+        "gaps_max": 3,
+        "safety_flags_max": 0,
+        "illegible_in_quotes_max": 0
+      }
+    }
+  ]
+}
