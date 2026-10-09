@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from skipwatch.media import find_system_ffmpeg, static_ffmpeg_fetched
+from skipwatch.media import ffmpeg_paths, find_system_ffmpeg, static_ffmpeg_fetched
 from skipwatch.workdir import STAGE_ORDER
 
 pytestmark = [
@@ -87,10 +87,7 @@ def ingested(home: Path, work: Path) -> Path:
 
 
 def kill_frames_mid_stage(home: Path, work: Path, tmp_path: Path) -> None:
-    system = find_system_ffmpeg()
-    if system is None:
-        pytest.skip("the kill wrapper needs ffmpeg and ffprobe on PATH")
-    ffmpeg, ffprobe = system
+    ffmpeg, ffprobe = ffmpeg_paths(allow_fetch=False)  # system or already-fetched static
     bin_dir = tmp_path / "wrapped-bin"
     bin_dir.mkdir()
     marker = tmp_path / "ffmpeg-ran"
