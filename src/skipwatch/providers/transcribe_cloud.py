@@ -108,7 +108,8 @@ def _post(name: str, env: str, key: str, send: Callable[[], Any]) -> dict:
         raise SkipwatchError(
             ExitCode.INTERNAL_ERROR,
             f"{name} transcription failed: HTTP 413, an audio chunk broke the chunk contract "
-            f"({CHUNK_S} s at {MP3_KBPS} kbps should fit the upload limit); this is a skipwatch bug",
+            f"({CHUNK_S} s at {MP3_KBPS} kbps should fit the upload limit); "
+            "this is a skipwatch bug",
         )
     if status == 429:
         raise SkipwatchError(
