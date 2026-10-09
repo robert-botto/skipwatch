@@ -12,6 +12,7 @@ from skipwatch.audio import (
     leading_silence_s,
     load_trimmed,
     load_wav_float32,
+    media_has_audio,
 )
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo
@@ -129,6 +130,14 @@ def test_mp3_chunks_offsets(tmp_path):
 
     last = media.probe(chunks[-1][0])
     assert abs(float(last["format"]["duration"]) - 10.0) < 0.5
+
+
+def test_media_has_audio(tmp_path):
+    _, bundle = work_for(tmp_path, "media/x.mp4")
+    assert media_has_audio(bundle)
+    no_track = bundle.model_copy(update={"media": MediaInfo(path="m.mp4", has_audio=False)})
+    assert not media_has_audio(no_track)
+    assert not media_has_audio(bundle.model_copy(update={"media": None}))
 
 
 def tone_after(silence_s: float, tone_s: float = 1.0, amp: float = 0.5):

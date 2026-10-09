@@ -295,6 +295,16 @@ def test_mlx_model_download_failure_is_exit_3(work_with_audio, monkeypatch):
     )
 
 
+def test_no_audio_track_makes_whisper_unavailable(monkeypatch):
+    installed(monkeypatch, mlx=True, faster=True)
+    mute = bundle().model_copy(update={"media": MediaInfo(path="media/clip.mp4", has_audio=False)})
+    for backend in (MlxWhisperBackend(), FasterWhisperBackend()):
+        assert backend.available(bundle())
+        assert not backend.available(mute)
+        assert backend.unavailable_reason(mute) == "no audio track"
+        assert backend.unavailable_reason(bundle()) is None
+
+
 def installed(monkeypatch, *, mlx: bool, faster: bool, apple: bool = True):
     monkeypatch.setattr(transcribe_mlx, "_installed", lambda: mlx)
     monkeypatch.setattr(transcribe_mlx, "is_apple_silicon", lambda: apple)

@@ -15,9 +15,9 @@ from skipwatch.models import IngestBundle, Transcript
 from skipwatch.providers.whisper_common import (
     DEFAULT_MODELS,
     download_failed,
-    has_media,
     make_segment,
     or_silence,
+    unavailable_reason,
     wav_for,
 )
 from skipwatch.workdir import WorkDir
@@ -44,7 +44,10 @@ class MlxWhisperBackend:
     auto_rank: int | None = 1
 
     def available(self, bundle: IngestBundle) -> bool:
-        return is_apple_silicon() and _installed() and has_media(bundle)
+        return is_apple_silicon() and _installed() and unavailable_reason(bundle) is None
+
+    def unavailable_reason(self, bundle: IngestBundle) -> str | None:
+        return unavailable_reason(bundle)
 
     def missing_hint(self) -> str:
         if not is_apple_silicon():

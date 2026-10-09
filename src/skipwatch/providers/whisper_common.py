@@ -5,7 +5,7 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 
-from skipwatch.audio import audio_duration, extract_audio
+from skipwatch.audio import audio_duration, extract_audio, media_has_audio
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, Segment, Word
 from skipwatch.workdir import WorkDir, read_model
@@ -18,9 +18,13 @@ DEFAULT_MODELS = {
 MODEL_SIZES = {"small": "500 MB", "large-v3-turbo": "1.6 GB", "turbo": "1.6 GB"}
 
 
-def has_media(bundle: IngestBundle) -> bool:
-    # No audio track is not a missing dependency: extract_audio raises exit 7 for it.
-    return bundle.media is not None
+def unavailable_reason(bundle: IngestBundle) -> str | None:
+    """Why a Whisper backend cannot run on this bundle, installed or not."""
+    if bundle.media is None:
+        return "no media"
+    if not media_has_audio(bundle):
+        return "no audio track"
+    return None
 
 
 def wav_for(work: WorkDir) -> Path:

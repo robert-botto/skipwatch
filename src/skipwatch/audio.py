@@ -25,6 +25,10 @@ LOUD_DBFS = -35.0
 LEAD_PAD_S = 0.1
 
 
+def media_has_audio(bundle: IngestBundle) -> bool:
+    return bundle.media is not None and bundle.media.has_audio
+
+
 def media_path(work: WorkDir, bundle: IngestBundle) -> Path:
     """Absolute for local files, work-relative for downloads."""
     if bundle.media is None:
