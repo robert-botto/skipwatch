@@ -155,6 +155,8 @@ with different inputs to get past it.
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run skipwatch check again.` |
 | 6 | install | show the review screen again with the collision prompt. |
 | 64 | any | your command was malformed: fix it from the engine's usage text and retry once. |
-| 101, 126, 127, any other code | any | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs), and for exit 1 when stderr says "could not create the Python environment" (the wrapper, before the engine runs). |
+| 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |
+| 70 | any | the wrapper could not create the Python environment: same as the row below. |
+| 101, 126, 127, any other code | any | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs), and for exit 70 (the wrapper says "could not create the Python environment", before the engine runs). |
 
 Engine messages are written for users; quote them, do not paraphrase install commands.

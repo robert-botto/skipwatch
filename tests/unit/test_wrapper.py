@@ -76,7 +76,7 @@ def test_stale_stamp_runs_uv_sync_locked(tmp_path):
     r = run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}")
     assert r.returncode == 0, r.stderr
     calls = log.read_text()
-    assert "sync" in calls and "--locked" in calls and str(root) in calls
+    assert "sync" in calls and "--locked" in calls and "--inexact" in calls and str(root) in calls
     assert "engine ran: plan" in r.stdout
     assert (root / ".venv/.skipwatch-synced").exists()  # next call takes the fast path
 
@@ -93,7 +93,8 @@ def test_sync_failure_with_existing_venv_falls_back(tmp_path):
     bin_dir, log = fake_uv(tmp_path, ok=False)
     r = run(root, "frames", path=f"{bin_dir}:{SYSTEM_PATH}")
     assert r.returncode == 0, r.stderr
-    assert "could not refresh the environment" in r.stderr
+    assert "could not refresh the environment (boom)" in r.stderr  # uv's first line
+    assert "sandboxed?" not in r.stderr
     assert "engine ran: frames" in r.stdout
 
 
@@ -101,7 +102,7 @@ def test_sync_failure_without_venv_names_the_fix(tmp_path):
     root = make_plugin(tmp_path, venv=False)
     bin_dir, _ = fake_uv(tmp_path, ok=False)
     r = run(root, "doctor", path=f"{bin_dir}:{SYSTEM_PATH}")
-    assert r.returncode == 1
+    assert r.returncode == 70  # reserved: the wrapper failed, the engine never ran
     assert "could not create the Python environment" in r.stderr and "uv sync" in r.stderr
 
 
@@ -119,3 +120,57 @@ def test_exports_plugin_root_for_engine_advice(tmp_path):
     r = run(root, "doctor", CLAUDE_PLUGIN_ROOT="/wrong/place")
     assert r.returncode == 0, r.stderr
     assert f"root={root}" in r.stdout
+
+
+def test_marketplace_install_syncs_without_dev_tools(tmp_path):
+    root = make_plugin(tmp_path, fresh=False)  # no .git: a marketplace install
+    bin_dir, log = fake_uv(tmp_path)
+    assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
+    assert "--no-dev" in log.read_text()
+
+
+def test_git_checkout_keeps_dev_tools(tmp_path):
+    root = make_plugin(tmp_path, fresh=False)
+    (root / ".git").mkdir()
+    bin_dir, log = fake_uv(tmp_path)
+    assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
+    calls = log.read_text()
+    assert "--no-dev" not in calls and "--inexact" in calls
+
+
+def test_sync_only_never_fails_without_uv(tmp_path):
+    # a SessionStart hook must not fail in projects that never use SkipWatch
+    root = make_plugin(tmp_path, venv=False)
+    r = run(root, SKIPWATCH_SYNC_ONLY="1")
+    assert r.returncode == 0
+    assert "uv is not installed" in r.stderr
+
+
+def test_sync_only_never_fails_when_sync_fails(tmp_path):
+    root = make_plugin(tmp_path, venv=False)
+    bin_dir, _ = fake_uv(tmp_path, ok=False)
+    r = run(root, path=f"{bin_dir}:{SYSTEM_PATH}", SKIPWATCH_SYNC_ONLY="1")
+    assert r.returncode == 0
+    assert "could not create the Python environment" in r.stderr
+
+
+def test_stamp_written_atomically(tmp_path):
+    root = make_plugin(tmp_path, fresh=False)
+    bin_dir, _ = fake_uv(tmp_path)
+    assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
+    assert not list((root / ".venv").glob(".skipwatch-synced.tmp*"))
+    assert '"$stamp.tmp.$$"' in WRAPPER.read_text()
+
+
+def test_gitattributes_keeps_lf_for_shell_scripts():
+    text = (ROOT / ".gitattributes").read_text()
+    assert "scripts/skipwatch text eol=lf" in text
+    assert "*.sh text eol=lf" in text
+
+
+def test_git_worktree_keeps_dev_tools(tmp_path):
+    root = make_plugin(tmp_path, fresh=False)
+    (root / ".git").write_text("gitdir: /elsewhere\n")  # a worktree's .git is a file
+    bin_dir, log = fake_uv(tmp_path)
+    assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
+    assert "--no-dev" not in log.read_text()

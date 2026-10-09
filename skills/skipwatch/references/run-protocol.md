@@ -40,8 +40,8 @@ stage 8.
 - Any other code means the engine never started: 101 (uv panicked), 126 (not
   executable), 127 (command not found), or any code outside 0 to 9 and 64. Also treat
   exit 2 as this case when the stage log starts with "error: " (uv's own argument error,
-  printed before the engine runs); an engine exit 2 names the source instead. Exit 1
-  whose log says "could not create the Python environment" is the wrapper failing before
+  printed before the engine runs); an engine exit 2 names the source instead. Exit 70
+  (the log says "could not create the Python environment") is the wrapper failing before
   the engine runs, the same case. Stop with
   `SkipWatch: engine could not start: <last 3 stderr lines>`, keep `<W>`, print its path.
 - On any stop, keep `<W>` and print its path so the user can inspect it.
@@ -66,6 +66,17 @@ is the lowercased hyphenated file stem (or `--name` if given). Example: `Screen 
 2026-10-09 at 14.02.11.mov` gives slug `screen-recording-2026-10-09-at-14-02-11`. Get the
 timestamp from `date +%Y%m%d-%H%M%S`, resolve the path to an absolute one, then
 `mkdir -p "<W>/logs" "<W>/draft"`.
+
+If `mkdir -p "<W>/logs" "<W>/draft"` fails (some sandboxes only allow writes inside the
+current project), move SkipWatch's home into the project: retry with
+`SKIPWATCH_HOME="$PWD/.skipwatch"`, writing `$PWD` as the literal absolute current
+directory, so `<W>` becomes `<that folder>/work/<slug>-<timestamp>`. Pass it as an env
+prefix to every `<ENGINE>` call for the rest of the run, for example
+`SKIPWATCH_HOME="/abs/project/.skipwatch" <ENGINE> ingest ...`, so the
+engine's backups and config land there too. Record the degradation
+`work folder moved into the project (<path>): home folder not writable` for the review
+screen. If doctor in stage 1 failed to write `doctor.json` for the same reason, rerun it
+once with the same prefix.
 
 Resolve the source path and any `--to <dir>` to absolute paths against the current
 directory now, once, and use only the absolute forms from here on. Quote them in every
@@ -245,7 +256,9 @@ screen and wait, even under `--yes` (R-REV-1). The answers are handled in
 
 Pass `--force` only after the user chose replace for an existing target; the engine moves
 the old copy to `~/.skipwatch/backups/` first (R-REV-2). Exit 6 means the target appeared
-since the review: show the screen again with the collision.
+since the review: show the screen again with the collision. Exit 1 with "staging changed
+since check": re-run check once, then install; any other install exit 1 stops with its
+message.
 
 On success print two lines:
 

@@ -25,21 +25,38 @@ is_fresh() {
     cat "$root/uv.lock" "$root/pyproject.toml" | cmp -s - "$stamp"
 }
 
+# Exit codes of the wrapper itself (the engine never ran): 127 uv missing, 70 no
+# environment. In SKIPWATCH_SYNC_ONLY mode (the SessionStart hook) it always exits 0,
+# so a session in a project that never uses SkipWatch is never failed by this hook.
+fail() {
+  [ -n "$SKIPWATCH_SYNC_ONLY" ] && exit 0
+  exit "$1"
+}
+
+# --inexact keeps extras the user added (whisper, mlx); --no-dev skips pytest, ruff and
+# pyright on marketplace installs, which have no .git.
+sync_args="--quiet --locked --inexact"
+[ -e "$root/.git" ] || sync_args="$sync_args --no-dev"
+
 if ! is_fresh; then
   if ! command -v uv >/dev/null 2>&1; then
     echo "skipwatch: uv is not installed. Install it from https://docs.astral.sh/uv/ and retry." >&2
-    exit 127
+    fail 127
   fi
-  if sync_log=$(uv sync --quiet --locked --project "$root" 2>&1); then
-    cat "$root/uv.lock" "$root/pyproject.toml" >"$stamp" 2>/dev/null || true
+  # shellcheck disable=SC2086 # sync_args is a fixed list of flags
+  if sync_log=$(uv sync $sync_args --project "$root" 2>&1); then
+    cat "$root/uv.lock" "$root/pyproject.toml" >"$stamp.tmp.$$" 2>/dev/null &&
+      mv -f "$stamp.tmp.$$" "$stamp" 2>/dev/null
+    rm -f "$stamp.tmp.$$" 2>/dev/null
     [ -x "$venv/bin/skipwatch" ] && engine="$venv/bin/skipwatch"
   elif [ -x "$engine" ]; then
-    echo "skipwatch: could not refresh the environment (sandboxed?), using the existing one." >&2
+    first=$(printf '%s\n' "$sync_log" | sed -n '1p')
+    echo "skipwatch: could not refresh the environment ($first), using the existing one." >&2
   else
     printf '%s\n' "$sync_log" >&2
     echo "skipwatch: could not create the Python environment. Run this once outside any sandbox:" >&2
     echo "  uv sync --project \"$root\"" >&2
-    exit 1
+    fail 70
   fi
 fi
 

@@ -435,7 +435,8 @@ def test_non_engine_exit_codes_mapped():
             assert code in text, (path, code)
         assert "engine could not start" in text, path
         assert 'starts with "error: "' in text, path
-        assert "could not create the Python environment" in text, path  # wrapper exit 1
+        assert "could not create the Python environment" in text, path
+        assert "70" in text, path  # the wrapper's reserved exit
 
 
 def test_no_heredoc_in_prompt_files():
@@ -512,3 +513,30 @@ def test_every_tool_used_grader_is_covered():
         "evals/doctor/graders/doctor-ran.md",
         "evals/local-fixture/graders/agent-text-not-in-bash.md",
     }
+
+
+def test_work_folder_falls_back_inside_the_workspace():
+    # eval sandboxes confine writes to the workspace, so $HOME/.skipwatch may be read-only
+    text = flat(REFS / "run-protocol.md")
+    assert 'If `mkdir -p "<W>/logs" "<W>/draft"` fails' in text
+    assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
+    assert "as an env prefix to every `<ENGINE>` call" in text
+    review = flat(REFS / "review-screen.md")
+    assert "work folder moved into the project" in review
+
+
+def test_install_exit_1_rechecks_once():
+    text = flat(SKILL / "SKILL.md")
+    assert "staging changed since check" in text
+    assert "re-run check once, then install" in text
+
+
+def test_doctor_grant_agrees_between_plan_and_eval():
+    grant = '--allow-tools "Bash(*/scripts/skipwatch *)"'
+    plan = read(ROOT / "docs/superpowers/plans/2026-10-09-skipwatch-m0-m1.md")
+    rows = [line for line in plan.splitlines() if line.startswith("| 6a |")]
+    assert len(rows) == 2  # the M0 and M1 acceptance tables
+    for row in rows:
+        assert grant in row, row
+        assert "CLAUDE_PLUGIN_ROOT=" not in row, row
+    assert grant in read(ROOT / "evals/doctor/prompt.md")

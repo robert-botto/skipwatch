@@ -39,7 +39,8 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Steps and gaps:** `counts` in `W/check-report.json`.
 - **Unverified:** each inferred step as `step N (<reason>)`, each unread frame range, and
   each degradation from the run (for example `no transcript: Whisper not installed
-  (install: <command>)`). `none` only when all three lists are empty.
+  (install: <command>)`, or `work folder moved into the project (<path>): home folder
+  not writable`). `none` only when all three lists are empty.
 - **Safety flags:** the safety result's `flags` in `check-report.json`, as
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
