@@ -921,3 +921,14 @@ def test_safety_rules_have_negative_and_ordering_guards():
     review = flat(REFS / "review-screen.md")
     assert "No install happens without this explicit answer in this run" in review
     assert "Anything else under `--yes` shows the prompt and waits" in review
+
+
+def test_only_the_provider_named_option_is_cloud_consent():
+    review = flat(REFS / "review-screen.md")
+    # R-TR-2: picking the option that names the provider is the yes; no other answer is
+    assert "picking this option, which names the provider, is that yes, and nothing else is" in (
+        review
+    )
+    for loose in ("any option is consent", "any answer is consent", "yes is consent"):
+        assert loose not in review, loose
+    assert review.count("is that yes") == 1
