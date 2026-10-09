@@ -10,7 +10,14 @@ _TIMING_RE = re.compile(
     r"^\s*(?P<start>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*"
     r"(?P<end>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})"
 )
-_TAG_RE = re.compile(r"<[^>]*>")
+# Only caption markup is stripped, so spoken text such as "x < y and z > w" survives. Covers
+# WebVTT class variants (<c.colorE5E5E5>, <v.loud Name>), <lang en>, inline timestamps
+# (<00:00:01.000>) and the <font ...> tag common in SRT files.
+_TAG_RE = re.compile(
+    r"</?(?:c|v|b|i|u|ruby|rt|lang|font)(?:[.\s][^<>]*)?>|<(?:\d+:)?\d{1,2}:\d{2}[.,]\d{3}>",
+    re.IGNORECASE,
+)
+MIN_CUE_S = 0.05  # YouTube auto-captions put 10 ms transition cues between real ones
 _SPACE_RE = re.compile(r"\s+")
 _LANG_RE = re.compile(r"^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$")
 
@@ -23,18 +30,20 @@ def _seconds(stamp: str) -> float:
     return round(hours * 3600 + minutes * 60 + seconds, 3)
 
 
-def _clean(lines: list[str]) -> str:
-    text = " ".join(_TAG_RE.sub("", line) for line in lines)
-    return _SPACE_RE.sub(" ", html.unescape(text)).strip()
+def _clean_line(line: str) -> str:
+    return _SPACE_RE.sub(" ", html.unescape(_TAG_RE.sub("", line))).strip()
 
 
 def _blocks(text: str) -> list[list[str]]:
-    text = text.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n")
-    return [block.split("\n") for block in re.split(r"\n\s*\n", text) if block.strip()]
+    text = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    # Split on truly empty lines only: YouTube auto-captions hold a single-space line inside
+    # each cue, and splitting there would cut the timing line off from the cue text.
+    return [block.split("\n") for block in re.split(r"\n{2,}", text) if block.strip()]
 
 
 def _parse(text: str) -> list[Segment]:
     segments: list[Segment] = []
+    last_line: str | None = None
     for block in _blocks(text):
         timing_at = next((i for i, line in enumerate(block) if _TIMING_RE.match(line)), None)
         if timing_at is None:
@@ -43,13 +52,21 @@ def _parse(text: str) -> list[Segment]:
         assert match is not None
         start = _seconds(match["start"])
         end = max(start, _seconds(match["end"]))
-        cue = _clean(block[timing_at + 1 :])
-        if not cue:
+        if round(end - start, 3) < MIN_CUE_S:
             continue
+        lines = [cleaned for line in block[timing_at + 1 :] if (cleaned := _clean_line(line))]
+        # Rolling captions repeat the previous cue's last line at the top of the next cue. A cue
+        # that is only a repeat is left whole for the merge rule below.
+        while len(lines) > 1 and lines[0] == last_line:
+            lines.pop(0)
+        if not lines:
+            continue
+        last_line = lines[-1]
+        cue = " ".join(lines)
         previous = segments[-1] if segments else None
         if previous is not None and previous.text == cue and start <= previous.end:
-            # YouTube rolling captions repeat a cue back to back; extend instead of duplicating.
-            # The same words after a pause are spoken again and stay a separate segment.
+            # A cue repeated back to back is extended instead of duplicated. The same words
+            # after a pause are spoken again and stay a separate segment.
             previous.end = max(previous.end, end)
             continue
         segments.append(Segment(start=start, end=end, text=cue))

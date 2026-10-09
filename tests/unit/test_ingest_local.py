@@ -150,8 +150,12 @@ def test_ingest_audio_only_file(tmp_path):
     make_audio(audio)
     r = ingest(str(audio), "--work", str(tmp_path / "w"), "--json")
     assert r.exit_code == 0, r.output
-    media = json.loads(r.stdout)["media"]
+    bundle = json.loads(r.stdout)
+    assert bundle["source"]["kind"] == "audio"  # spec 7.1
+    assert bundle["source"]["path"] == str(audio.resolve()) and bundle["source"]["url"] is None
+    media = bundle["media"]
     assert media["has_audio"] is True and media["width"] is None and media["fps"] is None
+    assert read_model(tmp_path / "w" / "source.json", SourceFile).kind == "audio"
 
 
 @needs_ffmpeg
@@ -218,3 +222,20 @@ def test_r_cli_1_ingest_idempotent(tmp_path):
     first = {n: (work / n).read_bytes() for n in ("ingest.json", "source.json", "calls.json")}
     assert ingest(str(video), "--work", str(work)).exit_code == 0
     assert {n: (work / n).read_bytes() for n in first} == first
+
+
+@needs_ffmpeg
+def test_audio_with_cover_art_is_audio_kind(tmp_path):
+    raw = tmp_path / "raw.wav"
+    make_audio(raw)
+    cover = tmp_path / "cover.png"
+    _ffmpeg("-f", "lavfi", "-i", "color=c=red:size=64x64", "-frames:v", "1", str(cover))
+    song = tmp_path / "episode.mp3"
+    _ffmpeg(
+        "-i", str(raw), "-i", str(cover), "-map", "0", "-map", "1",
+        "-c:v", "mjpeg", "-disposition:v", "attached_pic", str(song),
+    )  # fmt: skip
+    r = ingest(str(song), "--work", str(tmp_path / "w"), "--json")
+    assert r.exit_code == 0, r.output
+    bundle = json.loads(r.stdout)
+    assert bundle["source"]["kind"] == "audio" and bundle["media"]["width"] is None

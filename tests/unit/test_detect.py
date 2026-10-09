@@ -19,6 +19,9 @@ CASES = [
     ("https://fb.watch/abc/", "facebook"),
     ("https://fb.com/u/videos/1", "facebook"),
     ("https://vimeo.com/123", "generic"),
+    ("https://www.youtube-nocookie.com/embed/abc123", "youtube"),
+    ("https://instagr.am/p/abc/", "instagram"),
+    ("https://t.co/abc", "generic"),  # a redirect; resolving it needs the network (M2)
 ]
 
 
@@ -80,3 +83,31 @@ def test_missing_path_is_exit_2(tmp_path):
     with pytest.raises(SkipwatchError) as e:
         detect(str(tmp_path / "nope.mp4"))
     assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+
+
+@pytest.mark.parametrize(
+    "value,platform",
+    [
+        ("youtube.com/watch?v=abc123", "youtube"),
+        ("www.youtube.com/watch?v=abc123", "youtube"),
+        ("x.com/u/status/1", "x"),
+        ("youtu.be/abc123", "youtube"),
+        ("vimeo.com/123", "generic"),
+    ],
+)
+def test_r_det_1_scheme_less_urls(tmp_path, value, platform):
+    d = detect(value, cwd=tmp_path)
+    assert (d.kind, d.platform, d.value) == ("url", platform, "https://" + value)
+
+
+@pytest.mark.parametrize("value", ["nope.mp4", "clip.mov", "talk.M4A", "notes", "a/b.mp4"])
+def test_missing_media_file_names_are_not_treated_as_urls(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+
+
+def test_existing_path_wins_over_domain_shape(tmp_path):
+    (tmp_path / "youtube.com").mkdir()
+    (tmp_path / "youtube.com" / "clip.mp4").write_bytes(b"x")
+    assert detect("youtube.com/clip.mp4", cwd=tmp_path).kind == "file"

@@ -62,17 +62,21 @@ def _float(value: Any) -> float | None:
         return None
 
 
-def media_info(path: Path, probed: dict[str, Any]) -> MediaInfo:
-    streams = probed.get("streams", [])
+def _video_stream(probed: dict[str, Any]) -> dict[str, Any] | None:
     # Cover art in audio files is a one-frame "video" stream flagged attached_pic.
-    video = next(
+    return next(
         (
             s
-            for s in streams
+            for s in probed.get("streams", [])
             if s.get("codec_type") == "video" and not s.get("disposition", {}).get("attached_pic")
         ),
         None,
     )
+
+
+def media_info(path: Path, probed: dict[str, Any]) -> MediaInfo:
+    streams = probed.get("streams", [])
+    video = _video_stream(probed)
     has_audio = any(s.get("codec_type") == "audio" for s in streams)
     if video is None and not has_audio:
         raise SkipwatchError(ExitCode.NO_CONTENT, f"no audio or video stream in {path.name}")
@@ -101,7 +105,8 @@ class LocalFileAdapter:
             )
         return IngestBundle(
             source=SourceInfo(
-                kind="file",
+                # Spec 7.1: a local file with no picture is an audio source; path stays set.
+                kind="file" if _video_stream(probed) is not None else "audio",
                 platform="local",
                 path=str(path),
                 title=path.stem,

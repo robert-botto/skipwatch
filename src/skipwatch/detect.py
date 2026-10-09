@@ -4,6 +4,7 @@ URLs return kind "url": deciding between video and text needs metadata, which th
 adapters fetch. Local paths must exist and carry a known media extension.
 """
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -16,14 +17,19 @@ VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"})
 AUDIO_EXTENSIONS = frozenset({".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".opus"})
 MEDIA_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
+# t.co stays generic on purpose: it is a redirect, and resolving it needs the network (M2).
 # Checked in order; a host matches a domain when equal to it or a subdomain of it.
 PLATFORM_DOMAINS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("x", ("x.com", "twitter.com")),
-    ("youtube", ("youtube.com", "youtu.be")),
+    ("youtube", ("youtube.com", "youtu.be", "youtube-nocookie.com")),
     ("tiktok", ("tiktok.com",)),
-    ("instagram", ("instagram.com",)),
+    ("instagram", ("instagram.com", "instagr.am")),
     ("facebook", ("facebook.com", "fb.watch", "fb.com")),
 )
+
+
+# A bare host such as "www.youtube.com": dotted labels ending in a letters-only TLD.
+_HOST_RE = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$")
 
 
 @dataclass(frozen=True)
@@ -56,6 +62,14 @@ def _as_url(value: str) -> tuple[str, str] | None:
     return value.strip(), parts.hostname
 
 
+def _looks_like_scheme_less_url(value: str) -> bool:
+    """True for "youtube.com/watch?v=1" but not for a file name such as "clip.mov"."""
+    first = re.split(r"[/?#]", value.strip(), maxsplit=1)[0]
+    if not _HOST_RE.match(first):
+        return False
+    return Path(first).suffix.lower() not in MEDIA_EXTENSIONS
+
+
 def detect(value: str, cwd: Path | None = None) -> Detected:
     url = _as_url(value)
     if url is not None:
@@ -64,6 +78,8 @@ def detect(value: str, cwd: Path | None = None) -> Detected:
     path = Path(value).expanduser()
     if not path.is_absolute():
         path = (cwd or Path.cwd()) / path
+    if not path.exists() and _looks_like_scheme_less_url(value):
+        return detect("https://" + value.strip(), cwd)
     if not path.is_file():
         raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"not a URL and no such file: {value}")
     if path.suffix.lower() not in MEDIA_EXTENSIONS:
