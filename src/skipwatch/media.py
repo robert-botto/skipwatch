@@ -18,8 +18,16 @@ from typing import Any
 
 from skipwatch.errors import ExitCode, SkipwatchError
 
-_EXE = ".exe" if sys.platform == "win32" else ""
 _VERSION_RE = re.compile(r"ffmpeg version (\S+)")
+
+
+def _is_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def _exe(name: str) -> str:
+    """Binary file name for this platform: `ffmpeg.exe` on Windows, `ffmpeg` elsewhere."""
+    return f"{name}.exe" if _is_windows() else name
 
 
 def find_system_ffmpeg() -> tuple[Path, Path] | None:
@@ -41,8 +49,8 @@ def _static_paths_on_disk() -> tuple[Path, Path] | None:
     d = _static_bin_dir()
     if not d.exists():
         return None
-    for ffmpeg in d.rglob(f"ffmpeg{_EXE}"):
-        ffprobe = ffmpeg.with_name(f"ffprobe{_EXE}")
+    for ffmpeg in d.rglob(_exe("ffmpeg")):
+        ffprobe = ffmpeg.with_name(_exe("ffprobe"))
         if ffprobe.exists():
             return ffmpeg, ffprobe
     return None
@@ -51,7 +59,7 @@ def _static_paths_on_disk() -> tuple[Path, Path] | None:
 def static_ffmpeg_fetched() -> bool:
     """True when the static binaries are already on disk. Never downloads."""
     d = _static_bin_dir()
-    return any(p.is_file() for p in d.rglob(f"ffmpeg{_EXE}")) if d.exists() else False
+    return any(p.is_file() for p in d.rglob(_exe("ffmpeg"))) if d.exists() else False
 
 
 def _fetch_static() -> tuple[Path, Path]:

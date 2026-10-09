@@ -48,8 +48,43 @@ def test_static_ffmpeg_fetched_reads_disk_only(monkeypatch, tmp_path):
     assert media.static_ffmpeg_fetched() is False
     (tmp_path / "bin" / "darwin").mkdir(parents=True)
     assert media.static_ffmpeg_fetched() is False
-    (tmp_path / "bin" / "darwin" / "ffmpeg").write_text("")
+    (tmp_path / "bin" / "darwin" / media._exe("ffmpeg")).write_text("")
     assert media.static_ffmpeg_fetched() is True
+
+
+def _static_layout(root, folder, names):
+    d = root / "bin" / folder
+    d.mkdir(parents=True)
+    for name in names:
+        (d / name).write_text("")
+    return d
+
+
+def test_static_ffmpeg_windows_layout_recognised(monkeypatch, tmp_path):
+    # static_ffmpeg unpacks Windows builds to bin/win32/ffmpeg.exe and ffprobe.exe.
+    monkeypatch.setattr(media, "_is_windows", lambda: True)
+    monkeypatch.setattr(media, "_static_bin_dir", lambda: tmp_path / "bin")
+    monkeypatch.setattr(media.shutil, "which", lambda n: None)
+    monkeypatch.setattr(media, "_fetch_static", _no_fetch)
+    d = _static_layout(tmp_path, "win32", ["ffmpeg.exe", "ffprobe.exe"])
+    assert media.static_ffmpeg_fetched() is True
+    assert media.ffmpeg_paths(allow_fetch=False) == (d / "ffmpeg.exe", d / "ffprobe.exe")
+
+
+def test_windows_ignores_extensionless_binaries(monkeypatch, tmp_path):
+    monkeypatch.setattr(media, "_is_windows", lambda: True)
+    monkeypatch.setattr(media, "_static_bin_dir", lambda: tmp_path / "bin")
+    _static_layout(tmp_path, "win32", ["ffmpeg", "ffprobe"])
+    assert media.static_ffmpeg_fetched() is False
+
+
+def test_posix_static_layout_needs_no_suffix(monkeypatch, tmp_path):
+    monkeypatch.setattr(media, "_is_windows", lambda: False)
+    monkeypatch.setattr(media, "_static_bin_dir", lambda: tmp_path / "bin")
+    monkeypatch.setattr(media.shutil, "which", lambda n: None)
+    monkeypatch.setattr(media, "_fetch_static", _no_fetch)
+    d = _static_layout(tmp_path, "linux", ["ffmpeg", "ffprobe"])
+    assert media.ffmpeg_paths(allow_fetch=False) == (d / "ffmpeg", d / "ffprobe")
 
 
 def test_version_parse():
