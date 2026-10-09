@@ -74,6 +74,27 @@ def test_every_expected_has_five_well_formed_keys(golden):
         assert expected["illegible_in_quotes_max"] == 0, video["id"]  # S3
 
 
+# The ranges in tests/golden/README.md and the M2-M4 plan (Task M2-F1), pinned per id.
+PINNED_RANGES = {
+    "G1": ([6, 20], 0.2, 1),
+    "G2": ([3, 15], 0.3, 2),
+    "G3": ([3, 15], 0.3, 2),
+    "G4": ([3, 15], 0.3, 2),
+    "G5": ([8, 40], 0.3, 3),
+}
+
+
+def test_expected_ranges_match_the_readme(golden):
+    for video in golden["videos"]:
+        steps, inferred_max, gaps_max = PINNED_RANGES[video["id"]]
+        expected = video["expected"]
+        assert expected["steps"] == steps, video["id"]
+        assert expected["inferred_ratio_max"] == inferred_max, video["id"]
+        assert expected["gaps_max"] == gaps_max, video["id"]
+        assert expected["safety_flags_max"] == 0, video["id"]
+        assert expected["illegible_in_quotes_max"] == 0, video["id"]
+
+
 def test_entries_carry_metadata_fields(golden):
     for video in golden["videos"]:
         for key in ("url", "title", "author", "why", "captions", "needs_cookies"):
