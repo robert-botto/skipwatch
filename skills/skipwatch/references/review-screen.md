@@ -86,7 +86,8 @@ each only when it applies:
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
-  `run-protocol.md`); `<url>` is `source.canonical_url`. `source` describes the linked
+  `run-protocol.md`): the line is copied exactly from `route.fallbacks` in
+  `W/ingest.json`. `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
 - **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed

@@ -205,15 +205,18 @@ Run, each timed as above:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
    - Exit 8 under `--provider treg`: stop with the engine's line (treg missing or not
      logged in). Under `auto` a missing provider is skipped silently by the engine.
-   - Linked video (spike decision 2): when the input is an X post and the post id in
-     `source.canonical_url` (`/status/<id>`) differs from the input's, the video came from
-     a linked post. `source` then describes the linked post and the requested post's
-     text is in `context.thread`. Record `video came from a linked post: <canonical url>`
-     for the review screen; the attribution names `source.author`, the video's creator.
+   - Linked video (spike decision 2): when `route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`,
+     the video came from a linked post: the X adapter found that the video belongs to a
+     post the requested one links.
+     `source` then describes the linked post and the requested post's text is in
+     `context.thread`. Copy that line to the review screen exactly; the attribution names
+     `source.author`, the video's creator.
    - Text source: when `source.kind` is `"text"` in `<W>/ingest.json` (a post or page
      with no video; check with `grep -m1 -o '"kind": *"[a-z]*"' "<W>/ingest.json"`),
      skip transcribe, frames, plan and read (steps 4 to 6 here and stage 4) and go to
-     stage 5. Print `Reading the post: <n> words, <k> links (<n>s)`.
+     stage 5. Print `Reading the post: <n> words, <k> links (<n>s)`. If transcribe runs
+     on a text source anyway (a resume), it exits 7 with
+     `text source: nothing to transcribe`: that is not a failure, go to stage 5.
 4. `<ENGINE> transcribe --work "<W>" --backend auto`
    - Under `--thorough` add `--model large-v3-turbo` unless `doctor.json` shows
      `whisper-mlx` found (3.4: mlx already runs `large-v3-turbo`; the flag moves

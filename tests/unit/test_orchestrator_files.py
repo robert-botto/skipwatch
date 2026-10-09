@@ -1156,3 +1156,12 @@ def test_no_hand_built_skipwatch_home_paths():
         assert "${SKIPWATCH_HOME:-$HOME/.skipwatch}/work/" not in read(path), path
     resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
     assert "Set `<W>` to `work`" in resume  # resume's folder comes from the engine too
+
+
+def test_protocol_matches_the_merged_m3_engine():
+    text = flat(REFS / "run-protocol.md")
+    # the X adapter writes the linked-post note into route.fallbacks (decision 2)
+    assert "`route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`" in text
+    assert "post id in `source.canonical_url`" not in text  # the engine decides, not you
+    # transcribe refuses a text bundle with exit 7 and this message
+    assert "`text source: nothing to transcribe`" in text
