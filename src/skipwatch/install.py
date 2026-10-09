@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from skipwatch.config import load_config, skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.manifest import finalize_manifest
 from skipwatch.models import CheckReport, InstallResult
 from skipwatch.workdir import read_model
 
@@ -70,13 +71,6 @@ def _backup_path(name: str, now: datetime) -> Path:
     return path
 
 
-def _finalize(target: Path) -> None:
-    # M1-D owns manifest.py; imported here so the rest of install works without it.
-    from skipwatch.manifest import finalize_manifest  # pyright: ignore[reportMissingImports]
-
-    finalize_manifest(target, checks_passed=True)
-
-
 def _remove(path: Path) -> None:
     if path.is_dir() and not path.is_symlink():
         shutil.rmtree(path)
@@ -121,7 +115,7 @@ def install(
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(staging, target)
-        _finalize(target)
+        finalize_manifest(target, checks_passed=True)
     except BaseException:
         _remove(target)
         if backup is not None:

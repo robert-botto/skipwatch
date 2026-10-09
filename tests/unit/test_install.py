@@ -1,5 +1,4 @@
 import hashlib
-import importlib.util
 import json
 import os
 from datetime import datetime
@@ -16,7 +15,6 @@ from skipwatch.models import CheckReport, Counts, InstallResult, Manifest, Manif
 from skipwatch.workdir import write_model
 
 NAME = "deploy-astro"
-HAS_MANIFEST = importlib.util.find_spec("skipwatch.manifest") is not None
 
 
 @pytest.fixture
@@ -30,18 +28,6 @@ def roots(tmp_path, monkeypatch, sw_home):
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.chdir(cwd)
     return home, cwd
-
-
-@pytest.fixture
-def finalize(monkeypatch):
-    """Use M1-D's real finalize_manifest when it is merged, else a no-op stand-in.
-
-    Tests using this fixture assert only on install's own behaviour (paths, backups, exit
-    codes), so they hold with either. Manifest content is asserted only by tests that
-    importorskip skipwatch.manifest.
-    """
-    if not HAS_MANIFEST:
-        monkeypatch.setattr(install_mod, "_finalize", lambda target: None)
 
 
 def make_staging(root: Path, name: str = NAME, passed: bool = True, skill: str | None = None):
@@ -100,7 +86,7 @@ def test_to_wins_over_scope(tmp_path):
     )
 
 
-def test_install_default_scope_is_user_under_home(roots, finalize, tmp_path):
+def test_install_default_scope_is_user_under_home(roots, tmp_path):
     home, _ = roots
     staging = make_staging(tmp_path)
     result = install(staging, None, None, force=False)
@@ -113,7 +99,7 @@ def test_install_default_scope_is_user_under_home(roots, finalize, tmp_path):
     )
 
 
-def test_install_default_scope_comes_from_config(roots, finalize, tmp_path, sw_home):
+def test_install_default_scope_comes_from_config(roots, tmp_path, sw_home):
     _, cwd = roots
     sw_home.mkdir(parents=True, exist_ok=True)
     (sw_home / "config.toml").write_text('[install]\nscope = "agents"\n', encoding="utf-8")
@@ -122,7 +108,7 @@ def test_install_default_scope_comes_from_config(roots, finalize, tmp_path, sw_h
     assert (cwd / ".agents/skills" / NAME / "SKILL.md").exists()
 
 
-def test_install_cli_project_scope_and_to(roots, finalize, tmp_path):
+def test_install_cli_project_scope_and_to(roots, tmp_path):
     _, cwd = roots
     staging = make_staging(tmp_path)
     r = run_cli(str(staging), "--scope", "project")
@@ -186,7 +172,7 @@ def test_install_exit_6_when_target_exists(roots, tmp_path, sw_home):
     assert not (sw_home / "backups").exists()
 
 
-def test_r_rev_2_force_backs_up_first(roots, finalize, tmp_path, sw_home, monkeypatch):
+def test_r_rev_2_force_backs_up_first(roots, tmp_path, sw_home, monkeypatch):
     home, _ = roots
     target = home / ".claude/skills" / NAME
     existing_skill(target)
@@ -211,7 +197,7 @@ def test_r_rev_2_force_backs_up_first(roots, finalize, tmp_path, sw_home, monkey
     assert (target / "SKILL.md").read_text(encoding="utf-8").endswith("new body\n")
 
 
-def test_force_backup_name_has_timestamp_and_never_collides(roots, finalize, tmp_path, sw_home):
+def test_force_backup_name_has_timestamp_and_never_collides(roots, tmp_path, sw_home):
     home, _ = roots
     target = home / ".claude/skills" / NAME
     now = datetime(2026, 10, 9, 14, 2, 11)
@@ -225,7 +211,7 @@ def test_force_backup_name_has_timestamp_and_never_collides(roots, finalize, tmp
     assert (Path(second.backup or "") / "SKILL.md").exists()
 
 
-def test_force_without_existing_target_makes_no_backup(roots, finalize, tmp_path, sw_home):
+def test_force_without_existing_target_makes_no_backup(roots, tmp_path, sw_home):
     result = install(make_staging(tmp_path), None, None, force=True)
     assert result.backup is None
     assert not (sw_home / "backups").exists()
@@ -236,17 +222,17 @@ def test_failed_copy_restores_previous_skill(roots, tmp_path, sw_home, monkeypat
     target = home / ".claude/skills" / NAME
     existing_skill(target)
 
-    def broken(target):
+    def broken(skill_dir, checks_passed):
         raise OSError("disk full")
 
-    monkeypatch.setattr(install_mod, "_finalize", broken)
+    monkeypatch.setattr(install_mod, "finalize_manifest", broken)
     with pytest.raises(OSError):
         install(make_staging(tmp_path), None, None, force=True)
     assert (target / "SKILL.md").read_text(encoding="utf-8") == "old body\n"
     assert list((sw_home / "backups").iterdir()) == []
 
 
-def test_install_never_touches_the_work_folder(roots, finalize, tmp_path):
+def test_install_never_touches_the_work_folder(roots, tmp_path):
     staging = make_staging(tmp_path)
     work = staging.parent.parent
     before = sorted(str(p.relative_to(work)) for p in work.rglob("*"))
@@ -254,7 +240,7 @@ def test_install_never_touches_the_work_folder(roots, finalize, tmp_path):
     assert sorted(str(p.relative_to(work)) for p in work.rglob("*")) == before
 
 
-def test_install_accepts_trailing_dot_staging_path(roots, finalize, tmp_path, monkeypatch):
+def test_install_accepts_trailing_dot_staging_path(roots, tmp_path, monkeypatch):
     home, _ = roots
     staging = make_staging(tmp_path)
     monkeypatch.chdir(staging)
@@ -266,7 +252,7 @@ def test_install_accepts_trailing_dot_staging_path(roots, finalize, tmp_path, mo
 # ---- R-CLI-2 and R-MAN-1 ----
 
 
-def test_install_json_validates(roots, finalize, tmp_path):
+def test_install_json_validates(roots, tmp_path):
     home, _ = roots
     r = run_cli(str(make_staging(tmp_path)), "--json")
     assert r.exit_code == 0, r.stderr
@@ -276,14 +262,13 @@ def test_install_json_validates(roots, finalize, tmp_path):
     assert json.loads(r.stdout)["schema"] == "skipwatch/install/1"
 
 
-def test_install_without_json_prints_nothing_on_stdout(roots, finalize, tmp_path):
+def test_install_without_json_prints_nothing_on_stdout(roots, tmp_path):
     r = run_cli(str(make_staging(tmp_path)))
     assert r.exit_code == 0 and r.stdout == ""
     assert "Installed" in r.stderr
 
 
 def test_install_writes_file_hashes(roots, tmp_path):
-    pytest.importorskip("skipwatch.manifest")
     home, _ = roots
     install(make_staging(tmp_path), None, None, force=False)
     target = home / ".claude/skills" / NAME
@@ -324,7 +309,7 @@ def test_install_refuses_file_added_after_check(roots, tmp_path):
     assert "staging changed since check" in exc.value.message
 
 
-def test_install_relative_to_gives_absolute_path(roots, finalize, tmp_path):
+def test_install_relative_to_gives_absolute_path(roots, tmp_path):
     _, cwd = roots
     result = install(make_staging(tmp_path), None, Path("out"), force=False)
     assert Path(result.path).is_absolute()
