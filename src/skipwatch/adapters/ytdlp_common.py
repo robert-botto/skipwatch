@@ -7,19 +7,49 @@ flag, a URL with no video raises NoMediaError, anything else raises DownloadFail
 
 import time
 from datetime import UTC, datetime
-from typing import Any, NoReturn
+from typing import Any, NamedTuple, NoReturn
 from urllib.parse import urlsplit
 
+from skipwatch import media
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.detect import Detected
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import IngestBundle, IngestContext, ProviderCall, Route, SourceInfo
+from skipwatch.models import (
+    IngestBundle,
+    IngestContext,
+    MediaInfo,
+    ProviderCall,
+    Route,
+    SourceInfo,
+)
 from skipwatch.providers import content_free
 from skipwatch.providers.content_free import CaptionKind, FreeRouteError, has_video
 from skipwatch.workdir import WorkDir
 
 NOT_CAPTIONS = {"live_chat", "rechat"}
-PLATFORM_NAMES = {"youtube": "YouTube"}
+PLATFORM_NAMES = {
+    "youtube": "YouTube",
+    "tiktok": "TikTok",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+}
+
+
+class AuthorFields(NamedTuple):
+    """Which info fields hold a platform's handle and display name (platforms.md)."""
+
+    handle: str
+    name: str | None  # None where the handle is already the display name
+    at: bool = True  # prefix the handle with "@"; False where it is a page name, not a handle
+
+
+# The single place a platform names its author fields. Platforms not listed (youtube, generic)
+# keep the default: uploader_id as the handle, uploader or channel as the name.
+AUTHOR_FIELDS: dict[str, AuthorFields] = {
+    "tiktok": AuthorFields("uploader", "channel"),  # uploader_id is numeric
+    "instagram": AuthorFields("channel", "uploader"),  # uploader_id is numeric
+    "facebook": AuthorFields("uploader", None, at=False),  # the page name, shown once
+}
 
 
 def _primary(lang: str) -> str:
@@ -122,11 +152,24 @@ def _posted_at(info: dict[str, Any]) -> str | None:
     return None
 
 
-def author_of(info: dict[str, Any]) -> str | None:
+def author_of(info: dict[str, Any], platform: str | None = None) -> str | None:
+    fields = AUTHOR_FIELDS.get(platform or "")
+    if fields is not None:
+        handle = info.get(fields.handle)
+        if not handle or not fields.at:
+            return handle or None
+        return handle if str(handle).startswith("@") else f"@{handle}"
     handle = info.get("uploader_id")
     if handle:
         return handle if str(handle).startswith("@") else f"@{handle}"
     return info.get("uploader")
+
+
+def author_name_of(info: dict[str, Any], platform: str | None = None) -> str | None:
+    fields = AUTHOR_FIELDS.get(platform or "")
+    if fields is not None:
+        return (info.get(fields.name) or None) if fields.name else None
+    return info.get("uploader") or info.get("channel")
 
 
 def fetch_info(
@@ -180,6 +223,15 @@ def _captions(
     )
 
 
+def _media_duration(work: WorkDir, downloaded: MediaInfo) -> float | None:
+    try:
+        probed = media.probe(work.path / downloaded.path)
+    except SkipwatchError:
+        return None
+    duration = probed.get("format", {}).get("duration")
+    return float(duration) if duration else None
+
+
 def build_video_bundle(
     detected: Detected, work: WorkDir, opts: IngestOptions, platform: str
 ) -> IngestBundle:
@@ -191,8 +243,8 @@ def build_video_bundle(
         platform=platform,
         url=detected.value,
         canonical_url=info.get("webpage_url") or detected.value,
-        author=author_of(info),
-        author_name=info.get("uploader") or info.get("channel"),
+        author=author_of(info, platform),
+        author_name=author_name_of(info, platform),
         title=info.get("title"),
         posted_at=_posted_at(info),
         duration_s=info.get("duration"),
@@ -206,16 +258,19 @@ def build_video_bundle(
     )
     started = time.monotonic()
     try:
-        media = content_free.download(info, work, opts, calls)
+        downloaded = content_free.download(info, work, opts, calls)
     except FreeRouteError as exc:
         calls.append(content_free.call_log("yt-dlp.download", False, started, exc.first_line))
         _raise_mapped(
             exc, detected, platform, opts, partial.model_copy(update={"provider_calls": calls})
         )
     calls.append(content_free.call_log("yt-dlp.download", True, started))
+    if source.duration_s is None:  # Instagram logged out: read it from the file instead
+        source = source.model_copy(update={"duration_s": _media_duration(work, downloaded)})
     return partial.model_copy(
         update={
-            "media": media,
+            "source": source,
+            "media": downloaded,
             "provider_calls": calls,
             "route": Route(context="free", media="free"),
         }
