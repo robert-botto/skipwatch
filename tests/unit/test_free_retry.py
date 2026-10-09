@@ -181,3 +181,22 @@ def test_bot_check_through_the_adapter_stays_exit_4(tmp_path, ytdlp, monkeypatch
     with pytest.raises(SkipwatchError) as e:
         ADAPTER.build(detected, work(tmp_path), IngestOptions())
     assert e.value.code == ExitCode.PRIVATE_CONTENT and script.downloads == 1
+
+
+def test_captions_403_once_is_retried_and_logged(tmp_path, ytdlp, capsys):
+    script = ytdlp(["HTTP Error 403: Forbidden"])
+    failed: list = []
+    got = cf.download_captions(INFO, work(tmp_path), IngestOptions(), ("en", "manual"), failed)
+    assert got == ("captions/abc.en.vtt", "en", "manual") and script.fetches == 2
+    assert [(c.op, c.ok) for c in failed] == [("yt-dlp.captions", False)]
+    assert "retrying after a transient 403" in capsys.readouterr().err
+
+
+def test_bundle_records_both_caption_attempts(tmp_path, ytdlp, monkeypatch):
+    ytdlp(["HTTP Error 429: Too Many Requests"])
+    monkeypatch.setattr(cf, "extract", lambda url, opts: INFO)
+    detected = Detected(kind="url", platform="youtube", value="https://youtu.be/abc")
+    bundle = ADAPTER.build(detected, work(tmp_path), IngestOptions())
+    captions = [(c.op, c.ok) for c in bundle.provider_calls if c.op == "yt-dlp.captions"]
+    assert captions == [("yt-dlp.captions", False), ("yt-dlp.captions", True)]
+    assert bundle.context.captions_available

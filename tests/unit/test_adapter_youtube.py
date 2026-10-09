@@ -99,7 +99,7 @@ def free_route(monkeypatch):
     def install(info, media=None, captions_error=None):
         monkeypatch.setattr(cf, "extract", lambda url, opts: info)
 
-        def captions(info_, work, opts, track):
+        def captions(info_, work, opts, track, failed=None):
             seen["captions"].append(track)
             if captions_error:
                 raise cf.FreeRouteError("captions", captions_error)

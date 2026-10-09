@@ -343,10 +343,14 @@ def _safe_name(value: str) -> str:
 
 
 def download_captions(
-    info: dict[str, Any], work: WorkDir, opts: IngestOptions, track: tuple[str, CaptionKind]
+    info: dict[str, Any],
+    work: WorkDir,
+    opts: IngestOptions,
+    track: tuple[str, CaptionKind],
+    failed: list[ProviderCall] | None = None,
 ) -> tuple[str, str, CaptionKind] | None:
     """Fetch one caption track (json3, else vtt, else srt) into captions/. None when the track
-    has no format SkipWatch parses."""
+    has no format SkipWatch parses. A transient failure is retried once and logged to failed."""
     lang, kind = track
     tracks = info.get("subtitles" if kind == "manual" else "automatic_captions") or {}
     entries = [e for e in tracks.get(lang) or [] if e.get("url")]
@@ -355,12 +359,16 @@ def download_captions(
     if ext is None:
         return None
     entry = by_ext[ext]
-    try:
-        with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
-            request = Request(entry["url"], headers=entry.get("http_headers"))
-            body = ydl.urlopen(request).read()  # pyright: ignore[reportArgumentType]
-    except (DownloadError, RequestError) as exc:
-        raise FreeRouteError("captions", str(exc)) from exc
+
+    def attempt() -> bytes:
+        try:
+            with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
+                request = Request(entry["url"], headers=entry.get("http_headers"))
+                return ydl.urlopen(request).read()  # pyright: ignore[reportArgumentType]
+        except (DownloadError, RequestError) as exc:
+            raise FreeRouteError("captions", str(exc)) from exc
+
+    body = _retry_once("captions", attempt, failed)
     folder = work.path / "captions"
     folder.mkdir(parents=True, exist_ok=True)
     name = f"{_safe_name(str(info.get('id') or 'captions'))}.{lang}.{ext}"

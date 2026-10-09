@@ -72,7 +72,9 @@ def test_recorded_generic_fixtures_build_bundles(tmp_path, monkeypatch, name, ki
     info = json.loads((REC / f"{name}.info.json").read_text())
     monkeypatch.setattr(cf, "extract", lambda url, opts: info)
     monkeypatch.setattr(
-        cf, "download_captions", lambda i, w, o, track: (f"captions/x.{track[0]}.vtt", *track)
+        cf,
+        "download_captions",
+        lambda i, w, o, track, failed=None: (f"captions/x.{track[0]}.vtt", *track),
     )
     monkeypatch.setattr(
         cf,
