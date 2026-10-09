@@ -47,8 +47,9 @@ def _parse(text: str) -> list[Segment]:
         if not cue:
             continue
         previous = segments[-1] if segments else None
-        if previous is not None and previous.text == cue:
-            # YouTube rolling captions repeat the cue; extend instead of duplicating.
+        if previous is not None and previous.text == cue and start <= previous.end:
+            # YouTube rolling captions repeat a cue back to back; extend instead of duplicating.
+            # The same words after a pause are spoken again and stay a separate segment.
             previous.end = max(previous.end, end)
             continue
         segments.append(Segment(start=start, end=end, text=cue))

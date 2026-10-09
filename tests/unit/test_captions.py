@@ -85,3 +85,12 @@ REC = "Screen Recording 2026-10-09 at 14.02.11"
 )
 def test_language_from_name(name, stem, lang):
     assert language_from_name(name, stem) == lang
+
+
+def test_repeated_text_after_a_gap_is_not_merged():
+    # Rolling duplicates touch or overlap; a sentence said again after a pause is real speech.
+    vtt = (
+        "WEBVTT\n\n00:00:00.000 --> 00:00:04.000\nsay it again\n\n"
+        "00:00:05.000 --> 00:00:09.000\nsay it again\n"
+    )
+    assert [(s.start, s.end) for s in parse_vtt(vtt)] == [(0.0, 4.0), (5.0, 9.0)]
