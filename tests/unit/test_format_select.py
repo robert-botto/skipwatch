@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from skipwatch.errors import ExitCode, SkipwatchError
@@ -120,3 +123,16 @@ def test_no_formats_is_no_content():
     with pytest.raises(SkipwatchError) as e:
         select_format({"duration": 10, "formats": []})
     assert e.value.code == ExitCode.NO_CONTENT
+
+
+REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "youtube"
+
+
+def test_recorded_youtube_formats_pick_the_smallest_720p_and_smallest_audio():
+    info = json.loads((REC / "manual-captions.info.json").read_text())
+    assert select_format(info) == "398+139"  # av01 720p (24.8 MB), m4a 48 kbps (5.29 MB)
+
+
+def test_recorded_vertical_fixture_picks_720x1280():
+    info = json.loads((REC / "vertical-short.info.json").read_text())
+    assert select_format(info) == "b+251"

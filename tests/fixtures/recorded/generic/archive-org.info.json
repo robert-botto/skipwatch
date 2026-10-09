@@ -1,0 +1,57 @@
+{
+  "age_limit": null,
+  "automatic_captions": {},
+  "availability": null,
+  "channel": null,
+  "description": "Big Buck Bunny is a comedy about a well-tempered rabbit \"Big Buck\", who finds his day spoiled by the rude actions of the forest bullies, three rodents. In the typical 1950ies cartoon tradition Big Buck then prepares for the rodents a comical revenge. The creative team for the movie were brought together by the Blender Institute from all over the world, including the USA, Denmark, Italy, Germany, the Netherlands, Belgium and Australia. The music has been composed by Jan Morgenstern, who also provided the sound track for the previous Blender production, \"Elephant's Dream\".",
+  "duration": 596.46,
+  "extractor_key": "ArchiveOrg",
+  "formats": [
+    {
+      "acodec": null,
+      "ext": "ogv",
+      "filesize": 46935223,
+      "filesize_approx": null,
+      "format_id": "0",
+      "height": 300,
+      "tbr": null,
+      "url": "https://archive.org",
+      "vcodec": null,
+      "width": 533
+    },
+    {
+      "acodec": null,
+      "ext": "mp4",
+      "filesize": 61878609,
+      "filesize_approx": null,
+      "format_id": "1",
+      "height": 360,
+      "tbr": null,
+      "url": "https://archive.org",
+      "vcodec": null,
+      "width": 640
+    },
+    {
+      "acodec": null,
+      "ext": "avi",
+      "filesize": 332243668,
+      "filesize_approx": null,
+      "format_id": "2",
+      "height": 720,
+      "tbr": null,
+      "url": "https://archive.org",
+      "vcodec": null,
+      "width": 1280
+    }
+  ],
+  "id": "BigBuckBunny_124",
+  "is_live": null,
+  "language": null,
+  "subtitles": {},
+  "timestamp": 1309554623,
+  "title": "Big Buck Bunny",
+  "upload_date": "20110701",
+  "uploader": "redacted@example.invalid",
+  "uploader_id": null,
+  "webpage_url": "https://archive.org/details/BigBuckBunny_124"
+}

@@ -1,0 +1,3740 @@
+{
+ "wireMagic": "pb3",
+ "pens": [
+  {}
+ ],
+ "wsWinStyles": [
+  {}
+ ],
+ "wpWinPositions": [
+  {}
+ ],
+ "events": [
+  {
+   "tStartMs": 0,
+   "dDurationMs": 1167,
+   "segs": [
+    {
+     "utf8": "In this episode,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 1167,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "I\u2019ll show you the top git commands"
+    }
+   ]
+  },
+  {
+   "tStartMs": 2769,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "you\u2019ll be using every day"
+    }
+   ]
+  },
+  {
+   "tStartMs": 3870,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "and how they can help you use"
+    }
+   ]
+  },
+  {
+   "tStartMs": 5138,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "GitHub like an expert."
+    }
+   ]
+  },
+  {
+   "tStartMs": 10510,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "Today, we\u2019re going to dig into"
+    }
+   ]
+  },
+  {
+   "tStartMs": 12545,
+   "dDurationMs": 1936,
+   "segs": [
+    {
+     "utf8": "some of the most used git commands"
+    }
+   ]
+  },
+  {
+   "tStartMs": 14481,
+   "dDurationMs": 2802,
+   "segs": [
+    {
+     "utf8": "so you can be successful using git."
+    }
+   ]
+  },
+  {
+   "tStartMs": 17283,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "I\u2019m Kedasha and I\u2019m so happy"
+    }
+   ]
+  },
+  {
+   "tStartMs": 19085,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "you\u2019re here with me today."
+    }
+   ]
+  },
+  {
+   "tStartMs": 21154,
+   "dDurationMs": 2202,
+   "segs": [
+    {
+     "utf8": "Let\u2019s start at the very beginning."
+    }
+   ]
+  },
+  {
+   "tStartMs": 23356,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "After you install git on your machine,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 25458,
+   "dDurationMs": 1969,
+   "segs": [
+    {
+     "utf8": "what\u2019s the first thing that you do?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 27427,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "For me, the first thing I like to do"
+    }
+   ]
+  },
+  {
+   "tStartMs": 29729,
+   "dDurationMs": 1068,
+   "segs": [
+    {
+     "utf8": "is to configure git"
+    }
+   ]
+  },
+  {
+   "tStartMs": 30797,
+   "dDurationMs": 2736,
+   "segs": [
+    {
+     "utf8": "so it understands who I am."
+    }
+   ]
+  },
+  {
+   "tStartMs": 33533,
+   "dDurationMs": 2503,
+   "segs": [
+    {
+     "utf8": "The \u201cgit config\u201d command allows you to set"
+    }
+   ]
+  },
+  {
+   "tStartMs": 36036,
+   "dDurationMs": 1701,
+   "segs": [
+    {
+     "utf8": "git configuration values"
+    }
+   ]
+  },
+  {
+   "tStartMs": 37737,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "that can help you create"
+    }
+   ]
+  },
+  {
+   "tStartMs": 38838,
+   "dDurationMs": 2503,
+   "segs": [
+    {
+     "utf8": "a customized git workflow."
+    }
+   ]
+  },
+  {
+   "tStartMs": 41341,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "For example,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 42609,
+   "dDurationMs": 2202,
+   "segs": [
+    {
+     "utf8": "to set my email and username,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 44811,
+   "dDurationMs": 901,
+   "segs": [
+    {
+     "utf8": "I can type"
+    }
+   ]
+  },
+  {
+   "tStartMs": 45712,
+   "dDurationMs": 4671,
+   "segs": [
+    {
+     "utf8": "\u201cgit config --global user.name \u2018ladykerr\u2019\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 50383,
+   "dDurationMs": 5272,
+   "segs": [
+    {
+     "utf8": "\u201cgit config --global user.email \u2018redacted@example.invalid\u2019\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 55655,
+   "dDurationMs": 1769,
+   "segs": [
+    {
+     "utf8": "and these two settings allow"
+    }
+   ]
+  },
+  {
+   "tStartMs": 57424,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "git to associate my work"
+    }
+   ]
+  },
+  {
+   "tStartMs": 58992,
+   "dDurationMs": 1868,
+   "segs": [
+    {
+     "utf8": "with my username and email"
+    }
+   ]
+  },
+  {
+   "tStartMs": 60860,
+   "dDurationMs": 2903,
+   "segs": [
+    {
+     "utf8": "so I can get credit for the work that I do."
+    }
+   ]
+  },
+  {
+   "tStartMs": 63763,
+   "dDurationMs": 2736,
+   "segs": [
+    {
+     "utf8": "I can run \u201cgit config --list\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 66499,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "to see all the configuration settings"
+    }
+   ]
+  },
+  {
+   "tStartMs": 68568,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "I\u2019ve created so far."
+    }
+   ]
+  },
+  {
+   "tStartMs": 70670,
+   "dDurationMs": 1835,
+   "segs": [
+    {
+     "utf8": "To go a little further,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 72505,
+   "dDurationMs": 2136,
+   "segs": [
+    {
+     "utf8": "I can also set aliases for certain"
+    }
+   ]
+  },
+  {
+   "tStartMs": 74641,
+   "dDurationMs": 1234,
+   "segs": [
+    {
+     "utf8": "git commands."
+    }
+   ]
+  },
+  {
+   "tStartMs": 75875,
+   "dDurationMs": 1368,
+   "segs": [
+    {
+     "utf8": "For example,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 77243,
+   "dDurationMs": 1836,
+   "segs": [
+    {
+     "utf8": "if I wanted to create a shorthand"
+    }
+   ]
+  },
+  {
+   "tStartMs": 79079,
+   "dDurationMs": 3069,
+   "segs": [
+    {
+     "utf8": "or alias for \u201cgit init\u201d, I can type"
+    }
+   ]
+  },
+  {
+   "tStartMs": 82148,
+   "dDurationMs": 4338,
+   "segs": [
+    {
+     "utf8": "\u201cgit config --global alias.i init\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 86486,
+   "dDurationMs": 1501,
+   "segs": [
+    {
+     "utf8": "and this will create an alias"
+    }
+   ]
+  },
+  {
+   "tStartMs": 87987,
+   "dDurationMs": 1836,
+   "segs": [
+    {
+     "utf8": "for the command \u201cgit init\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 89823,
+   "dDurationMs": 1968,
+   "segs": [
+    {
+     "utf8": "which is used to create or initialize"
+    }
+   ]
+  },
+  {
+   "tStartMs": 91791,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "a new git repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 93793,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "So, let\u2019s say for example,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 95728,
+   "dDurationMs": 1001,
+   "segs": [
+    {
+     "utf8": "I create a new folder"
+    }
+   ]
+  },
+  {
+   "tStartMs": 96729,
+   "dDurationMs": 1435,
+   "segs": [
+    {
+     "utf8": "with the terminal command,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 98164,
+   "dDurationMs": 3003,
+   "segs": [
+    {
+     "utf8": "\u201cmkdir project1\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 101167,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "I can go into \u201cproject1\u201d by running"
+    }
+   ]
+  },
+  {
+   "tStartMs": 103236,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "\u201ccd project1\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 105271,
+   "dDurationMs": 1435,
+   "segs": [
+    {
+     "utf8": "In its current state,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 106706,
+   "dDurationMs": 3437,
+   "segs": [
+    {
+     "utf8": "\u201cproject1\u201d is not a git repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 110143,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "If I wanted this folder"
+    }
+   ]
+  },
+  {
+   "tStartMs": 111244,
+   "dDurationMs": 1134,
+   "segs": [
+    {
+     "utf8": "to be a git repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 112378,
+   "dDurationMs": 2103,
+   "segs": [
+    {
+     "utf8": "so I can track all changes I make,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 114481,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "I would type"
+    }
+   ]
+  },
+  {
+   "tStartMs": 115582,
+   "dDurationMs": 1134,
+   "segs": [
+    {
+     "utf8": "\u201cgit i\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 116716,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "with the alias I created earlier"
+    }
+   ]
+  },
+  {
+   "tStartMs": 118518,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "for the \u201cgit init\u201d command."
+    }
+   ]
+  },
+  {
+   "tStartMs": 120520,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "When we run the \u201cgit init\u201d command"
+    }
+   ]
+  },
+  {
+   "tStartMs": 122088,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "in an ordinary folder,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 123656,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "it allows us to transform"
+    }
+   ]
+  },
+  {
+   "tStartMs": 125191,
+   "dDurationMs": 2803,
+   "segs": [
+    {
+     "utf8": "that folder into a trackable git repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 127994,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "where we\u2019re able to use git commands."
+    }
+   ]
+  },
+  {
+   "tStartMs": 130296,
+   "dDurationMs": 1969,
+   "segs": [
+    {
+     "utf8": "So, think of \u201cgit init\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 132265,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "as turning on a git switch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 134400,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "If I wanted to see what I\u2019ve done so far"
+    }
+   ]
+  },
+  {
+   "tStartMs": 136402,
+   "dDurationMs": 2903,
+   "segs": [
+    {
+     "utf8": "in my new git repository, I can type,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 139305,
+   "dDurationMs": 1235,
+   "segs": [
+    {
+     "utf8": "\u201cgit status\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 140540,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "which allows me to see"
+    }
+   ]
+  },
+  {
+   "tStartMs": 141641,
+   "dDurationMs": 2536,
+   "segs": [
+    {
+     "utf8": "what files have been added, deleted,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 144177,
+   "dDurationMs": 2736,
+   "segs": [
+    {
+     "utf8": "or modified in my working directory."
+    }
+   ]
+  },
+  {
+   "tStartMs": 146913,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "This returns nothing to commit"
+    }
+   ]
+  },
+  {
+   "tStartMs": 149215,
+   "dDurationMs": 3137,
+   "segs": [
+    {
+     "utf8": "because we haven\u2019t added any files yet."
+    }
+   ]
+  },
+  {
+   "tStartMs": 152352,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "Let\u2019s create a new file by running"
+    }
+   ]
+  },
+  {
+   "tStartMs": 154087,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "\u201ctouch hello.md\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 156222,
+   "dDurationMs": 2569,
+   "segs": [
+    {
+     "utf8": "then run \u201cgit status\u201d again."
+    }
+   ]
+  },
+  {
+   "tStartMs": 158791,
+   "dDurationMs": 901,
+   "segs": [
+    {
+     "utf8": "Now we see that we have"
+    }
+   ]
+  },
+  {
+   "tStartMs": 159692,
+   "dDurationMs": 3137,
+   "segs": [
+    {
+     "utf8": "an unchecked file, \u201chello.md\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 162829,
+   "dDurationMs": 1234,
+   "segs": [
+    {
+     "utf8": "An unchecked file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 164063,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "is one that has not been"
+    }
+   ]
+  },
+  {
+   "tStartMs": 165331,
+   "dDurationMs": 2169,
+   "segs": [
+    {
+     "utf8": "added to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 167500,
+   "dDurationMs": 2136,
+   "segs": [
+    {
+     "utf8": "To add files to the staging area,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 169636,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "we can use the \u201cgit add\u201d command."
+    }
+   ]
+  },
+  {
+   "tStartMs": 172038,
+   "dDurationMs": 1869,
+   "segs": [
+    {
+     "utf8": "So, there are a few ways"
+    }
+   ]
+  },
+  {
+   "tStartMs": 173907,
+   "dDurationMs": 2068,
+   "segs": [
+    {
+     "utf8": "to use this command."
+    }
+   ]
+  },
+  {
+   "tStartMs": 175975,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "We can use \u201cgit add .\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 177777,
+   "dDurationMs": 2569,
+   "segs": [
+    {
+     "utf8": "to add all files to the staging area"
+    }
+   ]
+  },
+  {
+   "tStartMs": 180346,
+   "dDurationMs": 1235,
+   "segs": [
+    {
+     "utf8": "from the working directory"
+    }
+   ]
+  },
+  {
+   "tStartMs": 181581,
+   "dDurationMs": 1635,
+   "segs": [
+    {
+     "utf8": "at the same time."
+    }
+   ]
+  },
+  {
+   "tStartMs": 183216,
+   "dDurationMs": 3303,
+   "segs": [
+    {
+     "utf8": "Or, we can use \u201cgit add [file name]\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 186519,
+   "dDurationMs": 3537,
+   "segs": [
+    {
+     "utf8": "to add a specific file to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 190056,
+   "dDurationMs": 3070,
+   "segs": [
+    {
+     "utf8": "Let\u2019s create a new file called \u201clearning.py\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 193126,
+   "dDurationMs": 3370,
+   "segs": [
+    {
+     "utf8": "and another file called \u201cwaiting.py\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 196496,
+   "dDurationMs": 3970,
+   "segs": [
+    {
+     "utf8": "Now, let\u2019s run \u201cgit add learning.py\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 200466,
+   "dDurationMs": 2837,
+   "segs": [
+    {
+     "utf8": "to add this file to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 203303,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "If we run \u201cgit status\u201d again,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 205405,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "this will show us that \u201clearning.py\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 207340,
+   "dDurationMs": 1702,
+   "segs": [
+    {
+     "utf8": "is in the staging area"
+    }
+   ]
+  },
+  {
+   "tStartMs": 209042,
+   "dDurationMs": 2235,
+   "segs": [
+    {
+     "utf8": "and \u201cwaiting.py\u201d is untracked"
+    }
+   ]
+  },
+  {
+   "tStartMs": 211277,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "in the working directory."
+    }
+   ]
+  },
+  {
+   "tStartMs": 213346,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "When files are added to the staging area,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 215615,
+   "dDurationMs": 1668,
+   "segs": [
+    {
+     "utf8": "that means they\u2019re in safekeeping"
+    }
+   ]
+  },
+  {
+   "tStartMs": 217283,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "before you commit them."
+    }
+   ]
+  },
+  {
+   "tStartMs": 218551,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "Think of using the \u201cgit add\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 220119,
+   "dDurationMs": 1569,
+   "segs": [
+    {
+     "utf8": "command as telling git,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 221688,
+   "dDurationMs": 2569,
+   "segs": [
+    {
+     "utf8": "\u201cOkay, please keep track of this file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 224257,
+   "dDurationMs": 1768,
+   "segs": [
+    {
+     "utf8": "in its current state.\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 226025,
+   "dDurationMs": 1368,
+   "segs": [
+    {
+     "utf8": "If we make additional changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 227393,
+   "dDurationMs": 1702,
+   "segs": [
+    {
+     "utf8": "to the files that are being tracked,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 229095,
+   "dDurationMs": 1068,
+   "segs": [
+    {
+     "utf8": "we will need to use"
+    }
+   ]
+  },
+  {
+   "tStartMs": 230163,
+   "dDurationMs": 1501,
+   "segs": [
+    {
+     "utf8": "the \u201cgit add\u201d command again"
+    }
+   ]
+  },
+  {
+   "tStartMs": 231664,
+   "dDurationMs": 2970,
+   "segs": [
+    {
+     "utf8": "for git to keep track of those newer changes."
+    }
+   ]
+  },
+  {
+   "tStartMs": 234634,
+   "dDurationMs": 2469,
+   "segs": [
+    {
+     "utf8": "Let\u2019s add some code to the \u201clearning.py\u201d file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 237103,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "so you can see what I mean."
+    }
+   ]
+  },
+  {
+   "tStartMs": 239472,
+   "dDurationMs": 3303,
+   "segs": [
+    {
+     "utf8": "Currently, \u201clearning.py\u201d and \u201chello.md\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 242775,
+   "dDurationMs": 2803,
+   "segs": [
+    {
+     "utf8": "files are being tracked in the staging area,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 245578,
+   "dDurationMs": 2703,
+   "segs": [
+    {
+     "utf8": "but \u201cwaiting.py\u201d is currently untracked."
+    }
+   ]
+  },
+  {
+   "tStartMs": 248281,
+   "dDurationMs": 2636,
+   "segs": [
+    {
+     "utf8": "If I add the code \u201cprint \u2018I\u2019m learning git\u2019\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 250917,
+   "dDurationMs": 1468,
+   "segs": [
+    {
+     "utf8": "to \u201clearning.py\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 252385,
+   "dDurationMs": 2436,
+   "segs": [
+    {
+     "utf8": "then run \u201cgit status\u201d in the terminal,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 254821,
+   "dDurationMs": 734,
+   "segs": [
+    {
+     "utf8": "you\u2019ll see that"
+    }
+   ]
+  },
+  {
+   "tStartMs": 255555,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "the \u201clearning.py\u201d file has been modified"
+    }
+   ]
+  },
+  {
+   "tStartMs": 257690,
+   "dDurationMs": 2136,
+   "segs": [
+    {
+     "utf8": "and has untracked changes."
+    }
+   ]
+  },
+  {
+   "tStartMs": 259826,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "To keep track of these newer changes,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 261761,
+   "dDurationMs": 1034,
+   "segs": [
+    {
+     "utf8": "we will need to run"
+    }
+   ]
+  },
+  {
+   "tStartMs": 262795,
+   "dDurationMs": 2636,
+   "segs": [
+    {
+     "utf8": "\u201cgit add learning.py\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 265431,
+   "dDurationMs": 1202,
+   "segs": [
+    {
+     "utf8": "In the real world,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 266633,
+   "dDurationMs": 1301,
+   "segs": [
+    {
+     "utf8": "you would typically complete"
+    }
+   ]
+  },
+  {
+   "tStartMs": 267934,
+   "dDurationMs": 1001,
+   "segs": [
+    {
+     "utf8": "the work you\u2019re doing"
+    }
+   ]
+  },
+  {
+   "tStartMs": 268935,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "in the \u201clearning.py\u201d file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 270670,
+   "dDurationMs": 3270,
+   "segs": [
+    {
+     "utf8": "and then add those changes to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 273940,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "Once you\u2019re satisfied with your work,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 276342,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "you can then commit your changes."
+    }
+   ]
+  },
+  {
+   "tStartMs": 278611,
+   "dDurationMs": 1201,
+   "segs": [
+    {
+     "utf8": "To commit a change"
+    }
+   ]
+  },
+  {
+   "tStartMs": 279812,
+   "dDurationMs": 2303,
+   "segs": [
+    {
+     "utf8": "is to store a version of your project"
+    }
+   ]
+  },
+  {
+   "tStartMs": 282115,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "in the git history."
+    }
+   ]
+  },
+  {
+   "tStartMs": 284117,
+   "dDurationMs": 3637,
+   "segs": [
+    {
+     "utf8": "Currently, \u201clearning.py\u201d and \u201chello.md\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 287754,
+   "dDurationMs": 4404,
+   "segs": [
+    {
+     "utf8": "are tracked while \u201cwaiting.py\u201d is untracked."
+    }
+   ]
+  },
+  {
+   "tStartMs": 292158,
+   "dDurationMs": 934,
+   "segs": [
+    {
+     "utf8": "Let\u2019s run"
+    }
+   ]
+  },
+  {
+   "tStartMs": 293092,
+   "dDurationMs": 2770,
+   "segs": [
+    {
+     "utf8": "\u201cgit commit -m \u2018initial commit\u2019\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 295862,
+   "dDurationMs": 1868,
+   "segs": [
+    {
+     "utf8": "to see what happens."
+    }
+   ]
+  },
+  {
+   "tStartMs": 297730,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "Run \u201cgit status\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 299532,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "and this will show us"
+    }
+   ]
+  },
+  {
+   "tStartMs": 300800,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "that we have two files changed,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 302802,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "one insertion in git,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 304704,
+   "dDurationMs": 1835,
+   "segs": [
+    {
+     "utf8": "because we just added two files"
+    }
+   ]
+  },
+  {
+   "tStartMs": 306539,
+   "dDurationMs": 968,
+   "segs": [
+    {
+     "utf8": "and one of the files"
+    }
+   ]
+  },
+  {
+   "tStartMs": 307507,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "has one line of code."
+    }
+   ]
+  },
+  {
+   "tStartMs": 309309,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "We also see that we have an untracked file,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 311711,
+   "dDurationMs": 1234,
+   "segs": [
+    {
+     "utf8": "\u201cwaiting.py\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 312945,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "because that file was never added"
+    }
+   ]
+  },
+  {
+   "tStartMs": 314547,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 316149,
+   "dDurationMs": 3303,
+   "segs": [
+    {
+     "utf8": "If I add new changes to the \u201clearning.py\u201d file,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 319452,
+   "dDurationMs": 3203,
+   "segs": [
+    {
+     "utf8": "we can add both \u201clearning.py\u201d and \u201cwaiting.py\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 322655,
+   "dDurationMs": 2870,
+   "segs": [
+    {
+     "utf8": "to the staging area along with any other changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 325525,
+   "dDurationMs": 5005,
+   "segs": [
+    {
+     "utf8": "we make by running \u201cgit add. git commit -m"
+    }
+   ]
+  },
+  {
+   "tStartMs": 330530,
+   "dDurationMs": 3637,
+   "segs": [
+    {
+     "utf8": "\u2018add waiting file and new function\u2019\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 334167,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "And that\u2019s how you would use the \u201cgit add\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 336169,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "and \u201cgit commit\u201d commands together."
+    }
+   ]
+  },
+  {
+   "tStartMs": 338471,
+   "dDurationMs": 1235,
+   "segs": [
+    {
+     "utf8": "These two commands help you"
+    }
+   ]
+  },
+  {
+   "tStartMs": 339706,
+   "dDurationMs": 3603,
+   "segs": [
+    {
+     "utf8": "track changes to your work and store them."
+    }
+   ]
+  },
+  {
+   "tStartMs": 343309,
+   "dDurationMs": 3404,
+   "segs": [
+    {
+     "utf8": "Okay, so now, what if you were given a link"
+    }
+   ]
+  },
+  {
+   "tStartMs": 346713,
+   "dDurationMs": 1668,
+   "segs": [
+    {
+     "utf8": "to a folder from a remote location"
+    }
+   ]
+  },
+  {
+   "tStartMs": 348381,
+   "dDurationMs": 2169,
+   "segs": [
+    {
+     "utf8": "that you needed to get on your laptop?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 350550,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "How would you do that?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 352552,
+   "dDurationMs": 1601,
+   "segs": [
+    {
+     "utf8": "In the world of git,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 354153,
+   "dDurationMs": 2503,
+   "segs": [
+    {
+     "utf8": "this is referred to as cloning,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 356656,
+   "dDurationMs": 2703,
+   "segs": [
+    {
+     "utf8": "or making a copy of a remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 359359,
+   "dDurationMs": 2202,
+   "segs": [
+    {
+     "utf8": "to your local machine."
+    }
+   ]
+  },
+  {
+   "tStartMs": 361561,
+   "dDurationMs": 734,
+   "segs": [
+    {
+     "utf8": "You can do that"
+    }
+   ]
+  },
+  {
+   "tStartMs": 362295,
+   "dDurationMs": 2469,
+   "segs": [
+    {
+     "utf8": "with the command \u201cgit clone\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 364764,
+   "dDurationMs": 1068,
+   "segs": [
+    {
+     "utf8": "When you work in a team"
+    }
+   ]
+  },
+  {
+   "tStartMs": 365832,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "that uses git for collaboration,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 367834,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "you may be asked to use git"
+    }
+   ]
+  },
+  {
+   "tStartMs": 369402,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "to make a copy of a project folder"
+    }
+   ]
+  },
+  {
+   "tStartMs": 371437,
+   "dDurationMs": 1969,
+   "segs": [
+    {
+     "utf8": "that you need to make changes in."
+    }
+   ]
+  },
+  {
+   "tStartMs": 373406,
+   "dDurationMs": 1401,
+   "segs": [
+    {
+     "utf8": "Say for example,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 374807,
+   "dDurationMs": 1468,
+   "segs": [
+    {
+     "utf8": "we have this remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 376275,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "here on GitHub."
+    }
+   ]
+  },
+  {
+   "tStartMs": 377810,
+   "dDurationMs": 1368,
+   "segs": [
+    {
+     "utf8": "To make a copy or clone"
+    }
+   ]
+  },
+  {
+   "tStartMs": 379178,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "this repo to your machine,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 380780,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "click on the green \u201ccode\u201d button."
+    }
+   ]
+  },
+  {
+   "tStartMs": 383182,
+   "dDurationMs": 3137,
+   "segs": [
+    {
+     "utf8": "Then select the option that says \u201cHTTPS\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 386319,
+   "dDurationMs": 1701,
+   "segs": [
+    {
+     "utf8": "click on the copy icon to copy"
+    }
+   ]
+  },
+  {
+   "tStartMs": 388020,
+   "dDurationMs": 1669,
+   "segs": [
+    {
+     "utf8": "the link to the repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 389689,
+   "dDurationMs": 1468,
+   "segs": [
+    {
+     "utf8": "and then open up your terminal"
+    }
+   ]
+  },
+  {
+   "tStartMs": 391157,
+   "dDurationMs": 1768,
+   "segs": [
+    {
+     "utf8": "and type \u201cgit clone\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 392925,
+   "dDurationMs": 2336,
+   "segs": [
+    {
+     "utf8": "Paste the URL link in your terminal"
+    }
+   ]
+  },
+  {
+   "tStartMs": 395261,
+   "dDurationMs": 3403,
+   "segs": [
+    {
+     "utf8": "and hit enter or the return key."
+    }
+   ]
+  },
+  {
+   "tStartMs": 398664,
+   "dDurationMs": 1469,
+   "segs": [
+    {
+     "utf8": "Once you see \u201cdone,\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 400133,
+   "dDurationMs": 1434,
+   "segs": [
+    {
+     "utf8": "you just successfully cloned"
+    }
+   ]
+  },
+  {
+   "tStartMs": 401567,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "a repository to your machine."
+    }
+   ]
+  },
+  {
+   "tStartMs": 403836,
+   "dDurationMs": 1702,
+   "segs": [
+    {
+     "utf8": "Now you have your own local copy"
+    }
+   ]
+  },
+  {
+   "tStartMs": 405538,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "of that remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 407106,
+   "dDurationMs": 2836,
+   "segs": [
+    {
+     "utf8": "that you can work in and make changes to."
+    }
+   ]
+  },
+  {
+   "tStartMs": 409942,
+   "dDurationMs": 1502,
+   "segs": [
+    {
+     "utf8": "Let\u2019s \u201ccd\u201d into the folder"
+    }
+   ]
+  },
+  {
+   "tStartMs": 411444,
+   "dDurationMs": 1134,
+   "segs": [
+    {
+     "utf8": "and create a new branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 412578,
+   "dDurationMs": 1502,
+   "segs": [
+    {
+     "utf8": "that we can work on."
+    }
+   ]
+  },
+  {
+   "tStartMs": 414080,
+   "dDurationMs": 1635,
+   "segs": [
+    {
+     "utf8": "When working with a git repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 415715,
+   "dDurationMs": 1034,
+   "segs": [
+    {
+     "utf8": "with your team,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 416749,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "it\u2019s important to add your changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 418351,
+   "dDurationMs": 1768,
+   "segs": [
+    {
+     "utf8": "to a new branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 420119,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "A branch in a git repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 421921,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "is like creating a copy of a document,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 423956,
+   "dDurationMs": 2436,
+   "segs": [
+    {
+     "utf8": "so you don\u2019t mess up the original."
+    }
+   ]
+  },
+  {
+   "tStartMs": 426392,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "Branches allow us to work"
+    }
+   ]
+  },
+  {
+   "tStartMs": 427660,
+   "dDurationMs": 2236,
+   "segs": [
+    {
+     "utf8": "more collaboratively and effectively"
+    }
+   ]
+  },
+  {
+   "tStartMs": 429896,
+   "dDurationMs": 2669,
+   "segs": [
+    {
+     "utf8": "with our teammates in the same project."
+    }
+   ]
+  },
+  {
+   "tStartMs": 432565,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "So let\u2019s create a new branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 434133,
+   "dDurationMs": 1869,
+   "segs": [
+    {
+     "utf8": "in the repository that we just cloned."
+    }
+   ]
+  },
+  {
+   "tStartMs": 436002,
+   "dDurationMs": 3370,
+   "segs": [
+    {
+     "utf8": "Type \u201cgit checkout -b update-name\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 439372,
+   "dDurationMs": 1068,
+   "segs": [
+    {
+     "utf8": "to create a new branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 440440,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "called \u201cupdate-name\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 442542,
+   "dDurationMs": 934,
+   "segs": [
+    {
+     "utf8": "This command allows"
+    }
+   ]
+  },
+  {
+   "tStartMs": 443476,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "us to create a new branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 444577,
+   "dDurationMs": 1201,
+   "segs": [
+    {
+     "utf8": "and switch to the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 445778,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "at the same time."
+    }
+   ]
+  },
+  {
+   "tStartMs": 447780,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "To see a list of the branches that we have,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 450149,
+   "dDurationMs": 1669,
+   "segs": [
+    {
+     "utf8": "we can type \u201cgit branch\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 451818,
+   "dDurationMs": 3136,
+   "segs": [
+    {
+     "utf8": "and it will show us that we have three branches."
+    }
+   ]
+  },
+  {
+   "tStartMs": 454954,
+   "dDurationMs": 3370,
+   "segs": [
+    {
+     "utf8": "The main branch, a branch named \u201cinit\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 458324,
+   "dDurationMs": 2903,
+   "segs": [
+    {
+     "utf8": "and the newly created \u201cupdate-name\u201d branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 461227,
+   "dDurationMs": 3070,
+   "segs": [
+    {
+     "utf8": "Hit the Q key on your keyboard to exit."
+    }
+   ]
+  },
+  {
+   "tStartMs": 464297,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "Now, what if we wanted to"
+    }
+   ]
+  },
+  {
+   "tStartMs": 466299,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "go back to the main branch?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 468401,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "We can use the \u201cgit switch\u201d command"
+    }
+   ]
+  },
+  {
+   "tStartMs": 470403,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "to do just that."
+    }
+   ]
+  },
+  {
+   "tStartMs": 472472,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "In your terminal,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 473573,
+   "dDurationMs": 1835,
+   "segs": [
+    {
+     "utf8": "type \u201cgit switch main\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 475408,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "to return to the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 477510,
+   "dDurationMs": 801,
+   "segs": [
+    {
+     "utf8": "Great."
+    }
+   ]
+  },
+  {
+   "tStartMs": 478311,
+   "dDurationMs": 2169,
+   "segs": [
+    {
+     "utf8": "Now we\u2019re back on the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 480480,
+   "dDurationMs": 1134,
+   "segs": [
+    {
+     "utf8": "Let\u2019s return to the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 481614,
+   "dDurationMs": 1034,
+   "segs": [
+    {
+     "utf8": "that we created and add"
+    }
+   ]
+  },
+  {
+   "tStartMs": 482648,
+   "dDurationMs": 2203,
+   "segs": [
+    {
+     "utf8": "a few changes to a file."
+    }
+   ]
+  },
+  {
+   "tStartMs": 484851,
+   "dDurationMs": 2469,
+   "segs": [
+    {
+     "utf8": "Type \u201cgit switch update-name\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 487320,
+   "dDurationMs": 3170,
+   "segs": [
+    {
+     "utf8": "and then open the project in VS Code."
+    }
+   ]
+  },
+  {
+   "tStartMs": 490490,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "Navigate to the \u201cindex.html\u201d file."
+    }
+   ]
+  },
+  {
+   "tStartMs": 492892,
+   "dDurationMs": 1301,
+   "segs": [
+    {
+     "utf8": "Right click on the file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 494193,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "and select \u201copen preview.\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 495995,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "And this will open up a side browser"
+    }
+   ]
+  },
+  {
+   "tStartMs": 497897,
+   "dDurationMs": 4137,
+   "segs": [
+    {
+     "utf8": "where we can see the changes live in our code."
+    }
+   ]
+  },
+  {
+   "tStartMs": 502034,
+   "dDurationMs": 1135,
+   "segs": [
+    {
+     "utf8": "Let\u2019s say you were assigned"
+    }
+   ]
+  },
+  {
+   "tStartMs": 503169,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "with changing the title of this app"
+    }
+   ]
+  },
+  {
+   "tStartMs": 504704,
+   "dDurationMs": 1835,
+   "segs": [
+    {
+     "utf8": "to \u201cGit Going.\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 506539,
+   "dDurationMs": 2903,
+   "segs": [
+    {
+     "utf8": "Let\u2019s update the name of the HTML file and"
+    }
+   ]
+  },
+  {
+   "tStartMs": 509442,
+   "dDurationMs": 1168,
+   "segs": [
+    {
+     "utf8": "run \u201cgit status\u201d to see that"
+    }
+   ]
+  },
+  {
+   "tStartMs": 510610,
+   "dDurationMs": 2068,
+   "segs": [
+    {
+     "utf8": "the file has been modified."
+    }
+   ]
+  },
+  {
+   "tStartMs": 512678,
+   "dDurationMs": 1335,
+   "segs": [
+    {
+     "utf8": "Putting it all together,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 514013,
+   "dDurationMs": 2903,
+   "segs": [
+    {
+     "utf8": "let\u2019s add these changes to the staging area."
+    }
+   ]
+  },
+  {
+   "tStartMs": 516916,
+   "dDurationMs": 3136,
+   "segs": [
+    {
+     "utf8": "Then commit the changes to our local repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 520052,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "\u201cGit add .\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 521787,
+   "dDurationMs": 2937,
+   "segs": [
+    {
+     "utf8": "\u201cgit commit -m \u2018update app name\u2019\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 524724,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "\u201cgit status\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 526659,
+   "dDurationMs": 901,
+   "segs": [
+    {
+     "utf8": "Awesome."
+    }
+   ]
+  },
+  {
+   "tStartMs": 527560,
+   "dDurationMs": 1368,
+   "segs": [
+    {
+     "utf8": "Nothing to commit."
+    }
+   ]
+  },
+  {
+   "tStartMs": 528928,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "Working tree, clean."
+    }
+   ]
+  },
+  {
+   "tStartMs": 530930,
+   "dDurationMs": 968,
+   "segs": [
+    {
+     "utf8": "Great."
+    }
+   ]
+  },
+  {
+   "tStartMs": 531898,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "Now, let\u2019s get our local changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 533833,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "into the remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 535735,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "that we cloned earlier"
+    }
+   ]
+  },
+  {
+   "tStartMs": 537270,
+   "dDurationMs": 1801,
+   "segs": [
+    {
+     "utf8": "to update the application."
+    }
+   ]
+  },
+  {
+   "tStartMs": 539071,
+   "dDurationMs": 1302,
+   "segs": [
+    {
+     "utf8": "To get the changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 540373,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "we just made into the remote repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 542508,
+   "dDurationMs": 1769,
+   "segs": [
+    {
+     "utf8": "we must push our changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 544277,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "to the remote repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 546312,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "Let me explain."
+    }
+   ]
+  },
+  {
+   "tStartMs": 548214,
+   "dDurationMs": 3003,
+   "segs": [
+    {
+     "utf8": "The command \u201cgit push\u201d tells git,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 551217,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "\u201cThanks for tracking these file changes,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 553486,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "now I want to upload these changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 555421,
+   "dDurationMs": 2236,
+   "segs": [
+    {
+     "utf8": "into the main project file.\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 557657,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "When we push our changes,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 559225,
+   "dDurationMs": 2502,
+   "segs": [
+    {
+     "utf8": "we\u2019re essentially updating the remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 561727,
+   "dDurationMs": 1435,
+   "segs": [
+    {
+     "utf8": "with commits that have been made"
+    }
+   ]
+  },
+  {
+   "tStartMs": 563162,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "in our local repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 565531,
+   "dDurationMs": 3370,
+   "segs": [
+    {
+     "utf8": "To do this, we use the command \u201cgit push\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 568901,
+   "dDurationMs": 3437,
+   "segs": [
+    {
+     "utf8": "where \u201cremote\u201d refers to the remote repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 572338,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "and the \u201cbranch\u201d refers to the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 574707,
+   "dDurationMs": 1168,
+   "segs": [
+    {
+     "utf8": "we\u2019re working on."
+    }
+   ]
+  },
+  {
+   "tStartMs": 575875,
+   "dDurationMs": 2703,
+   "segs": [
+    {
+     "utf8": "In our case, we can type,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 578578,
+   "dDurationMs": 2602,
+   "segs": [
+    {
+     "utf8": "\u201cgit push origin update-name\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 581180,
+   "dDurationMs": 3570,
+   "segs": [
+    {
+     "utf8": "where \u201corigin\u201d refers to the remote repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 584750,
+   "dDurationMs": 2603,
+   "segs": [
+    {
+     "utf8": "and \u201cupdate-name\u201d refers to the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 587353,
+   "dDurationMs": 1768,
+   "segs": [
+    {
+     "utf8": "that we want to upload."
+    }
+   ]
+  },
+  {
+   "tStartMs": 589956,
+   "dDurationMs": 1701,
+   "segs": [
+    {
+     "utf8": "Did you get that?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 591657,
+   "dDurationMs": 1235,
+   "segs": [
+    {
+     "utf8": "If we go back"
+    }
+   ]
+  },
+  {
+   "tStartMs": 592892,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "to the repository on GitHub,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 594794,
+   "dDurationMs": 767,
+   "segs": [
+    {
+     "utf8": "we will see that"
+    }
+   ]
+  },
+  {
+   "tStartMs": 595561,
+   "dDurationMs": 2169,
+   "segs": [
+    {
+     "utf8": "there\u2019s a new branch available."
+    }
+   ]
+  },
+  {
+   "tStartMs": 597730,
+   "dDurationMs": 2769,
+   "segs": [
+    {
+     "utf8": "It\u2019s been pushed up to the repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 600499,
+   "dDurationMs": 3771,
+   "segs": [
+    {
+     "utf8": "which is why we call it \u201cgit push\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 604270,
+   "dDurationMs": 1068,
+   "segs": [
+    {
+     "utf8": "We can now open up"
+    }
+   ]
+  },
+  {
+   "tStartMs": 605338,
+   "dDurationMs": 1534,
+   "segs": [
+    {
+     "utf8": "a pull request on GitHub"
+    }
+   ]
+  },
+  {
+   "tStartMs": 606872,
+   "dDurationMs": 3037,
+   "segs": [
+    {
+     "utf8": "to merge our changes into the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 609909,
+   "dDurationMs": 1601,
+   "segs": [
+    {
+     "utf8": "A pull request is a proposal"
+    }
+   ]
+  },
+  {
+   "tStartMs": 611510,
+   "dDurationMs": 2603,
+   "segs": [
+    {
+     "utf8": "to merge a set of changes from one branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 614113,
+   "dDurationMs": 1502,
+   "segs": [
+    {
+     "utf8": "into another."
+    }
+   ]
+  },
+  {
+   "tStartMs": 615615,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "In our case,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 616716,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "we want to merge the \u201cupdate-name\u201d branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 619018,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "into the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 620620,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "Let\u2019s open a PR here."
+    }
+   ]
+  },
+  {
+   "tStartMs": 622622,
+   "dDurationMs": 1501,
+   "segs": [
+    {
+     "utf8": "Click on this green button."
+    }
+   ]
+  },
+  {
+   "tStartMs": 624123,
+   "dDurationMs": 1401,
+   "segs": [
+    {
+     "utf8": "Add a description."
+    }
+   ]
+  },
+  {
+   "tStartMs": 625524,
+   "dDurationMs": 2570,
+   "segs": [
+    {
+     "utf8": "Then click the \u201cmerge\u201d button."
+    }
+   ]
+  },
+  {
+   "tStartMs": 628094,
+   "dDurationMs": 2235,
+   "segs": [
+    {
+     "utf8": "Typically you would have a coworker"
+    }
+   ]
+  },
+  {
+   "tStartMs": 630329,
+   "dDurationMs": 968,
+   "segs": [
+    {
+     "utf8": "take a look at your work"
+    }
+   ]
+  },
+  {
+   "tStartMs": 631297,
+   "dDurationMs": 2235,
+   "segs": [
+    {
+     "utf8": "before you merge your pull requests."
+    }
+   ]
+  },
+  {
+   "tStartMs": 633532,
+   "dDurationMs": 1435,
+   "segs": [
+    {
+     "utf8": "But for this demo,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 634967,
+   "dDurationMs": 1769,
+   "segs": [
+    {
+     "utf8": "we\u2019ll go ahead and merge the changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 636736,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "into the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 638471,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "And there you go. Okay."
+    }
+   ]
+  },
+  {
+   "tStartMs": 640773,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "So, now that we\u2019ve updated the main branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 643142,
+   "dDurationMs": 2703,
+   "segs": [
+    {
+     "utf8": "in the remote repository with our changes,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 645845,
+   "dDurationMs": 3236,
+   "segs": [
+    {
+     "utf8": "let\u2019s go back to our local repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 649081,
+   "dDurationMs": 1235,
+   "segs": [
+    {
+     "utf8": "In the terminal,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 650316,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "type \u201cgit switch main\u201d,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 652318,
+   "dDurationMs": 2803,
+   "segs": [
+    {
+     "utf8": "then open the file in VS Code."
+    }
+   ]
+  },
+  {
+   "tStartMs": 655121,
+   "dDurationMs": 2569,
+   "segs": [
+    {
+     "utf8": "Navigate to the \u201cindex.html\u201d file"
+    }
+   ]
+  },
+  {
+   "tStartMs": 657690,
+   "dDurationMs": 2169,
+   "segs": [
+    {
+     "utf8": "and check the name of the app."
+    }
+   ]
+  },
+  {
+   "tStartMs": 659859,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "Oh, no!"
+    }
+   ]
+  },
+  {
+   "tStartMs": 660960,
+   "dDurationMs": 3336,
+   "segs": [
+    {
+     "utf8": "The app is still named \u201ctodo\u201d in the file."
+    }
+   ]
+  },
+  {
+   "tStartMs": 664296,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "But how can this be?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 665831,
+   "dDurationMs": 1869,
+   "segs": [
+    {
+     "utf8": "We just updated the main branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 667700,
+   "dDurationMs": 1001,
+   "segs": [
+    {
+     "utf8": "with the new name."
+    }
+   ]
+  },
+  {
+   "tStartMs": 668701,
+   "dDurationMs": 1435,
+   "segs": [
+    {
+     "utf8": "So, what happened?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 670136,
+   "dDurationMs": 1301,
+   "segs": [
+    {
+     "utf8": "If you guessed that we updated"
+    }
+   ]
+  },
+  {
+   "tStartMs": 671437,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "the remote repository\u2019s main branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 673572,
+   "dDurationMs": 2303,
+   "segs": [
+    {
+     "utf8": "and not our local copy,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 675875,
+   "dDurationMs": 1935,
+   "segs": [
+    {
+     "utf8": "then you are correct."
+    }
+   ]
+  },
+  {
+   "tStartMs": 677810,
+   "dDurationMs": 2636,
+   "segs": [
+    {
+     "utf8": "Remember that a local repository is a copy"
+    }
+   ]
+  },
+  {
+   "tStartMs": 680446,
+   "dDurationMs": 2669,
+   "segs": [
+    {
+     "utf8": "or clone of your remote repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 683115,
+   "dDurationMs": 2503,
+   "segs": [
+    {
+     "utf8": "and each branch has its own history."
+    }
+   ]
+  },
+  {
+   "tStartMs": 685618,
+   "dDurationMs": 1334,
+   "segs": [
+    {
+     "utf8": "Since we made the change"
+    }
+   ]
+  },
+  {
+   "tStartMs": 686952,
+   "dDurationMs": 2470,
+   "segs": [
+    {
+     "utf8": "on the local branch \u201cupdate-name\u201d"
+    }
+   ]
+  },
+  {
+   "tStartMs": 689422,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "and pushed to the remote repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 691791,
+   "dDurationMs": 2335,
+   "segs": [
+    {
+     "utf8": "we need to do the same thing locally."
+    }
+   ]
+  },
+  {
+   "tStartMs": 694126,
+   "dDurationMs": 1302,
+   "segs": [
+    {
+     "utf8": "Merge our changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 695428,
+   "dDurationMs": 3436,
+   "segs": [
+    {
+     "utf8": "into our local copy of the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 698864,
+   "dDurationMs": 1702,
+   "segs": [
+    {
+     "utf8": "We can update our local branches"
+    }
+   ]
+  },
+  {
+   "tStartMs": 700566,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "with their remote counterparts"
+    }
+   ]
+  },
+  {
+   "tStartMs": 702134,
+   "dDurationMs": 2703,
+   "segs": [
+    {
+     "utf8": "with the command \u201cgit pull\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 704837,
+   "dDurationMs": 2402,
+   "segs": [
+    {
+     "utf8": "This command will fetch all the changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 707239,
+   "dDurationMs": 1936,
+   "segs": [
+    {
+     "utf8": "that were made and merge them"
+    }
+   ]
+  },
+  {
+   "tStartMs": 709175,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "into our local branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 710910,
+   "dDurationMs": 2836,
+   "segs": [
+    {
+     "utf8": "In the terminal, on the main branch,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 713746,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "run \u201cgit pull\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 716015,
+   "dDurationMs": 1334,
+   "segs": [
+    {
+     "utf8": "This will update your branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 717349,
+   "dDurationMs": 2570,
+   "segs": [
+    {
+     "utf8": "and return the changes that were made."
+    }
+   ]
+  },
+  {
+   "tStartMs": 719919,
+   "dDurationMs": 2602,
+   "segs": [
+    {
+     "utf8": "Here we see that one file was changed,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 722521,
+   "dDurationMs": 3737,
+   "segs": [
+    {
+     "utf8": "with one insertion and one deletion."
+    }
+   ]
+  },
+  {
+   "tStartMs": 726258,
+   "dDurationMs": 2536,
+   "segs": [
+    {
+     "utf8": "\u201cGit pull\u201d is an important command to run"
+    }
+   ]
+  },
+  {
+   "tStartMs": 728794,
+   "dDurationMs": 1936,
+   "segs": [
+    {
+     "utf8": "to keep your local repository"
+    }
+   ]
+  },
+  {
+   "tStartMs": 730730,
+   "dDurationMs": 2769,
+   "segs": [
+    {
+     "utf8": "up to date with the remote repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 733499,
+   "dDurationMs": 2636,
+   "segs": [
+    {
+     "utf8": "So we\u2019ve just made a bunch of changes."
+    }
+   ]
+  },
+  {
+   "tStartMs": 736135,
+   "dDurationMs": 1101,
+   "segs": [
+    {
+     "utf8": "How do we keep track of"
+    }
+   ]
+  },
+  {
+   "tStartMs": 737236,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "everything that we\u2019ve done so far?"
+    }
+   ]
+  },
+  {
+   "tStartMs": 739138,
+   "dDurationMs": 2202,
+   "segs": [
+    {
+     "utf8": "Well, another useful command to know,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 741340,
+   "dDurationMs": 2269,
+   "segs": [
+    {
+     "utf8": "and this one is a personal favorite,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 743609,
+   "dDurationMs": 2002,
+   "segs": [
+    {
+     "utf8": "is \u201cgit show\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 745611,
+   "dDurationMs": 1869,
+   "segs": [
+    {
+     "utf8": "\u201cGit show\u201d allows us to see the changes"
+    }
+   ]
+  },
+  {
+   "tStartMs": 747480,
+   "dDurationMs": 1234,
+   "segs": [
+    {
+     "utf8": "that we\u2019ve made on the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 748714,
+   "dDurationMs": 1201,
+   "segs": [
+    {
+     "utf8": "that we\u2019re on."
+    }
+   ]
+  },
+  {
+   "tStartMs": 749915,
+   "dDurationMs": 1502,
+   "segs": [
+    {
+     "utf8": "It\u2019s a great way to view"
+    }
+   ]
+  },
+  {
+   "tStartMs": 751417,
+   "dDurationMs": 1835,
+   "segs": [
+    {
+     "utf8": "the history of the project."
+    }
+   ]
+  },
+  {
+   "tStartMs": 753252,
+   "dDurationMs": 1468,
+   "segs": [
+    {
+     "utf8": "In the terminal,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 754720,
+   "dDurationMs": 3203,
+   "segs": [
+    {
+     "utf8": "run \u201cgit show\u201d on the main branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 757923,
+   "dDurationMs": 3003,
+   "segs": [
+    {
+     "utf8": "Here, we have a lot of information."
+    }
+   ]
+  },
+  {
+   "tStartMs": 760926,
+   "dDurationMs": 3270,
+   "segs": [
+    {
+     "utf8": "We have the commit ID, called SHA,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 764196,
+   "dDurationMs": 1802,
+   "segs": [
+    {
+     "utf8": "the author, time,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 765998,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "and date of the commit message,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 767733,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "the commit itself,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 769268,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "and the actual content change"
+    }
+   ]
+  },
+  {
+   "tStartMs": 770836,
+   "dDurationMs": 3270,
+   "segs": [
+    {
+     "utf8": "that was made to the file\u2014the diff."
+    }
+   ]
+  },
+  {
+   "tStartMs": 774106,
+   "dDurationMs": 1735,
+   "segs": [
+    {
+     "utf8": "I like this command because it gives me"
+    }
+   ]
+  },
+  {
+   "tStartMs": 775841,
+   "dDurationMs": 1602,
+   "segs": [
+    {
+     "utf8": "a quick overview of what was done"
+    }
+   ]
+  },
+  {
+   "tStartMs": 777443,
+   "dDurationMs": 2202,
+   "segs": [
+    {
+     "utf8": "right in my terminal."
+    }
+   ]
+  },
+  {
+   "tStartMs": 779645,
+   "dDurationMs": 1335,
+   "segs": [
+    {
+     "utf8": "And there we go."
+    }
+   ]
+  },
+  {
+   "tStartMs": 780980,
+   "dDurationMs": 1668,
+   "segs": [
+    {
+     "utf8": "You\u2019re now fully equipped to work with"
+    }
+   ]
+  },
+  {
+   "tStartMs": 782648,
+   "dDurationMs": 1969,
+   "segs": [
+    {
+     "utf8": "git as a professional."
+    }
+   ]
+  },
+  {
+   "tStartMs": 784617,
+   "dDurationMs": 1268,
+   "segs": [
+    {
+     "utf8": "Practicing these commands"
+    }
+   ]
+  },
+  {
+   "tStartMs": 785885,
+   "dDurationMs": 3003,
+   "segs": [
+    {
+     "utf8": "will make you a more effective git user."
+    }
+   ]
+  },
+  {
+   "tStartMs": 788888,
+   "dDurationMs": 2068,
+   "segs": [
+    {
+     "utf8": "And this leads us into what"
+    }
+   ]
+  },
+  {
+   "tStartMs": 790956,
+   "dDurationMs": 3571,
+   "segs": [
+    {
+     "utf8": "we like to call the GitHub Flow."
+    }
+   ]
+  },
+  {
+   "tStartMs": 794527,
+   "dDurationMs": 1901,
+   "segs": [
+    {
+     "utf8": "The GitHub Flow is a branch-based"
+    }
+   ]
+  },
+  {
+   "tStartMs": 796428,
+   "dDurationMs": 2069,
+   "segs": [
+    {
+     "utf8": "workflow for everyone."
+    }
+   ]
+  },
+  {
+   "tStartMs": 798497,
+   "dDurationMs": 3537,
+   "segs": [
+    {
+     "utf8": "This means any time you work in a repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 802034,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "you\u2019re going through the GitHub Flow."
+    }
+   ]
+  },
+  {
+   "tStartMs": 804403,
+   "dDurationMs": 3003,
+   "segs": [
+    {
+     "utf8": "So congratulations, you just did it!"
+    }
+   ]
+  },
+  {
+   "tStartMs": 807406,
+   "dDurationMs": 2136,
+   "segs": [
+    {
+     "utf8": "We cloned the repository,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 809542,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "created a new branch,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 811110,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "made changes on that branch,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 813145,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "pushed the branch to GitHub,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 815247,
+   "dDurationMs": 2403,
+   "segs": [
+    {
+     "utf8": "and opened up a pull request."
+    }
+   ]
+  },
+  {
+   "tStartMs": 817650,
+   "dDurationMs": 1635,
+   "segs": [
+    {
+     "utf8": "Typically at this stage,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 819285,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "we would request feedback from our teammates"
+    }
+   ]
+  },
+  {
+   "tStartMs": 821387,
+   "dDurationMs": 1468,
+   "segs": [
+    {
+     "utf8": "about the work that we did"
+    }
+   ]
+  },
+  {
+   "tStartMs": 822855,
+   "dDurationMs": 2035,
+   "segs": [
+    {
+     "utf8": "and address the comments."
+    }
+   ]
+  },
+  {
+   "tStartMs": 824890,
+   "dDurationMs": 1902,
+   "segs": [
+    {
+     "utf8": "Once all is resolved,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 826792,
+   "dDurationMs": 2369,
+   "segs": [
+    {
+     "utf8": "we merge the PR into the main branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 829161,
+   "dDurationMs": 2936,
+   "segs": [
+    {
+     "utf8": "and then delete our branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 832097,
+   "dDurationMs": 1502,
+   "segs": [
+    {
+     "utf8": "Let\u2019s do the final stage"
+    }
+   ]
+  },
+  {
+   "tStartMs": 833599,
+   "dDurationMs": 2936,
+   "segs": [
+    {
+     "utf8": "of the GitHub Flow and delete our branch."
+    }
+   ]
+  },
+  {
+   "tStartMs": 836535,
+   "dDurationMs": 2102,
+   "segs": [
+    {
+     "utf8": "The command to delete a branch is"
+    }
+   ]
+  },
+  {
+   "tStartMs": 838637,
+   "dDurationMs": 3204,
+   "segs": [
+    {
+     "utf8": "\u201cgit branch -d update-name\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 841841,
+   "dDurationMs": 2736,
+   "segs": [
+    {
+     "utf8": "And this will delete the branch locally."
+    }
+   ]
+  },
+  {
+   "tStartMs": 844577,
+   "dDurationMs": 2335,
+   "segs": [
+    {
+     "utf8": "To delete a branch remotely,"
+    }
+   ]
+  },
+  {
+   "tStartMs": 846912,
+   "dDurationMs": 1568,
+   "segs": [
+    {
+     "utf8": "we can run the command"
+    }
+   ]
+  },
+  {
+   "tStartMs": 848480,
+   "dDurationMs": 3671,
+   "segs": [
+    {
+     "utf8": "\u201cgit push -delete origin update-name\u201d."
+    }
+   ]
+  },
+  {
+   "tStartMs": 852151,
+   "dDurationMs": 1368,
+   "segs": [
+    {
+     "utf8": "And this will delete the branch"
+    }
+   ]
+  },
+  {
+   "tStartMs": 853519,
+   "dDurationMs": 2302,
+   "segs": [
+    {
+     "utf8": "in the remote repository."
+    }
+   ]
+  },
+  {
+   "tStartMs": 855821,
+   "dDurationMs": 1535,
+   "segs": [
+    {
+     "utf8": "And that\u2019s the GitHub Flow."
+    }
+   ]
+  },
+  {
+   "tStartMs": 857356,
+   "dDurationMs": 2135,
+   "segs": [
+    {
+     "utf8": "I hope you found this content helpful"
+    }
+   ]
+  },
+  {
+   "tStartMs": 859491,
+   "dDurationMs": 2336,
+   "segs": [
+    {
+     "utf8": "and you\u2019re better able to use git."
+    }
+   ]
+  },
+  {
+   "tStartMs": 861827,
+   "dDurationMs": 1635,
+   "segs": [
+    {
+     "utf8": "Happy coding!"
+    }
+   ]
+  }
+ ]
+}
