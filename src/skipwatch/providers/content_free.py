@@ -206,11 +206,13 @@ def _size(fmt: dict[str, Any], duration: float | None) -> float:
     return math.inf
 
 
-def _rank(fmt: dict[str, Any], duration: float | None) -> tuple[float, float, int]:
+def _rank(fmt: dict[str, Any], duration: float | None) -> tuple[float, float, int, str]:
     """Smaller is cheaper. Without a duration or sizes (Instagram) every _size is inf, so the
-    bitrate decides (renditions share one duration), then the short side; never list order."""
+    bitrate decides (renditions share one duration), then the short side, then format_id
+    (identical mirrors, as on TikTok); never list order."""
     tbr = fmt.get("tbr")
-    return _size(fmt, duration), float(tbr) if tbr else math.inf, _short_side(fmt) or 0
+    size = _size(fmt, duration)
+    return size, float(tbr) if tbr else math.inf, _short_side(fmt) or 0, str(fmt["format_id"])
 
 
 def _usable(fmt: dict[str, Any]) -> bool:

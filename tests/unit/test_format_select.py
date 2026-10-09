@@ -205,3 +205,15 @@ def test_without_duration_or_bitrate_the_lower_rendition_wins():
     formats[1]["filesize_approx"] = 5e6
     assert select_format({"duration": None, "formats": formats[::-1]}) == "lo"
     assert select_format({"duration": None, "formats": formats}) == "lo"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_identical_mirror_formats_pick_the_same_one_in_any_order(reverse):
+    """TikTok lists the same rendition from several mirrors: format_id breaks the tie."""
+    formats = [
+        f("mirror-b", 720, 1280, None, a="aac", tbr=500),
+        f("mirror-a", 720, 1280, None, a="aac", tbr=500),
+    ]
+    if reverse:
+        formats = formats[::-1]
+    assert select_format({"duration": None, "formats": formats}) == "mirror-a"
