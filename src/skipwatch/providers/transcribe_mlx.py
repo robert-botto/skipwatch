@@ -13,6 +13,7 @@ from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command, is_apple_silicon
 from skipwatch.models import IngestBundle, Transcript
 from skipwatch.providers.whisper_common import (
+    DEFAULT_MODELS,
     download_failed,
     has_media,
     make_segment,
@@ -21,8 +22,7 @@ from skipwatch.providers.whisper_common import (
 )
 from skipwatch.workdir import WorkDir
 
-DEFAULT_MODEL = "large-v3-turbo"
-TURBO_REPO = "mlx-community/whisper-large-v3-turbo"
+DEFAULT_MODEL, TURBO_REPO = DEFAULT_MODELS["mlx"]
 
 
 def _installed() -> bool:

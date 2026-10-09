@@ -1,5 +1,7 @@
-"""Shared by the local Whisper backends: audio in, timed segments with words out (R-TR-1)."""
+"""Shared by the local Whisper backends: audio in, timed segments with words out (R-TR-1),
+plus the model facts doctor reports (plan issue 12)."""
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -8,6 +10,11 @@ from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, Segment, Word
 from skipwatch.workdir import WorkDir, read_model
 
+# The model each backend uses by default (spec 3.4) and its Hugging Face repo.
+DEFAULT_MODELS = {
+    "mlx": ("large-v3-turbo", "mlx-community/whisper-large-v3-turbo"),
+    "faster": ("small", "Systran/faster-whisper-small"),
+}
 MODEL_SIZES = {"small": "500 MB", "large-v3-turbo": "1.6 GB", "turbo": "1.6 GB"}
 
 
@@ -27,6 +34,21 @@ def download_failed(model: str) -> SkipwatchError:
         ExitCode.DOWNLOAD_FAILED,
         f"Whisper model {model}{about} could not be downloaded: run once with network access",
     )
+
+
+def hf_hub_cache() -> Path:
+    if os.environ.get("HF_HUB_CACHE"):
+        return Path(os.environ["HF_HUB_CACHE"])
+    if os.environ.get("HF_HOME"):
+        return Path(os.environ["HF_HOME"]) / "hub"
+    base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
+    return Path(base) / "huggingface" / "hub"
+
+
+def hf_cached(repo: str) -> bool:
+    """A finished snapshot of `repo` is in the Hugging Face cache. A folder check, no network."""
+    snapshots = hf_hub_cache() / f"models--{repo.replace('/', '--')}" / "snapshots"
+    return snapshots.is_dir() and any(any(s.iterdir()) for s in snapshots.iterdir() if s.is_dir())
 
 
 def make_segment(

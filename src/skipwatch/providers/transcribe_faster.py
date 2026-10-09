@@ -13,6 +13,7 @@ from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command
 from skipwatch.models import IngestBundle, Transcript
 from skipwatch.providers.whisper_common import (
+    DEFAULT_MODELS,
     download_failed,
     has_media,
     make_segment,
@@ -21,7 +22,7 @@ from skipwatch.providers.whisper_common import (
 )
 from skipwatch.workdir import WorkDir
 
-DEFAULT_MODEL = "small"
+DEFAULT_MODEL = DEFAULT_MODELS["faster"][0]
 
 
 def _installed() -> bool:
