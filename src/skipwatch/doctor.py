@@ -4,6 +4,10 @@ Doctor only looks: `--version` subprocess calls, PATH lookups, importability che
 environment variable names. It never installs, upgrades or downloads anything (R-DOC-1), so a
 missing static ffmpeg is reported as "not fetched yet" rather than fetched. treg login needs a
 network call, so M0 reports "on PATH, login not verified" (plan issue 11).
+
+Every printed `uv sync` carries `--inexact`: an exact sync uninstalls extras it is not told
+about, so following the yt-dlp advice would remove an installed Whisper extra. skipwatch is not
+on PyPI, so without a project root the commands install from the git repository.
 """
 
 import importlib.metadata
@@ -15,17 +19,21 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
 from typing import Literal
 
+import skipwatch
 from skipwatch import media
+from skipwatch.errors import SkipwatchError
 from skipwatch.models import DoctorComponent, DoctorMissing, DoctorReport, Tier
 
 CLOUD_KEYS = ("OPENAI_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY")
 YTDLP_MAX_AGE_DAYS = 60
 NODE_MIN_MAJOR = 22
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
+GIT_SOURCE = "git+https://github.com/robert-botto/skipwatch"
 
-FfmpegSource = Literal["system", "static", "static-unfetched", "none"]
+FfmpegSource = Literal["system", "static", "static-unfetched", "static-broken", "none"]
 
 TIER_ROWS: tuple[tuple[Tier, str, str], ...] = (
     (
@@ -88,7 +96,10 @@ def _probe_ffmpeg() -> tuple[str | None, FfmpegSource]:
     if system:
         return media.ffmpeg_version(system[0]), "system"
     if media.static_ffmpeg_fetched():
-        paths = media.ffmpeg_paths(allow_fetch=False)
+        try:
+            paths = media.ffmpeg_paths(allow_fetch=False)
+        except SkipwatchError:
+            return None, "static-broken"  # partial download, for example ffprobe missing
         return media.ffmpeg_version(paths[0]), "static"
     if importlib.util.find_spec("static_ffmpeg") is not None:
         return None, "static-unfetched"
@@ -158,16 +169,40 @@ NEXT_TIER: dict[Tier, Tier | None] = {
 }
 
 
-def _extra_command(plugin_root: str | None, extra: str) -> str:
+def _source_checkout_root(package_file: Path | None = None) -> Path | None:
+    """The repository root when skipwatch runs from a source checkout (`src/skipwatch/`)."""
+    root = Path(package_file or skipwatch.__file__).resolve().parents[2]
+    return root if (root / "pyproject.toml").exists() else None
+
+
+def _project_root(plugin_root: str | None) -> str | None:
     if plugin_root:
-        return f'uv sync --project "{plugin_root}" --extra {extra}'
-    return f'uv tool install "skipwatch[{extra}]"'
+        return plugin_root
+    checkout = _source_checkout_root()
+    return str(checkout) if checkout else None
+
+
+def _sync(root: str, flags: str = "") -> str:
+    return f'uv sync --inexact --project "{root}"' + (f" {flags}" if flags else "")
+
+
+def _extra_command(plugin_root: str | None, extra: str) -> str:
+    root = _project_root(plugin_root)
+    if root:
+        return _sync(root, f"--extra {extra}")
+    return f'uv tool install "skipwatch[{extra}] @ {GIT_SOURCE}"'
 
 
 def ytdlp_upgrade_command(plugin_root: str | None) -> str:
-    if plugin_root:
-        return f'uv sync --project "{plugin_root}" --upgrade-package yt-dlp'
-    return "uv tool upgrade skipwatch"
+    root = _project_root(plugin_root)
+    return _sync(root, "--upgrade-package yt-dlp") if root else "uv tool upgrade skipwatch"
+
+
+def _reinstall_command(plugin_root: str | None, package: str | None = None) -> str:
+    root = _project_root(plugin_root)
+    if root:
+        return _sync(root, f"--reinstall-package {package}" if package else "")
+    return f'uv tool install --reinstall "skipwatch @ {GIT_SOURCE}"'
 
 
 def _missing_for(tier: Tier | None, p: Probe, plugin_root: str | None) -> list[DoctorMissing]:
@@ -229,21 +264,22 @@ def _warnings(p: Probe, today: date, plugin_root: str | None) -> list[str]:
                 f"yt-dlp {p.ytdlp} is older than {YTDLP_MAX_AGE_DAYS} days; run: {upgrade}"
             )
     if p.ffmpeg_source == "none":
-        warnings.append(f"ffmpeg not found; run: {_sync_command(plugin_root)}")
+        warnings.append(f"ffmpeg not found; run: {_reinstall_command(plugin_root)}")
+    if p.ffmpeg_source == "static-broken":
+        warnings.append(f"static ffmpeg is broken; {_ffmpeg_detail(p, plugin_root)}")
     return warnings
 
 
-def _sync_command(plugin_root: str | None) -> str:
-    return f'uv sync --project "{plugin_root}"' if plugin_root else "uv tool install skipwatch"
-
-
-def _ffmpeg_detail(p: Probe) -> str:
+def _ffmpeg_detail(p: Probe, plugin_root: str | None) -> str:
     if p.ffmpeg_source == "static-unfetched":
         return f"static ffmpeg: {STATIC_UNFETCHED}"
+    if p.ffmpeg_source == "static-broken":
+        fix = _reinstall_command(plugin_root, "static-ffmpeg")
+        return f"static ffmpeg broken (incomplete download); install ffmpeg on PATH or run: {fix}"
     return p.ffmpeg_source
 
 
-def _components(p: Probe) -> list[DoctorComponent]:
+def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
     return [
         DoctorComponent(name="uv", found=p.uv is not None, version=p.uv),
         DoctorComponent(name="python", found=True, version=p.python),
@@ -251,7 +287,7 @@ def _components(p: Probe) -> list[DoctorComponent]:
             name="ffmpeg",
             found=p.ffmpeg_source in ("system", "static"),
             version=p.ffmpeg,
-            detail=_ffmpeg_detail(p),
+            detail=_ffmpeg_detail(p, plugin_root),
         ),
         DoctorComponent(name="yt-dlp", found=p.ytdlp is not None, version=p.ytdlp),
         DoctorComponent(
@@ -282,7 +318,7 @@ def build_report(p: Probe, today: date, plugin_root: str | None) -> DoctorReport
     return DoctorReport(
         tier=tier,
         next_tier=next_tier,
-        components=_components(p),
+        components=_components(p, plugin_root),
         missing=_missing_for(next_tier, p, plugin_root),
         warnings=_warnings(p, today, plugin_root),
     )
@@ -295,7 +331,8 @@ def render_table(r: DoctorReport) -> list[str]:
         lines.append(f"{mark} {tier:<2}  {requires}: {unlocks}")
     for c in r.components:
         state = c.version or ("yes" if c.found else "no")
-        lines.append(f"  {c.name}: {state}" + (f" ({c.detail})" if c.detail else ""))
+        detail = "" if c.name == "treg" else c.detail  # its note gets its own line below
+        lines.append(f"  {c.name}: {state}" + (f" ({detail})" if detail else ""))
     for m in r.missing:
         lines.append(f"Missing for Tier {r.next_tier}: {m.name}: {m.install_command}")
     lines.extend(f"Warning: {w}" for w in r.warnings)

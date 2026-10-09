@@ -44,16 +44,59 @@ def test_r_tier_1_report_names_next_tier_and_command():
     r = doctor.build_report(P(), TODAY, plugin_root="/plug")
     assert r.tier == "0" and r.next_tier == "1"
     whisper = next(m for m in r.missing if m.name == "whisper")
-    assert whisper.install_command == 'uv sync --project "/plug" --extra mlx'  # Apple Silicon
+    assert whisper.install_command == 'uv sync --inexact --project "/plug" --extra mlx'
     lines = doctor.render_table(r)
     assert lines[0].startswith("Tier 0 (")
     assert any(line.startswith("Missing for Tier 1: whisper: uv sync") for line in lines)
 
 
-def test_r_tier_1_install_commands_without_plugin_root():
+def test_every_printed_uv_sync_is_inexact(monkeypatch):
+    # An exact `uv sync` uninstalls extras it is not told about (following the yt-dlp advice
+    # removed the whisper extra), so every sync doctor prints must carry --inexact.
+    probes = [
+        P(ytdlp="2026.01.01", ffmpeg=None, ffmpeg_source="none"),
+        P(apple_silicon=False, ytdlp=None),
+        P(ffmpeg=None, ffmpeg_source="static-broken"),
+    ]
+    for root in ("/plug", None):
+        for probe in probes:
+            r = doctor.build_report(probe, TODAY, plugin_root=root)
+            commands = (
+                [m.install_command for m in r.missing]
+                + r.warnings
+                + [c.detail for c in r.components]
+            )
+            syncs = [c for c in commands if "uv sync" in c]
+            assert syncs, (root, probe)
+            assert all("uv sync --inexact" in c for c in syncs), syncs
+
+
+def test_install_commands_without_plugin_root_use_source_checkout(monkeypatch, tmp_path):
+    (tmp_path / "pyproject.toml").write_text("")
+    monkeypatch.setattr(doctor, "_source_checkout_root", lambda: tmp_path)
     r = doctor.build_report(P(apple_silicon=False), TODAY, plugin_root=None)
     whisper = next(m for m in r.missing if m.name == "whisper")
-    assert whisper.install_command == 'uv tool install "skipwatch[whisper]"'
+    assert whisper.install_command == f'uv sync --inexact --project "{tmp_path}" --extra whisper'
+
+
+def test_install_commands_without_any_root_use_git_not_pypi(monkeypatch):
+    monkeypatch.setattr(doctor, "_source_checkout_root", lambda: None)
+    r = doctor.build_report(P(), TODAY, plugin_root=None)
+    whisper = next(m for m in r.missing if m.name == "whisper")
+    assert whisper.install_command == (
+        'uv tool install "skipwatch[mlx] @ git+https://github.com/robert-botto/skipwatch"'
+    )
+    old = doctor.build_report(P(ytdlp="2026.01.01"), TODAY, plugin_root=None)
+    assert any("uv tool upgrade skipwatch" in w for w in old.warnings)
+
+
+def test_source_checkout_root_detection(tmp_path):
+    pkg = tmp_path / "src" / "skipwatch" / "__init__.py"
+    pkg.parent.mkdir(parents=True)
+    pkg.write_text("")
+    assert doctor._source_checkout_root(pkg) is None
+    (tmp_path / "pyproject.toml").write_text("")
+    assert doctor._source_checkout_root(pkg) == tmp_path
 
 
 def test_r_tier_1_every_tier_has_next_step_until_3():
@@ -90,6 +133,7 @@ def test_treg_login_not_verified_and_key_values_never_shown():
     p = P(whisper_faster=True, treg_on_path=True, cloud_keys=["OPENAI_API_KEY"])
     lines = doctor.render_table(doctor.build_report(p, TODAY, "/plug"))
     assert "treg: on PATH, login not verified" in lines
+    assert sum("login not verified" in line for line in lines) == 1
 
 
 def test_cloud_keys_reported_by_name_only(monkeypatch):
@@ -134,3 +178,19 @@ def test_r_tier_1_doctor_exits_zero_and_prints_tier(sw_home):
 def test_doctor_without_json_keeps_stdout_empty(sw_home):
     r = CliRunner().invoke(app, ["doctor"])
     assert r.exit_code == 0 and r.stdout == ""
+
+
+def test_r_tier_1_broken_static_ffmpeg_still_exits_zero(monkeypatch, sw_home):
+    def no_fetch():
+        raise AssertionError("fetched")
+
+    monkeypatch.setattr(doctor.media, "find_system_ffmpeg", lambda: None)
+    monkeypatch.setattr(doctor.media, "static_ffmpeg_fetched", lambda: True)
+    monkeypatch.setattr(doctor.media, "_static_paths_on_disk", lambda: None)  # ffprobe missing
+    monkeypatch.setattr(doctor.media, "_fetch_static", no_fetch)
+    r = CliRunner().invoke(app, ["doctor", "--json"])
+    assert r.exit_code == 0, r.output
+    report = DoctorReport.model_validate_json(r.stdout)
+    ffmpeg = next(c for c in report.components if c.name == "ffmpeg")
+    assert not ffmpeg.found and "broken" in ffmpeg.detail
+    assert "--reinstall-package static-ffmpeg" in ffmpeg.detail
