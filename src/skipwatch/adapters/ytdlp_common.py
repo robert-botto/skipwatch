@@ -39,7 +39,7 @@ class AuthorFields(NamedTuple):
     """Which info fields hold a platform's handle and display name (platforms.md)."""
 
     handle: str
-    name: str
+    name: str | None  # None where the handle is already the display name
     at: bool = True  # prefix the handle with "@"; False where it is a page name, not a handle
 
 
@@ -48,7 +48,7 @@ class AuthorFields(NamedTuple):
 AUTHOR_FIELDS: dict[str, AuthorFields] = {
     "tiktok": AuthorFields("uploader", "channel"),  # uploader_id is numeric
     "instagram": AuthorFields("channel", "uploader"),  # uploader_id is numeric
-    "facebook": AuthorFields("uploader", "uploader", at=False),  # the page name
+    "facebook": AuthorFields("uploader", None, at=False),  # the page name, shown once
 }
 
 
@@ -168,7 +168,7 @@ def author_of(info: dict[str, Any], platform: str | None = None) -> str | None:
 def author_name_of(info: dict[str, Any], platform: str | None = None) -> str | None:
     fields = AUTHOR_FIELDS.get(platform or "")
     if fields is not None:
-        return info.get(fields.name) or None
+        return (info.get(fields.name) or None) if fields.name else None
     return info.get("uploader") or info.get("channel")
 
 

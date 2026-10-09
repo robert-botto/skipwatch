@@ -45,7 +45,7 @@ SOCIAL = [
         "facebook/govsg-haze",
         "https://www.facebook.com/gov.sg/videos/10154383743583686/",
         "gov.sg",
-        "gov.sg",
+        None,  # the page name is the author; never "gov.sg (gov.sg)"
     ),
 ]
 IDS = [row[0] for row in SOCIAL]
