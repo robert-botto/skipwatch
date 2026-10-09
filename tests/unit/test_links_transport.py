@@ -234,3 +234,15 @@ def test_requests_send_a_generic_user_agent(server, loopback, monkeypatch):
     links.resolve(f"http://docs.test:{port}/readme")
     agents = {headers.get("User-Agent") for _, _, headers in server.hits}
     assert agents == {"Mozilla/5.0 (compatible; SkipWatch link reader)"}
+
+
+def test_a_cookie_set_on_a_redirect_is_never_sent_back(server, loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    answers["docs.test"] = ["127.0.0.1"]
+    port = server.server_address[1]
+    server.routes["/start"] = (302, {"Location": "/readme", "Set-Cookie": "sid=abc; Path=/"}, b"")
+    assert links.fetch_link(f"http://docs.test:{port}/start") is not None
+    assert links.fetch_link(f"http://docs.test:{port}/readme") is not None
+    assert [path for _, path, _ in server.hits] == ["/start", "/readme", "/readme"]
+    assert all("Cookie" not in headers for _, _, headers in server.hits)
