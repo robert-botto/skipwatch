@@ -5,6 +5,11 @@ Keys come only from OPENAI_API_KEY, GROQ_API_KEY and DEEPGRAM_API_KEY and never 
 message, a log line or a file. Audio goes up as 16 kHz mono 32 kbps MP3 in chunks of at most
 50 minutes (OpenAI and Groq cap uploads at 25 MB); every time is offset by its chunk start.
 
+Cloud uploads keep any leading silence. The local Whisper backends trim it (audio.load_trimmed)
+because Whisper without VAD pins the first word to 0.0 s; the hosted APIs are sent the whole
+recording and their times are taken as returned, offset only by the chunk start. The live test
+checks that the first scripted sentence (at 1.0 s) lands within 1 s.
+
 Chunks are sent one after another. If chunk N fails, chunks 1 to N-1 were already billed and
 their results are discarded; the stage fails and a rerun starts over (acceptable for v1).
 

@@ -5,12 +5,14 @@ call was ever made). requests.post is replaced in the module, and conftest block
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 import requests
 from typer.testing import CliRunner
 
+from skipwatch import media
 from skipwatch import transcribe as transcribe_module
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
@@ -19,6 +21,7 @@ from skipwatch.providers import transcribe_cloud
 from skipwatch.providers.registry import transcription_backends
 from skipwatch.providers.transcribe_cloud import DeepgramBackend, GroqBackend, OpenAIBackend
 from skipwatch.workdir import WorkDir, read_model, write_model
+from tests.unit._media import needs_ffmpeg
 
 RECORDED = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "cloud"
 FAKE_KEY = "sk-test-not-real"
@@ -415,29 +418,54 @@ def test_language_names_become_codes():
     assert transcribe_cloud.language_code(None) is None
 
 
-# ---- wiring to skipwatch.audio (M2-C) ----
+# ---- wiring to skipwatch.audio (M2-C), real ffmpeg ----
 
 
-def test_audio_chunks_uses_extract_audio_and_mp3_chunks(work, monkeypatch):
-    audio = pytest.importorskip("skipwatch.audio")
-    seen = {}
-
-    def fake_extract(w, bundle):
-        seen["extract"] = (w, bundle.media.path if bundle.media else None)
-        return w.path / "media" / "audio-16k.wav"
-
-    def fake_encode(wav, out_dir, chunk_s=3000, kbps=32):
-        seen["encode"] = (wav, out_dir, chunk_s, kbps)
-        return [(out_dir / "c0.mp3", 0.0)]
-
-    monkeypatch.setattr(audio, "extract_audio", fake_extract)
-    monkeypatch.setattr(audio, "encode_mp3_chunks", fake_encode)
-    result = transcribe_cloud.audio_chunks(work)
-    assert seen["extract"] == (work, "media/video.mp4")
-    assert seen["encode"] == (
-        work.path / "media" / "audio-16k.wav",
-        work.path / "media" / "chunks",
-        3000,
-        32,
+def make_lead_silence_wav(path: Path, lead_s: float = 1.0, tone_s: float = 2.0) -> Path:
+    """lead_s of silence, then a tone: tone_s seconds, lead_s + tone_s in total."""
+    graph = f"sine=frequency=440:sample_rate=44100:duration={tone_s},adelay={int(lead_s * 1000)}"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", graph, str(path)], check=True
     )
-    assert result == [(work.path / "media" / "chunks" / "c0.mp3", 0.0)]
+    return path
+
+
+@pytest.fixture
+def real_audio_work(tmp_path):
+    media_file = make_lead_silence_wav(tmp_path / "talk.wav")
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    write_model(
+        w.file("ingest.json"),
+        IngestBundle(
+            source=SourceInfo(kind="file", platform="local", path=str(media_file)),
+            context=IngestContext(),
+            route=Route(context="local", media="local"),
+            media=MediaInfo(path=str(media_file), has_audio=True),
+        ),
+    )
+    return w
+
+
+@needs_ffmpeg
+def test_audio_chunks_runs_real_extract_and_mp3_chunks_untrimmed(real_audio_work):
+    result = transcribe_cloud.audio_chunks(real_audio_work)
+    chunk_dir = real_audio_work.path / "media" / "chunks"
+    assert result == [(chunk_dir / "chunk-000.mp3", 0.0)]
+    assert (real_audio_work.path / "media" / "audio-16k.wav").exists()
+    probed = media.probe(result[0][0])
+    stream = probed["streams"][0]
+    assert stream["codec_name"] == "mp3" and stream["channels"] == 1
+    assert stream["sample_rate"] == "16000"
+    # cloud uploads keep the leading silence: the chunk is the whole 3 s, not 2 s
+    assert float(probed["format"]["duration"]) == pytest.approx(3.0, abs=0.15)
+
+
+@needs_ffmpeg
+def test_cloud_times_are_not_shifted_by_a_silence_trim(real_audio_work, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
+    fake = fake_post(monkeypatch, FakeResponse(200, recorded("openai_verbose.json")))
+    t = OpenAIBackend().transcribe(real_audio_work, None)
+    name, uploaded, mime = fake.calls[0][1]["_file"]
+    assert name == "chunk-000.mp3" and mime == "audio/mpeg" and len(uploaded) > 1000
+    assert [s.start for s in t.segments] == [1.0, 5.0]  # provider times, chunk offset 0 only
