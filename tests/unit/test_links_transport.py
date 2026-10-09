@@ -7,9 +7,11 @@ connects. A connection anywhere else raises NetworkBlocked, which the fetch logs
 
 import socket
 import socketserver
+import ssl
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
@@ -390,3 +392,102 @@ def test_every_address_is_vetted_before_any_fallback(server, dual_stack, monkeyp
     port = server.server_address[1]
     assert links.fetch_link(f"http://dual.test:{port}/readme") is None
     assert dual_stack == [] and server.hits == []
+
+
+# ---- HTTPS: the same watchdog after urllib3 wraps (and detaches) the socket ----
+
+TLS = Path(__file__).resolve().parents[1] / "fixtures" / "tls"
+TLS_CERT = str(TLS / "tls-test.crt")  # self-signed for tls.test, test use only
+
+
+class TlsServer(socketserver.BaseRequestHandler):
+    """mode "ok": a normal HTTPS answer; "hdr": full TLS, then headers one byte every 0.2 s;
+    "hs": a TLS record header and junk one byte every 0.2 s, so the handshake never ends."""
+
+    def handle(self):
+        sock, mode = self.request, self.server.mode  # type: ignore[attr-defined]
+        try:
+            if mode == "hs":
+                sock.recv(4096)
+                for byte in b"\x16\x03\x03\x40\x00" + b"\x02" * 60:
+                    sock.sendall(bytes([byte]))
+                    time.sleep(0.2)
+                return
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_cert_chain(TLS_CERT, str(TLS / "tls-test.key"))
+            tls = context.wrap_socket(sock, server_side=True)
+            tls.recv(4096)
+            if mode == "ok":
+                tls.sendall(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 8\r\n"
+                    b"Connection: close\r\n\r\nover tls"
+                )
+                return
+            for byte in b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nX-Pad: " + b"a" * 60:
+                tls.sendall(bytes([byte]))
+                time.sleep(0.2)
+        except (OSError, ssl.SSLError):
+            pass
+
+
+@pytest.fixture
+def tls_server(loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    answers["tls.test"] = ["127.0.0.1"]
+    monkeypatch.setattr(links, "CA_BUNDLE", TLS_CERT)  # trust the test CA for this test only
+    monkeypatch.setattr(links, "LINK_DEADLINE_S", 1.0)
+    servers = []
+
+    def start(mode: str) -> int:
+        srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), TlsServer)
+        srv.daemon_threads = True
+        srv.mode = mode  # type: ignore[attr-defined]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        servers.append(srv)
+        return srv.server_address[1]
+
+    yield start
+    for srv in servers:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_https_works_through_the_pinned_transport_with_verification(tls_server, monkeypatch):
+    port = tls_server("ok")
+    got = links.fetch_link(f"https://tls.test:{port}/")
+    assert got is not None and got.text == "over tls"
+    monkeypatch.setattr(links, "CA_BUNDLE", True)  # default trust: the test CA is unknown
+    calls: list[ProviderCall] = []
+    assert links.fetch_link(f"https://tls.test:{tls_server('ok')}/", calls) is None
+    assert calls[0].error == "SSLError"
+
+
+def test_https_header_trickle_is_cut_at_the_deadline(tls_server, caplog):
+    port = tls_server("hdr")
+    for call in (links.fetch_link, links.resolve):
+        calls: list[ProviderCall] = []
+        started = time.monotonic()
+        assert call(f"https://tls.test:{port}/", calls) is None
+        assert time.monotonic() - started < 2.5, call.__name__
+        assert calls[0].error and "deadline" in calls[0].error
+    assert not [r for r in caplog.records if r.name == links.__name__]
+
+
+def test_tls_handshake_trickle_is_cut_by_the_watchdog(tls_server, monkeypatch):
+    """Socket timeouts are held at the full 10 s here (CPython bounds a whole handshake by
+    it), far above the 1 s deadline, so only the watchdog can end the handshake on time."""
+
+    def full_socket_timeout(deadline):
+        if deadline <= time.monotonic():
+            raise links.Refused(links._deadline_message())
+        return links.TIMEOUT_S
+
+    monkeypatch.setattr(links, "_timeout", full_socket_timeout)
+    port = tls_server("hs")
+    for call in (links.fetch_link, links.resolve):
+        calls: list[ProviderCall] = []
+        started = time.monotonic()
+        assert call(f"https://tls.test:{port}/", calls) is None
+        assert time.monotonic() - started < 2.5, call.__name__
+        assert calls[0].error and "deadline" in calls[0].error

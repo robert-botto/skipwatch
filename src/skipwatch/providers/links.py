@@ -11,8 +11,9 @@ page. HTML becomes text through htmltext; markdown and plain text stay as they a
 else is skipped. Text is capped at 20 000 characters, links at 5 per post.
 """
 
-import contextlib
+import errno
 import ipaddress
+import logging
 import re
 import socket
 import threading
@@ -34,6 +35,7 @@ MAX_CHARS = 20_000
 MAX_BYTES = 2_000_000
 MAX_REDIRECTS = 3
 TIMEOUT_S = 10  # per socket operation
+CA_BUNDLE: str | bool = True  # certificate verification: requests' CA bundle (tests: a test CA)
 USER_AGENT = "Mozilla/5.0 (compatible; SkipWatch link reader)"  # generic, nothing personal
 LINK_DEADLINE_S = 15.0  # wall clock per link, redirects and body included
 POST_BUDGET_S = 40.0  # wall clock for every fetch and HEAD one post makes
@@ -42,6 +44,7 @@ REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
 HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 TEXT_TYPES = frozenset({"text/plain", "text/markdown", "text/x-markdown"})
 
+log = logging.getLogger(__name__)
 _URL_RE = re.compile(r"https?://[^\s<>\"'`]+", re.IGNORECASE)
 _TRAILING = ".,;:!?'\"*"
 _CLOSERS = {")": "(", "]": "[", "}": "{"}
@@ -88,8 +91,11 @@ def _failure(exc: Exception, deadline: float | None) -> str:
 
 
 def _shut(sock: socket.socket) -> None:
-    with contextlib.suppress(OSError):  # already closed: nothing to cut off
+    try:
         sock.shutdown(socket.SHUT_RDWR)
+    except OSError as exc:
+        if exc.errno != errno.ENOTCONN:  # ENOTCONN: the peer already hung up, nothing to cut
+            log.warning("link watchdog could not shut the socket: %s", exc)
 
 
 # ---- finding links ----
@@ -221,6 +227,7 @@ def _pinned(base: type[HTTPConnection], address: str, deadline: float) -> type[H
 
     class Pinned(base):
         _watchdog: threading.Timer | None = None
+        _watched: socket.socket | None = None
 
         def _new_conn(self):
             hostname = self._dns_host
@@ -229,7 +236,11 @@ def _pinned(base: type[HTTPConnection], address: str, deadline: float) -> type[H
                 sock = super()._new_conn()
             finally:
                 self._dns_host = hostname
-            self._watchdog = threading.Timer(max(0.0, deadline - time.monotonic()), _shut, (sock,))
+            # For HTTPS, urllib3's wrap_socket detach()es `sock` (its fileno becomes -1), so
+            # the watchdog holds a dup: shutting the dup down ends the shared connection.
+            self._watched = sock.dup()
+            left = max(0.0, deadline - time.monotonic())
+            self._watchdog = threading.Timer(left, _shut, (self._watched,))
             self._watchdog.daemon = True
             self._watchdog.start()
             return sock
@@ -237,6 +248,9 @@ def _pinned(base: type[HTTPConnection], address: str, deadline: float) -> type[H
         def close(self):
             if self._watchdog is not None:
                 self._watchdog.cancel()
+            if self._watched is not None:
+                self._watched.close()
+                self._watched = None
             super().close()
 
     return Pinned
@@ -281,7 +295,7 @@ def _send(method: str, url: str, address: str, deadline: float) -> requests.Resp
     try:
         prepared = _session().prepare_request(requests.Request(method, url))
         # proxies={} also suits yt-dlp's select_proxy, which replaces requests' on import
-        return adapter.send(prepared, stream=True, timeout=timeout, proxies={})
+        return adapter.send(prepared, stream=True, timeout=timeout, proxies={}, verify=CA_BUNDLE)
     except BaseException:
         adapter.close()
         raise
