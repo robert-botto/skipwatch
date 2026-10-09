@@ -5,8 +5,10 @@ bundle and supply media when the free route fails.
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
+from skipwatch import runcache
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.adapters.registry import adapter_for
 from skipwatch.config import load_config
@@ -68,7 +70,16 @@ def _media_fallback(
     )
 
 
-def _build(detected: Detected, work: WorkDir, opts: IngestOptions, cfg: Config) -> IngestBundle:
+CacheLookup = Callable[[IngestBundle, list[ContentProvider], IngestOptions], IngestBundle | None]
+
+
+def _build(
+    detected: Detected,
+    work: WorkDir,
+    opts: IngestOptions,
+    cfg: Config,
+    cached: CacheLookup | None = None,
+) -> IngestBundle:
     adapter = adapter_for(detected.platform)
     if adapter is None:
         raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"no adapter for {detected.platform}")
@@ -85,6 +96,11 @@ def _build(detected: Detected, work: WorkDir, opts: IngestOptions, cfg: Config) 
         bundle = text.build(detected, work, opts)
     except DownloadFailed as exc:
         bundle = _media_fallback(detected, work, opts, providers, exc)
+    # R-TR-3: a fresh cached ingest replaces enrichment (treg is never billed twice); media
+    # above was still fetched, frames need it.
+    hit = cached(bundle, providers, opts) if cached is not None else None
+    if hit is not None:
+        return hit
     for provider in providers:
         bundle = provider.enrich(bundle, work, opts)
     return bundle
@@ -108,8 +124,17 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
             path=src.path,
         ),
     )
-    write_model(work.file("calls.json"), CallsFile(calls=bundle.provider_calls))
+    # a cache hit made no calls this run: calls.json stays empty so cost is never counted twice
+    calls = [] if bundle.from_cache else bundle.provider_calls
+    write_model(work.file("calls.json"), CallsFile(calls=calls))
     write_model(work.file("ingest.json"), bundle)
+
+
+def _cache_lookup(
+    bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
+) -> IngestBundle | None:
+    cookies = opts.cookies_from_browser is not None
+    return runcache.cached_ingest(bundle, [p.name for p in providers], cookies)
 
 
 def run_ingest(
@@ -123,8 +148,10 @@ def run_ingest(
     detected = run_stage(work, "detect", lambda: detect(value, cwd))
 
     def body() -> IngestBundle:
-        bundle = _build(detected, work, opts, cfg or load_config())
+        bundle = _build(detected, work, opts, cfg or load_config(), _cache_lookup)
         _write(work, bundle)
+        cookies = opts.cookies_from_browser is not None
+        runcache.remember_ingest(bundle, work.file("ingest.json"), cookies)
         return bundle
 
     return run_stage(work, "ingest", body)

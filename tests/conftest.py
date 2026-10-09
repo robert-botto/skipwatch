@@ -39,6 +39,12 @@ def _block_network(request, monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", guard)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path_factory, monkeypatch):
+    """No test reads or writes the real ~/.skipwatch (ingest and transcribe store a run cache)."""
+    monkeypatch.setenv("SKIPWATCH_HOME", str(tmp_path_factory.mktemp("default-swhome")))
+
+
 @pytest.fixture
 def sw_home(tmp_path, monkeypatch):
     home = tmp_path / "swhome"

@@ -3,9 +3,11 @@
 import os
 from typing import get_args
 
+from skipwatch import runcache
 from skipwatch.doctor import extra_command, is_apple_silicon  # one source for install advice
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
+from skipwatch.output import progress
 from skipwatch.providers.base import TranscriptionBackend
 from skipwatch.providers.registry import transcription_backends
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
@@ -71,6 +73,12 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
     bundle = read_model(ingest_json, IngestBundle)
 
     def body() -> Transcript:
+        hit = runcache.cached_transcript(bundle, backend, model)  # R-TR-3
+        if hit is not None:
+            cached, age = hit
+            progress(f"Transcribe: reused cached transcript ({cached.origin}, {age}h old)")
+            write_model(work.file("transcript.json"), cached)
+            return cached
         chosen = select_backend(backend, bundle)
         transcript = chosen.transcribe(work, model)
         if not transcript.segments:
@@ -78,6 +86,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
         transcript = mark_silence(transcript, bundle.source.duration_s)
         write_model(work.file("transcript.json"), transcript)
+        runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
 
     return run_stage(work, "transcribe", body)
