@@ -17,7 +17,7 @@ from urllib.parse import urljoin, urlsplit
 import requests
 
 from skipwatch.htmltext import html_to_text
-from skipwatch.models import LinkContext, ProviderCall
+from skipwatch.models import IngestBundle, LinkContext, ProviderCall
 
 MAX_LINKS = 5
 MAX_CHARS = 20_000
@@ -210,6 +210,14 @@ def fetch_urls(urls: list[str], calls: list[ProviderCall]) -> list[LinkContext]:
 
 def fetch_all(text: str, calls: list[ProviderCall]) -> list[LinkContext]:
     return fetch_urls(extract_urls(text), calls)
+
+
+def with_post_links(bundle: IngestBundle) -> IngestBundle:
+    """The bundle with the links in its post text fetched into context.links (R-ING-1)."""
+    calls = list(bundle.provider_calls)
+    found = fetch_all(bundle.context.post_text or "", calls)
+    context = bundle.context.model_copy(update={"links": [*bundle.context.links, *found]})
+    return bundle.model_copy(update={"context": context, "provider_calls": calls})
 
 
 def resolve(url: str, calls: list[ProviderCall] | None = None) -> str | None:
