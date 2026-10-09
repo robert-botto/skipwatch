@@ -12,6 +12,7 @@ class ExitCode(IntEnum):
     NO_CONTENT = 7
     MISSING_DEPENDENCY = 8
     PACK_INTEGRITY = 9
+    USAGE = 64
 
 
 class SkipwatchError(Exception):

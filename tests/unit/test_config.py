@@ -7,7 +7,8 @@ from skipwatch.errors import ExitCode
 
 
 def test_exit_codes_are_the_section_6_table():
-    assert [c.value for c in ExitCode] == list(range(10))
+    assert [c.value for c in ExitCode] == [*range(10), 64]
+    assert ExitCode.USAGE == 64
 
 
 def test_home_defaults_to_dot_skipwatch(monkeypatch):
