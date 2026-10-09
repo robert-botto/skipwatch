@@ -1,0 +1,11 @@
+# Runner note: Bash and Write are gated tools. Run with --scaffold (copies the fixture in)
+# and --allow-tools Bash Write, or the skill cannot reach the engine or write the draft.
+schema_version: "1.0"
+name: local-fixture
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: "/skipwatch tutorial-60s.mp4 --yes --to ./installed --name run-skipdemo-tutorial"
+  max_turns: 150
+  timeout_seconds: 1800
+  allowed_tools: [Skill, Bash, Read, Write, Agent, Glob]
