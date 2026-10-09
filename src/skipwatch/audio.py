@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
 AUDIO_NAME = "audio-16k.wav"
 SAMPLE_RATE = 16000
+FRAME = 320  # 20 ms at 16 kHz
+LOUD_DBFS = -35.0
+LEAD_PAD_S = 0.1
 
 
 def media_path(work: WorkDir, bundle: IngestBundle) -> Path:
@@ -69,6 +72,34 @@ def load_wav_float32(path: Path) -> "numpy.ndarray":
     with wave.open(str(path)) as f:
         frames = f.readframes(f.getnframes())
     return np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+
+
+def leading_silence_s(samples: "numpy.ndarray") -> float:
+    """Seconds of silence to cut: up to 100 ms before the first 20 ms frame above -35 dBFS.
+
+    Whisper without VAD pins the first word to 0.0 s when speech starts later; trimming the
+    lead and adding it back gives true start times. Nothing loud means nothing is trimmed.
+    """
+    import numpy as np  # pyright: ignore[reportMissingImports]
+
+    threshold = 10 ** (LOUD_DBFS / 20)
+    block = FRAME * 500  # scan 10 s at a time instead of squaring the whole recording
+    for begin in range(0, len(samples) - FRAME + 1, block):
+        chunk = samples[begin : begin + block]
+        n = len(chunk) // FRAME
+        rms = np.sqrt(np.square(chunk[: n * FRAME].reshape(n, FRAME)).mean(axis=1))
+        loud = np.flatnonzero(rms > threshold)
+        if len(loud):
+            first = begin + int(loud[0]) * FRAME
+            return max(0, first - int(LEAD_PAD_S * SAMPLE_RATE)) / SAMPLE_RATE
+    return 0.0
+
+
+def load_trimmed(wav: Path) -> "tuple[numpy.ndarray, float]":
+    """The WAV as float32 without its leading silence, and the seconds that were cut."""
+    samples = load_wav_float32(wav)
+    offset = leading_silence_s(samples)
+    return samples[round(offset * SAMPLE_RATE) :], offset
 
 
 def encode_mp3_chunks(

@@ -3,15 +3,21 @@
 
 It gets a float32 array of the engine's 16 kHz WAV, not a path: faster-whisper 1.2.1 decodes
 paths with `av.open(..., metadata_errors=...)`, a keyword av 18 removed.
+Leading silence is trimmed first and added back to every time.
 """
 
 import importlib.util
 import os
 
-from skipwatch.audio import load_wav_float32
+from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command
 from skipwatch.models import IngestBundle, Transcript
-from skipwatch.providers.whisper_common import has_media, make_segment, or_silence, wav_for
+from skipwatch.providers.whisper_common import (
+    has_media,
+    make_segment,
+    or_silence,
+    wav_for,
+)
 from skipwatch.workdir import WorkDir
 
 DEFAULT_MODEL = "small"
@@ -39,9 +45,12 @@ class FasterWhisperBackend:
         wav = wav_for(work)
         name = model or DEFAULT_MODEL
         whisper = WhisperModel(name, device="auto", compute_type="int8")
-        raw, info = whisper.transcribe(load_wav_float32(wav), word_timestamps=True, vad_filter=True)
+        samples, offset = load_trimmed(wav)
+        raw, info = whisper.transcribe(samples, word_timestamps=True, vad_filter=True)
         segments = [
-            make_segment(s.start, s.end, s.text, ((w.word, w.start, w.end) for w in s.words or []))
+            make_segment(
+                s.start, s.end, s.text, ((w.word, w.start, w.end) for w in s.words or []), offset
+            )
             for s in raw
         ]
         return Transcript(

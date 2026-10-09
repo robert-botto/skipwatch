@@ -65,10 +65,14 @@ class FakeArray:
         self.path = path
 
 
+TRIM = {"offset": 0.0}
+
+
 @pytest.fixture(autouse=True)
 def fake_wav_loader(monkeypatch):
+    TRIM["offset"] = 0.0
     for module in (transcribe_faster, transcribe_mlx):
-        monkeypatch.setattr(module, "load_wav_float32", FakeArray)
+        monkeypatch.setattr(module, "load_trimmed", lambda wav: (FakeArray(wav), TRIM["offset"]))
 
 
 @pytest.fixture
@@ -217,6 +221,27 @@ def test_backend_modules_do_not_import_the_libraries():
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.split() == ["False", "False"]
+
+
+def test_trimmed_lead_offset_is_added_back_to_segments_and_words(work_with_audio, monkeypatch):
+    TRIM["offset"] = 0.9
+    fake_faster(monkeypatch, [S(0.1, 1.6, "go", [W(0.1, 0.5, "go"), W(0.6, 1.6, "now")])], {})
+    t = FasterWhisperBackend().transcribe(work_with_audio, None)
+    assert (t.segments[0].start, t.segments[0].end) == pytest.approx((1.0, 2.5))
+    assert [(w.s, w.e) for w in t.segments[0].words or []] == pytest.approx(
+        [(1.0, 1.4), (1.5, 2.5)]
+    )
+    fake_mlx(monkeypatch, MLX_RESULT, {})
+    t = MlxWhisperBackend().transcribe(work_with_audio, None)
+    assert t.segments[0].start == pytest.approx(24.9)
+    assert (t.segments[0].words or [])[0].s == pytest.approx(24.9)
+
+
+def test_no_speech_after_trim_still_covers_the_whole_audio(work_with_audio, monkeypatch):
+    TRIM["offset"] = 0.5
+    fake_faster(monkeypatch, [], {})
+    t = FasterWhisperBackend().transcribe(work_with_audio, None)
+    assert [(s.start, s.end) for s in t.segments] == [(0.0, 1.0)]
 
 
 def installed(monkeypatch, *, mlx: bool, faster: bool, apple: bool = True):

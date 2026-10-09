@@ -1,17 +1,23 @@
 """mlx-whisper backend for Apple Silicon (8.4): `large-v3-turbo` by default.
 
 mlx-whisper decodes a path with an `ffmpeg` on PATH, so it gets a float32 array of the
-engine's own 16 kHz WAV instead (plan issue 13).
+engine's own 16 kHz WAV instead (plan issue 13). Leading silence is trimmed first and added
+back to every time: without VAD, Whisper pins the first word to 0.0 s.
 """
 
 import importlib.util
 import os
 from typing import Any
 
-from skipwatch.audio import load_wav_float32
+from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command, is_apple_silicon
 from skipwatch.models import IngestBundle, Transcript
-from skipwatch.providers.whisper_common import has_media, make_segment, or_silence, wav_for
+from skipwatch.providers.whisper_common import (
+    has_media,
+    make_segment,
+    or_silence,
+    wav_for,
+)
 from skipwatch.workdir import WorkDir
 
 DEFAULT_MODEL = "large-v3-turbo"
@@ -50,8 +56,9 @@ class MlxWhisperBackend:
 
         wav = wav_for(work)
         name = model or DEFAULT_MODEL
+        samples, offset = load_trimmed(wav)
         result: dict[str, Any] = mlx_whisper.transcribe(  # its stub says dict[str, str | list]
-            load_wav_float32(wav), path_or_hf_repo=repo_for(name), word_timestamps=True
+            samples, path_or_hf_repo=repo_for(name), word_timestamps=True
         )
         segments = [
             make_segment(
@@ -59,6 +66,7 @@ class MlxWhisperBackend:
                 s["end"],
                 s["text"],
                 ((w["word"], w["start"], w["end"]) for w in s.get("words") or []),
+                offset,
             )
             for s in result.get("segments", [])
         ]

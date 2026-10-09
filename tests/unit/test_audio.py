@@ -5,7 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from skipwatch.audio import audio_duration, encode_mp3_chunks, extract_audio, load_wav_float32
+from skipwatch.audio import (
+    audio_duration,
+    encode_mp3_chunks,
+    extract_audio,
+    leading_silence_s,
+    load_trimmed,
+    load_wav_float32,
+)
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo
 from tests.unit._media import needs_ffmpeg
@@ -122,3 +129,42 @@ def test_mp3_chunks_offsets(tmp_path):
 
     last = media.probe(chunks[-1][0])
     assert abs(float(last["format"]["duration"]) - 10.0) < 0.5
+
+
+def tone_after(silence_s: float, tone_s: float = 1.0, amp: float = 0.5):
+    np = pytest.importorskip("numpy")
+    t = np.arange(int(16000 * tone_s), dtype=np.float32) / 16000
+    tone = (amp * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    return np.concatenate([np.zeros(int(16000 * silence_s), dtype=np.float32), tone])
+
+
+def test_leading_silence_is_trimmed_to_100_ms_before_sound():
+    assert leading_silence_s(tone_after(1.0)) == pytest.approx(0.9, abs=0.021)
+
+
+def test_no_leading_silence_and_all_silence_trim_nothing():
+    assert leading_silence_s(tone_after(0.0)) == 0.0
+    assert leading_silence_s(tone_after(2.0, amp=0.0)) == 0.0  # nothing loud: keep everything
+    assert leading_silence_s(tone_after(0.0)[:100]) == 0.0  # shorter than one frame
+
+
+def test_quiet_hum_below_minus_35_dbfs_counts_as_silence():
+    np = pytest.importorskip("numpy")
+    a = tone_after(1.0)
+    a[:16000] = 0.005  # about -46 dBFS
+    assert leading_silence_s(np.asarray(a)) == pytest.approx(0.9, abs=0.021)
+
+
+def test_load_trimmed_returns_the_offset_and_the_rest(tmp_path):
+    np = pytest.importorskip("numpy")
+    wav = tmp_path / "t.wav"
+    samples = (tone_after(1.0) * 32767).astype("<i2")
+    with wave.open(str(wav), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(samples.tobytes())
+    arr, offset = load_trimmed(wav)
+    assert offset == pytest.approx(0.9, abs=0.021)
+    assert len(arr) == len(samples) - round(offset * 16000)
+    assert np.abs(arr).max() > 0.4

@@ -17,9 +17,22 @@ def wav_for(work: WorkDir) -> Path:
     return extract_audio(work, read_model(work.file("ingest.json"), IngestBundle))
 
 
-def make_segment(start: float, end: float, text: str, words: Iterable[tuple[str, float, float]]):
-    kept = [Word(w=w.strip(), s=max(0.0, s), e=max(0.0, e)) for w, s, e in words if w.strip()]
-    return Segment(start=max(0.0, start), end=max(0.0, end), text=text.strip(), words=kept)
+def make_segment(
+    start: float,
+    end: float,
+    text: str,
+    words: Iterable[tuple[str, float, float]],
+    offset: float = 0.0,
+) -> Segment:
+    """`offset` is the trimmed leading silence, added back to every time."""
+    kept = [
+        Word(w=w.strip(), s=max(0.0, s + offset), e=max(0.0, e + offset))
+        for w, s, e in words
+        if w.strip()
+    ]
+    return Segment(
+        start=max(0.0, start + offset), end=max(0.0, end + offset), text=text.strip(), words=kept
+    )
 
 
 def or_silence(segments: list[Segment], wav: Path) -> list[Segment]:

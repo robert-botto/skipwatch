@@ -21,6 +21,7 @@ pytestmark = [pytest.mark.pipeline, pytest.mark.whisper]
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 REPOS = {"faster": "Systran/faster-whisper-small", "mlx": "mlx-community/whisper-large-v3-turbo"}
+MAX_START_ERROR_S = 0.75  # tighter than the 1.0 s of 11.2: both backends measure under 0.5
 ANY_MEDIA = IngestBundle(
     source=SourceInfo(kind="file", platform="local", path="/x.mp4"),
     media=MediaInfo(path="/x.mp4", has_audio=True),
@@ -83,7 +84,12 @@ def test_whisper_transcript_matches_script(tmp_path, sw_home, monkeypatch, backe
     script = json.loads((FIXTURES / "tutorial-60s.script.json").read_text())
     for sentence in script["sentences"]:
         nearest = min(abs(sentence["start"] - s) for s in starts)
-        assert nearest <= 1.0, f"{sentence['text']!r} at {sentence['start']}: off by {nearest:.2f}"
+        assert nearest <= MAX_START_ERROR_S, (
+            f"{sentence['text']!r} at {sentence['start']}: off by {nearest:.2f}"
+        )
+    # Speech starts at 1.0 s. Starts are clamped at 0, so a transcript pinned to 0.0 would
+    # still pass a 1.0 s window; this proves the leading silence was really accounted for.
+    assert starts[0] > 0.5, f"first segment starts at {starts[0]:.2f}"
 
 
 def test_auto_picks_a_whisper_backend(tmp_path, sw_home, monkeypatch):
