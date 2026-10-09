@@ -47,7 +47,12 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   4), with the reason, for example `f006032 (reader failed twice)`; `none` when every
   frame was read. Unread frames are not gaps (section 15): they are not in the gap count
   and never become `GAP:` lines. Unread frames never block `--yes`; the screen says so
-  and the confidence reason says `frames unread`.
+  and the confidence reason says `frames unread`. A frame whose `dhash` differs from both
+  neighbours shows `may hold a step` in its reason. The exception is an unread cue frame
+  (`reason` `cue` in `frames.json`): it may hold the only copy of a command, so it is a
+  gap line in the skill,
+  `GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`, counts
+  in `gaps` and blocks `--yes`, and it is not repeated on this line.
 - **Safety flags:** the safety result's `flags` in `check-report.json`, as
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is

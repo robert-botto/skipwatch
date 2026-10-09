@@ -1013,3 +1013,29 @@ def test_claude_stages_are_marked_in_stages_json():
     assert _before(text, mark("read", "done"), mark("distill", "running"))
     assert _before(text, mark("distill", "done"), "<ENGINE> check")
     assert _before(text, mark("review", "running"), "## Stage 9")
+
+
+def test_unread_cue_frames_stay_gaps_and_others_are_informational():
+    from skipwatch.checks.runner import counts_for
+    from skipwatch.skillmd import parse
+
+    # a cue frame was kept because the narration said "paste this" or "type": it may hold
+    # the only verbatim copy of a command, so it stays a gap and blocks --yes
+    cue_line = 'GAP: frame f006032 at 01:40:32 was not read (cue: "now paste this")'
+    other_line = "Unread frames: f006040 (reader failed twice; may hold a step)"
+    for path in (REFS / "distill-rules.md", REFS / "review-screen.md"):
+        text = flat(path)
+        assert (
+            'GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")' in text
+        ), path
+        assert "may hold a step" in text, path
+    rules = flat(REFS / "distill-rules.md")
+    assert "`reason` is `cue`" in rules
+    assert "differs from both neighbours" in rules
+    assert "unread frames do not count, except unread cue frames" in flat(REFS / "run-protocol.md")
+
+    def gaps(line):
+        return counts_for(parse(f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {line}\n")).gaps
+
+    assert gaps(cue_line) == 1  # blocks --yes
+    assert gaps(other_line) == 0  # informational only

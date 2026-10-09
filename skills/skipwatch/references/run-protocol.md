@@ -411,7 +411,8 @@ expand: `test -e "$HOME/.claude/skills/<name>" && echo exists`, or
 `test -e "<absolute target>" && echo exists`.
 
 Under `--yes`, install without asking only if safety flags, gaps and name collisions are
-all zero; unread frames do not count. Print the screen without the prompt line, then install. Otherwise show the
+all zero; unread frames do not count, except unread cue frames, which are gaps
+(`distill-rules.md`). Print the screen without the prompt line, then install. Otherwise show the
 screen and wait, even under `--yes` (R-REV-1). The answers are handled in
 `review-screen.md`.
 

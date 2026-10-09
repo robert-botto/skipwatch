@@ -61,6 +61,14 @@ Inferred steps carry a one-line reason in the step and are listed by number unde
   frames around them usually carry the step. List them under "Unverified and gaps" as
   `Unread frames: f006032 (reader failed twice)`, never with `GAP:`, so they do not count
   as gaps or block `--yes`. Write a `GAP:` line only when the step itself is missing.
+  - One exception: an unread frame whose `reason` is `cue` in `frames.json` stays a gap.
+    Cue frames are kept because the narration said "paste this", "type" or "settings",
+    so they may hold the only verbatim copy of a prompt or command. Write
+    `GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`, with a
+    few words of its `transcript_window`.
+  - Any other unread frame whose `dhash` differs from both neighbours (the frames before
+    and after it in `frames.json`) adds `may hold a step` to its reason:
+    `Unread frames: f006040 (reader failed twice; may hold a step)`.
 
 ## Redaction
 
