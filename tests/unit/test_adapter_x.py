@@ -215,3 +215,14 @@ def test_x_protected_post_is_exit_4(tmp_path, free_route, sw_home):
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "--cookies-from-browser" in r.output
+
+
+def test_x_post_with_own_video_and_a_post_link_keeps_its_own_video(tmp_path, free_route):
+    """yt-dlp follows a linked post only when the post has no media of its own."""
+    info = recorded("g2-deep-partials")
+    info["description"] = "Previous tip: https://t.co/rItbRmOjam " + info["description"]
+    seen = free_route({G2_URL: info, LINKED_URL: linked_post_info() | {"duration": 114.13}})
+    bundle = build(G2_URL, tmp_path / "w")
+    assert bundle.source.canonical_url == "https://x.com/i/status/1505892984658743300"
+    assert bundle.route.fallbacks == [] and bundle.context.thread == []
+    assert seen["extract"] == [G2_URL]
