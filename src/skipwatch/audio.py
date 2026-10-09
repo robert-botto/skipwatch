@@ -75,7 +75,9 @@ def load_wav_float32(path: Path) -> "numpy.ndarray":
 
     with wave.open(str(path)) as f:
         frames = f.readframes(f.getnframes())
-    return np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+    samples = np.frombuffer(frames, dtype="<i2").astype(np.float32)
+    samples /= 32768.0  # in place: a second copy of an hour of audio is about 230 MB
+    return samples
 
 
 def leading_silence_s(samples: "numpy.ndarray") -> float:
