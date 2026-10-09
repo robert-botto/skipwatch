@@ -162,7 +162,8 @@ Run, each timed as above:
 2. When `long_video` is true (over 60 minutes), print
    `Long video: <mm:ss>, about <n> min to process.` (`<n>` is `estimated_run_s` / 60,
    rounded up), and continue only under `--yes` or after the user says yes: without
-   `--yes`, ask once `Continue? [yes / cancel]`. Cancel stops with `Cancelled before download.`
+   `--yes`, ask once `Continue? [yes / cancel]`. Under `--yes` do not ask: print the
+   line and continue. Cancel stops with `Cancelled before download.`
 3. `<ENGINE> ingest "<input>" --work "<W>" --provider <the --provider flag, or auto>`
    - Add `--cookies-from-browser <browser>` only when the user gave that flag; never add
      cookies on your own, not even after exit 4 (R-ING-5).

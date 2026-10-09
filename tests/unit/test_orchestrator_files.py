@@ -742,6 +742,7 @@ def test_r_tr_2_cloud_audio_needs_consent_by_name():
     cmd = '<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>'
     assert cmd in text
     assert "with exactly the backend the user picked, never `auto`" in text
+    assert _before(text, "only after the user said yes to that provider by name", cmd)
     assert "`--yes` never picks one of these options" in text
     assert "`--yes` never picks one of these options" in flat(REFS / "run-protocol.md")
 
@@ -757,6 +758,7 @@ def test_exit_8_degrades_and_offers_on_the_review_screen():
     assert "install Whisper and re-run" in review
     # never install without consent (R-DOC-1)
     assert "Run it only after the user picks it" in review
+    assert _before(review, "Run it only after the user picks it", "timeout: 600000")
     skill = flat(SKILL / "SKILL.md")
     assert "Do not ask to install anything mid-run" not in skill
     assert "offering the Whisper install" not in skill
@@ -779,6 +781,14 @@ def test_questions_allowed_in_a_run_are_listed():
     assert "two named exceptions" not in text
     skill = flat(SKILL / "SKILL.md")
     assert "one named exception" in skill
+    assert "two named exceptions" not in skill
+    assert "never asked under `--yes`" in skill
+
+
+def test_long_video_question_only_without_yes():
+    text = flat(REFS / "run-protocol.md")
+    assert "without `--yes`, ask once `Continue? [yes / cancel]`" in text
+    assert "Under `--yes` do not ask" in text
 
 
 def test_long_stages_avoid_the_bash_timeout():
@@ -883,3 +893,24 @@ def test_doctor_report_printed_first_in_a_code_block():
 def test_doctor_case_judges_three_samples():
     meta = fm(ROOT / "evals/doctor/prompt.md")
     assert meta["runs"] == 3  # release runs judge 3 samples against the 0.8 threshold
+
+
+def test_safety_rules_have_negative_and_ordering_guards():
+    text = read(REFS / "run-protocol.md")
+    # R-ING-5: every engine command that mentions cookies has them as an optional [..] part
+    cookie_lines = [
+        line
+        for line in text.splitlines()
+        if "<ENGINE>" in line and "--cookies-from-browser" in line
+    ]
+    assert cookie_lines  # the probe command passes the user's flag through
+    for line in cookie_lines:
+        assert "[--cookies-from-browser <browser>]" in line, line
+    # R-TR-2: no command line in any reference sends audio to a cloud backend under auto
+    for path in (REFS / "run-protocol.md", REFS / "review-screen.md", SKILL / "SKILL.md"):
+        for line in read(path).splitlines():
+            assert not re.search(r"--backend (openai|groq|deepgram)\b", line), (path, line)
+    # R-REV-1: no install without the user's answer, and --yes only with nothing to review
+    review = flat(REFS / "review-screen.md")
+    assert "No install happens without this explicit answer in this run" in review
+    assert "Anything else under `--yes` shows the prompt and waits" in review
