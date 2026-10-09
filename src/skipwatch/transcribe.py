@@ -24,6 +24,9 @@ def _whisper_hint() -> str:
 
 def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
     """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    if bundle.source.kind == "text":
+        # Before any backend, so a text source never gets install advice (exit 8).
+        raise SkipwatchError(ExitCode.NO_CONTENT, "text source: nothing to transcribe")
     backends = transcription_backends()
     captions = backends.get("captions")
     has_captions = captions is not None and captions.available(bundle)
