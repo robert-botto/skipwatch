@@ -90,11 +90,14 @@ still names the install command.
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
   after the user picks it (R-DOC-1), with the Bash tool's `timeout: 600000`, output to
-  `<W>/logs/whisper-install.log`. On rc 0,
+  `<W>/logs/whisper-install.log`. On rc 0, delete the cached doctor report so the next
+  doctor run is fresh: `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`. Then
   run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
   the `## Resume` section of `run-protocol.md` says; frames, readers, draft and check run
-  again and this screen is shown anew. On any other rc, show the last log line and the
-  prompt line again.
+  again and this screen is shown anew. On any other rc (the Bash sandbox or no network
+  can stop it), show the last log line, then tell the user to run it themselves in
+  Claude Code as `! <command>` and then `/skipwatch resume <W>`, and show the prompt
+  line again.
 - **transcribe with <Provider> and re-run:** R-TR-2. Audio goes to a cloud provider only
   after the user said yes to that provider by name; picking this option, which names
   the provider, is that yes, and nothing else is. Print
