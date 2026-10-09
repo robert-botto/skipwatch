@@ -5,6 +5,7 @@ bundle and supply media when the free route fails.
 """
 
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,6 +20,9 @@ from skipwatch.models import CallsFile, Config, IngestBundle, Route, SourceFile,
 from skipwatch.providers.base import ContentProvider
 from skipwatch.providers.registry import content_providers
 from skipwatch.workdir import WorkDir, run_stage, write_model
+
+# YouTube's CDN answers 403 or 429 intermittently; content_free has already retried once.
+TRANSIENT_HTTP = re.compile(r"HTTP Error (403|429)|connection reset", re.IGNORECASE)
 
 
 def _config_enabled(provider: ContentProvider, cfg: Config) -> bool:
@@ -63,10 +67,15 @@ def _media_fallback(
             return bundle.model_copy(update={"media": media, "route": route})
         attempts.append(f"{provider.name}.fetch_media: no media")
     upgrade = ytdlp_upgrade_command(os.environ.get("CLAUDE_PLUGIN_ROOT"))
+    hint = f"Try: {upgrade}, or --cookies-from-browser <browser>, or the content is private."
+    if any(TRANSIENT_HTTP.search(a) for a in attempts):
+        hint = (
+            "A 403 can be transient (it already failed twice in a row here): run the same "
+            f"command again first. If it fails again, {hint[0].lower()}{hint[1:]}"
+        )
     raise SkipwatchError(
         ExitCode.DOWNLOAD_FAILED,
-        f"could not download {detected.value}: {'; '.join(attempts)}. "
-        f"Try: {upgrade}, or --cookies-from-browser <browser>, or the content is private.",
+        f"could not download {detected.value}: {'; '.join(attempts)}. {hint}",
     )
 
 

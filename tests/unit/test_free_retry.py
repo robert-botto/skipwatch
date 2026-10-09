@@ -200,3 +200,35 @@ def test_bundle_records_both_caption_attempts(tmp_path, ytdlp, monkeypatch):
     captions = [(c.op, c.ok) for c in bundle.provider_calls if c.op == "yt-dlp.captions"]
     assert captions == [("yt-dlp.captions", False), ("yt-dlp.captions", True)]
     assert bundle.context.captions_available
+
+
+def _exit_3_message(tmp_path, monkeypatch, attempt: str) -> str:
+    from skipwatch.config import load_config
+    from skipwatch.ingest import build_bundle
+
+    class Failing:
+        def build(self, detected, work, opts):
+            raise DownloadFailed([attempt])
+
+    monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: Failing())
+    with pytest.raises(SkipwatchError) as e:
+        build_bundle("https://youtu.be/abc", work(tmp_path), IngestOptions(provider="free"),
+                     load_config(tmp_path / "none.toml"))  # fmt: skip
+    assert e.value.code == ExitCode.DOWNLOAD_FAILED
+    return e.value.message
+
+
+def test_exit_3_after_a_403_says_rerun_first(tmp_path, monkeypatch):
+    message = _exit_3_message(
+        tmp_path, monkeypatch, "free.yt-dlp.download: unable to download: HTTP Error 403: Forbidden"
+    )
+    assert "A 403 can be transient" in message
+    rerun = message.index("run the same command again")
+    assert rerun < message.index("If it fails again") < message.index("--cookies-from-browser")
+
+
+def test_exit_3_without_a_transient_error_keeps_the_plain_hint(tmp_path, monkeypatch):
+    message = _exit_3_message(
+        tmp_path, monkeypatch, "free.yt-dlp.download: Requested format is not available"
+    )
+    assert "transient" not in message and "--cookies-from-browser" in message
