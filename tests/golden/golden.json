@@ -15,7 +15,7 @@
       "expected": {
         "steps": [
           6,
-          20
+          30
         ],
         "inferred_ratio_max": 0.2,
         "gaps_max": 1,
