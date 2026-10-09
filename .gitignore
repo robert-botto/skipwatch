@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+evals/results/
+.DS_Store
+dist/
+.worktrees/
