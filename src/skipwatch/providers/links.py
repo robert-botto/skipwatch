@@ -172,7 +172,11 @@ _SESSION: requests.Session | None = None
 def _session() -> requests.Session:
     global _SESSION
     if _SESSION is None:
+        # trust_env=False: never ~/.netrc credentials or proxy settings from the environment,
+        # so a host a post names can never receive the user's logins. No auth, no cookies:
+        # responses go through the adapter directly, so nothing fills the session's jar.
         _SESSION = requests.Session()
+        _SESSION.trust_env = False
     return _SESSION
 
 

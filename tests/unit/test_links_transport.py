@@ -160,3 +160,28 @@ def test_transport_works_after_yt_dlp_patched_requests(server, loopback, monkeyp
     port = server.server_address[1]
     got = links.fetch_link(f"http://docs.test:{port}/readme")
     assert got is not None and got.text == "ok"
+
+
+# ---- no credentials, proxies or cookies from the user's environment ----
+
+
+def test_netrc_and_proxy_env_never_reach_a_linked_host(server, loopback, monkeypatch, tmp_path):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    answers["docs.test"] = ["127.0.0.1"]
+    port = server.server_address[1]
+    netrc = tmp_path / ".netrc"
+    netrc.write_text("machine docs.test login someone password hunter2\n", encoding="utf-8")
+    netrc.chmod(0o600)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("NETRC", str(netrc))
+    monkeypatch.setenv("HTTP_PROXY", "http://10.0.0.1:3128")
+    monkeypatch.setenv("http_proxy", "http://10.0.0.1:3128")
+    got = links.fetch_link(f"http://docs.test:{port}/readme")
+    assert got is not None  # went direct: the proxy address would have been blocked
+    assert links.resolve(f"http://docs.test:{port}/readme") is None  # a 200, not a redirect
+    assert len(server.hits) == 2
+    for _, _, headers in server.hits:
+        lowered = {k.lower() for k in headers}
+        assert "authorization" not in lowered and "cookie" not in lowered
+        assert "proxy-authorization" not in lowered
