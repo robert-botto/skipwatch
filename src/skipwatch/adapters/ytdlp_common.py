@@ -19,7 +19,12 @@ from skipwatch.providers.content_free import CaptionKind, FreeRouteError, has_vi
 from skipwatch.workdir import WorkDir
 
 NOT_CAPTIONS = {"live_chat", "rechat"}
-PLATFORM_NAMES = {"youtube": "YouTube"}
+PLATFORM_NAMES = {
+    "youtube": "YouTube",
+    "tiktok": "TikTok",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+}
 
 
 class AuthorFields(NamedTuple):

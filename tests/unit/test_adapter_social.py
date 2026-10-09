@@ -271,7 +271,7 @@ def test_login_wall_is_exit_4_naming_cookie_flag(tmp_path, monkeypatch, sw_home,
         app, ["ingest", url, "--work", str(tmp_path / "w"), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT, r.output
-    assert "--cookies-from-browser" in r.output
+    assert "--cookies-from-browser" in r.output and f"{site} says" in r.output
 
 
 def test_probe_instagram_null_duration_reports_unknown(monkeypatch, sw_home):
