@@ -275,13 +275,14 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
 
 # ---- yt-dlp calls ----
 
-# Session continuity: some sites hand the extract step guest-session cookies (X: guest_id and
-# friends from its guest-token flow) and refuse the media without them, so a fresh YoutubeDL
-# for the download gets 404. The extract step's cookies are kept here, in memory only, keyed by
-# the page URL, and copied into the download's jar. Without --cookies-from-browser they are
-# only the site's own guest session. With it, the jar also holds the user's browser cookies
-# for that site, which the download's YoutubeDL would load from the browser anyway. Either
-# way they stay in memory: never written anywhere, and fetched_with_cookies follows the flag.
+# Session continuity, for every platform (not only X): some sites hand the extract step
+# session cookies (X: guest_id and friends from its guest-token flow) and refuse the media
+# without them, so a fresh YoutubeDL for the download gets 404. The extract step's cookies are
+# kept here, in memory only, keyed by the page URL, and copied into every download's jar.
+# Without --cookies-from-browser they are only the site's own guest session. With it, the jar
+# also holds the user's browser cookies for that site, which the download's YoutubeDL would
+# load from the browser anyway. Either way they stay in memory: never written anywhere, and
+# fetched_with_cookies follows the flag.
 MAX_SESSIONS = 8
 _SESSIONS: OrderedDict[str, list[Cookie]] = OrderedDict()
 
