@@ -5,7 +5,8 @@ captions only, never media; never cookies. The output is passed through scrub_fi
 cut down to the keys adapters read. Caption track URLs are cut to scheme and host before the
 scrub: YouTube's HLS timedtext URLs carry the caller's IP percent-encoded inside the path
 (`ip%3D198.51.100.23`); the scrubber decodes those too, and this is a second layer. As a last
-check the percent-decoded output must hold no IPv4 literal other than 0.0.0.0. Text is written as
+check the percent-decoded output must hold no IPv4 literal other than 0.0.0.0, no IPv6 literal, no
+email outside the example domains and no unscrubbed CDN node name. Text is written as
 ASCII JSON (json3 captions are re-serialised the same way) so no em dash character lands in a
 file; a vtt or srt track has it replaced by a hyphen. Caption text is scrubbed too. A human
 still reads every recorded file before commit.
@@ -18,6 +19,7 @@ Writes tests/fixtures/recorded/<platform>/<slug>.info.json and, with --captions,
 """
 
 import argparse
+import ipaddress
 import json
 import os
 import re
@@ -53,6 +55,10 @@ IPV4_RE = re.compile(r"(?<![0-9A-Za-z.])\d{1,3}(?:\.\d{1,3}){3}(?![0-9.])")
 EM_DASH = "\u2014"
 # YouTube CDN node names (rr5---sn-abcd1234.googlevideo.com) map to the caller's ISP edge.
 CDN_NODE_RE = re.compile(r"---sn-[a-z0-9-]+\.")
+UNSCRUBBED_NODE_RE = re.compile(r"---sn-(?!scrubbed\.)[a-z0-9-]+", re.IGNORECASE)
+IPV6_RE = re.compile(r"(?<![0-9A-Za-z:])[0-9A-Fa-f:]*:[0-9A-Fa-f:]*(?![0-9A-Za-z:])")
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+EXAMPLE_DOMAINS = {"example.invalid", "example.com", "example.org", "example.net"}
 
 
 def _host(url: str | None) -> str | None:
@@ -73,6 +79,33 @@ def _tracks(tracks: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
 
 def leaked_ips(text: str) -> set[str]:
     return {ip for ip in IPV4_RE.findall(unquote(unquote(text))) if ip != "0.0.0.0"}
+
+
+def _ipv6(text: str) -> set[str]:
+    found = set()
+    for candidate in IPV6_RE.findall(text):
+        if candidate.count(":") < 2 or candidate == "::":
+            continue
+        try:
+            ipaddress.IPv6Address(candidate)
+        except ValueError:
+            continue
+        found.add(candidate)
+    return found
+
+
+def leaks(text: str) -> list[str]:
+    """Everything that must never reach a committed fixture, after percent-decoding twice."""
+    decoded = unquote(unquote(text))
+    found = [f"IPv4 {ip}" for ip in sorted(leaked_ips(text))]
+    found += [f"IPv6 {ip}" for ip in sorted(_ipv6(decoded))]
+    found += [
+        f"email at {m.group(1)}"
+        for m in EMAIL_RE.finditer(decoded)
+        if m.group(1).casefold() not in EXAMPLE_DOMAINS
+    ]
+    found += [f"CDN node {m.group(0)}" for m in UNSCRUBBED_NODE_RE.finditer(decoded)]
+    return found
 
 
 def caption_text(raw: bytes, ext: str) -> str:
@@ -119,8 +152,8 @@ def main() -> int:
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"{args.name}.info.json"
     text = json.dumps(scrub(trim(raw)), indent=2, sort_keys=True) + "\n"
-    if leaked := leaked_ips(text):
-        print(f"refusing to write: IP literals survived the scrub: {leaked}", file=sys.stderr)
+    if found := leaks(text):
+        print(f"refusing to write: survived the scrub: {found}", file=sys.stderr)
         return 1
     target.write_text(text, "utf-8")
     print(f"wrote {target.relative_to(ROOT)}")
@@ -137,8 +170,8 @@ def main() -> int:
             src = Path(tmp) / got[0]
             dest = folder / f"{args.name}.{got[1]}{src.suffix}"
             body = caption_text(src.read_bytes(), src.suffix)
-            if leaked := leaked_ips(body):
-                print(f"refusing to write captions: IP literals {leaked}", file=sys.stderr)
+            if found := leaks(body):
+                print(f"refusing to write captions: survived the scrub: {found}", file=sys.stderr)
                 return 1
             dest.write_text(body, "utf-8")
         print(f"wrote {dest.relative_to(ROOT)} ({got[2]})")
