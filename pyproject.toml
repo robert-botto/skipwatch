@@ -11,12 +11,13 @@ dependencies = [
   "pyyaml>=6.0",
   "pillow>=12.0",
   "static-ffmpeg>=3.0",
-  "yt-dlp>=2026.8.19",
+  "yt-dlp[default]>=2026.8.19",
+  "requests>=2.32.2,<3",
 ]
 
 [project.optional-dependencies]
-whisper = ["faster-whisper>=1.1"]
-mlx = ["mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+whisper = ["faster-whisper>=1.2"]
+mlx = ["mlx-whisper>=0.4.3; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 cloud = []
 treg = []
 mem0 = []
@@ -35,8 +36,13 @@ build-backend = "hatchling.build"
 packages = ["src/skipwatch"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/unit", "tests/pipeline"]
-markers = ["pipeline: needs ffmpeg and the committed fixture video"]
+testpaths = ["tests/unit", "tests/pipeline", "tests/live"]
+addopts = "-m 'not live'"
+markers = [
+  "pipeline: needs ffmpeg and the committed fixture video",
+  "whisper: needs faster-whisper or mlx-whisper importable",
+  "live: real network; never in CI; run only when the orchestrator says so",
+]
 
 [tool.coverage.run]
 source = ["src/skipwatch"]
