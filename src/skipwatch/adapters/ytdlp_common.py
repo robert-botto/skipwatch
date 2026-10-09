@@ -15,7 +15,7 @@ from skipwatch.detect import Detected
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, IngestContext, ProviderCall, Route, SourceInfo
 from skipwatch.providers import content_free
-from skipwatch.providers.content_free import CaptionKind, FreeRouteError
+from skipwatch.providers.content_free import CaptionKind, FreeRouteError, has_video
 from skipwatch.workdir import WorkDir
 
 NOT_CAPTIONS = {"live_chat", "rechat"}
@@ -114,12 +114,6 @@ def author_of(info: dict[str, Any]) -> str | None:
     if handle:
         return handle if str(handle).startswith("@") else f"@{handle}"
     return info.get("uploader")
-
-
-def has_video(info: dict[str, Any]) -> bool:
-    """False only when every format says it has no video codec (an audio source)."""
-    formats = info.get("formats") or []
-    return not formats or any(f.get("vcodec") != "none" for f in formats)
 
 
 def fetch_info(

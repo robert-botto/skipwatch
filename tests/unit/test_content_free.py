@@ -305,3 +305,108 @@ def test_recorded_fixtures_hold_only_scrubbed_urls():
         info = json.loads(path.read_text())
         for fmt in info.get("formats", []):
             assert "?" not in (fmt.get("url") or ""), path
+
+
+# ---- R-CLI-1 reuse: only the final merged file, with the right length and streams ----
+
+VIDEO_STREAMS = [
+    {"codec_type": "video", "width": 1280, "height": 720, "r_frame_rate": "30/1"},
+    {"codec_type": "audio"},
+]
+AUDIO_STREAMS = [{"codec_type": "audio"}]
+INFO = {
+    "duration": 600,
+    "formats": [
+        {"format_id": "398", "width": 1280, "height": 720, "vcodec": "av01", "acodec": "none",
+         "filesize": 2},
+        {"format_id": "251", "vcodec": "none", "acodec": "opus", "filesize": 1},
+    ],
+}  # fmt: skip
+
+
+def media_dir(tmp_path, files: dict[str, tuple[float, list]]):
+    work = WorkDir(tmp_path / "w")
+    (work.path / "media").mkdir(parents=True)
+    for name in files:
+        (work.path / "media" / name).write_bytes(b"x")
+    return work
+
+
+def fake_probe(monkeypatch, files):
+    def probe(path):
+        duration, streams = files[path.name]
+        return {"format": {"duration": str(duration)}, "streams": streams}
+
+    monkeypatch.setattr(cf.media, "probe", probe)
+
+
+def downloader(monkeypatch, calls):
+    class DL(FakeDL):
+        def process_ie_result(self, info, download=True):
+            calls.append(self.params["format"])
+            out = Path(self.params["paths"]["home"]) / "video.mp4"
+            out.write_bytes(b"new")
+            return dict(info, requested_downloads=[{"filepath": str(out)}])
+
+    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", DL)
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    monkeypatch.setattr(cf.media, "ffmpeg_paths", lambda: (Path("/x/ffmpeg"), Path("/x/ffprobe")))
+
+
+def test_r_cli_1_merged_file_wins_over_format_intermediates(tmp_path, monkeypatch):
+    files = {
+        "video.f251.webm": (600.0, AUDIO_STREAMS),
+        "video.f398.mp4": (600.0, VIDEO_STREAMS[:1]),
+        "video.mp4": (600.2, VIDEO_STREAMS),
+    }
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    assert cf.download(INFO, work, IngestOptions()).path == "media/video.mp4"
+    assert calls == []
+
+
+def test_r_cli_1_intermediates_alone_are_downloaded_again(tmp_path, monkeypatch):
+    files = {
+        "video.f251.webm": (600.0, AUDIO_STREAMS),
+        "video.f398.mp4": (600.0, VIDEO_STREAMS[:1]),
+    }
+    work = media_dir(tmp_path, files)
+    files["video.mp4"] = (600.0, VIDEO_STREAMS)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    assert cf.download(INFO, work, IngestOptions()).path == "media/video.mp4"
+    assert calls == ["398+251"]
+
+
+def test_r_cli_1_length_mismatch_is_downloaded_again(tmp_path, monkeypatch):
+    work = media_dir(tmp_path, {"video.mp4": (0, [])})
+
+    def probe(path):  # the stale file is 5 minutes long, the new download 10
+        duration = "300" if path.read_bytes() == b"x" else "600"
+        return {"format": {"duration": duration}, "streams": VIDEO_STREAMS}
+
+    monkeypatch.setattr(cf.media, "probe", probe)
+    downloader(monkeypatch, calls := [])
+    cf.download(INFO, work, IngestOptions())
+    assert calls == ["398+251"]
+
+
+def test_r_cli_1_audio_only_file_is_not_reused_for_a_video_source(tmp_path, monkeypatch):
+    files = {"video.webm": (600.0, AUDIO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    files["video.mp4"] = (600.0, VIDEO_STREAMS)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    cf.download(INFO, work, IngestOptions())
+    assert calls == ["398+251"]
+
+
+def test_r_cli_1_audio_only_file_is_reused_for_an_audio_source(tmp_path, monkeypatch):
+    files = {"video.webm": (600.0, AUDIO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    audio = {"duration": 600, "formats": [INFO["formats"][1]]}
+    assert cf.download(audio, work, IngestOptions()).path == "media/video.webm"
+    assert calls == []
