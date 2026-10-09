@@ -15,7 +15,9 @@ import re
 import shutil
 import subprocess
 import time
+from collections import OrderedDict
 from collections.abc import Callable
+from http.cookiejar import Cookie
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
@@ -271,13 +273,44 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
 
 # ---- yt-dlp calls ----
 
+# Session continuity: some sites hand the extract step guest-session cookies (X: guest_id and
+# friends from its guest-token flow) and refuse the media without them, so a fresh YoutubeDL
+# for the download gets 404. The extract step's cookies are kept here, in memory only, keyed by
+# the page URL, and copied into the download's jar. They are the site's own guest session,
+# not the user's: never written anywhere, and fetched_with_cookies stays tied to the flag.
+MAX_SESSIONS = 8
+_SESSIONS: OrderedDict[str, list[Cookie]] = OrderedDict()
+
+
+def _session_key(info: dict[str, Any]) -> str | None:
+    return info.get("webpage_url") or info.get("original_url")
+
+
+def _keep_session(info: dict[str, Any], ydl: Any) -> None:
+    key = _session_key(info)
+    jar = getattr(ydl, "cookiejar", None)
+    if key is None or jar is None:
+        return
+    _SESSIONS[key] = list(jar)
+    _SESSIONS.move_to_end(key)
+    while len(_SESSIONS) > MAX_SESSIONS:
+        _SESSIONS.popitem(last=False)
+
+
+def _resume_session(info: dict[str, Any], ydl: Any) -> None:
+    key = _session_key(info)
+    for cookie in _SESSIONS.get(key, []) if key else []:
+        ydl.cookiejar.set_cookie(cookie)
+
 
 def extract(url: str, opts: IngestOptions) -> dict[str, Any]:
     """Metadata only, sanitized to plain JSON types. Never downloads."""
     try:
         with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
             info = ydl.extract_info(url, download=False)
-            return ydl.sanitize_info(info)  # pyright: ignore[reportReturnType]
+            info = ydl.sanitize_info(info)
+            _keep_session(info, ydl)  # pyright: ignore[reportArgumentType]
+            return info  # pyright: ignore[reportReturnType]
     except DownloadError as exc:
         raise FreeRouteError("metadata", str(exc)) from exc
 
@@ -332,6 +365,7 @@ def download(
     def attempt() -> dict[str, Any]:
         try:
             with yt_dlp.YoutubeDL(params) as ydl:  # pyright: ignore[reportArgumentType]
+                _resume_session(info, ydl)
                 return ydl.process_ie_result(dict(info), download=True)  # pyright: ignore[reportArgumentType, reportReturnType]
         except DownloadError as exc:
             raise FreeRouteError("download", str(exc)) from exc
