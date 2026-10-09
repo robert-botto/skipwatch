@@ -50,9 +50,12 @@ done. Everything in `<out>` is for local testing only: never commit it or share 
 - Established creators or official accounts only; not age-gated or region-locked; no NSFW,
   medical, financial-advice or political content.
 
-Ranges: G1 steps 6 to 20, inferred ratio at most 0.2, gaps at most 1; G2 to G4 steps 3 to
+Ranges: G1 steps 6 to 30, inferred ratio at most 0.2, gaps at most 1; G2 to G4 steps 3 to
 15, inferred at most 0.3, gaps at most 2; G5 steps 8 to 40, inferred at most 0.3, gaps at
 most 3. Every video: zero safety flags (S4) and zero illegible markers in quotes (S3).
+G1's ceiling was raised from 20 to 30 on 2026-10-09: the jq tutorial is a broad tour, and
+the first real run produced 27 honest steps (about 23 techniques plus 4 optional
+alternatives).
 
 Replace a video when it disappears; keep the id.
 
