@@ -18,10 +18,10 @@ step uv run ruff format --check .
 step uv run pyright
 step uv run python scripts/export_schemas.py --check
 step uv run python scripts/check_versions.py
-step uv run pytest -m "not pipeline" --cov --cov-report=term --cov-fail-under=85
+step uv run pytest -m "not pipeline and not live" --cov --cov-report=term --cov-fail-under=85
 # The pipeline job, when this machine has ffmpeg (no static-ffmpeg download here).
 if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
-  step uv run pytest -m pipeline -v
+  step uv run pytest -m "pipeline and not whisper and not live" -v
 else
   echo "ffmpeg not found; skipping pipeline tests" >&2
 fi
