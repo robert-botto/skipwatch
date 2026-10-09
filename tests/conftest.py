@@ -15,6 +15,7 @@ def _block_network(monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", guard)
     monkeypatch.setattr(socket.socket, "connect_ex", guard)
     monkeypatch.setattr(socket, "create_connection", guard)
+    monkeypatch.setattr(socket, "getaddrinfo", guard)
 
 
 @pytest.fixture
