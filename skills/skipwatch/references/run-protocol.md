@@ -40,7 +40,9 @@ stage 8.
 - Any other code means the engine never started: 101 (uv panicked), 126 (not
   executable), 127 (command not found), or any code outside 0 to 9 and 64. Also treat
   exit 2 as this case when the stage log starts with "error: " (uv's own argument error,
-  printed before the engine runs); an engine exit 2 names the source instead. Stop with
+  printed before the engine runs); an engine exit 2 names the source instead. Exit 1
+  whose log says "could not create the Python environment" is the wrapper failing before
+  the engine runs, the same case. Stop with
   `SkipWatch: engine could not start: <last 3 stderr lines>`, keep `<W>`, print its path.
 - On any stop, keep `<W>` and print its path so the user can inspect it.
 
@@ -53,7 +55,7 @@ Capture the engine's own exit code and stderr, not those of a later command:
     H="${SKIPWATCH_HOME:-$HOME/.skipwatch}"; if [ -n "$(find "$H/doctor.json" -mmin -1440 2>/dev/null)" ]; then echo "doctor: cached"; else err=$(<ENGINE> doctor --json 2>&1 >/dev/null); rc=$?; echo "doctor rc=$rc"; if [ "$rc" -ne 0 ]; then printf '%s\n' "$err" | tail -n 5; fi; fi; grep -m1 '"tier"' "$H/doctor.json"
 
 - `doctor: cached` or `doctor rc=0`: print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
-- `doctor rc=127` (`uv` not found): stop with
+- `doctor rc=127` (no synced environment and `uv` not installed): stop with
   `SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/`.
 - Any other non-zero code: the engine cannot start. Stop with the last stderr line shown.
 

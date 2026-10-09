@@ -1,0 +1,50 @@
+#!/bin/sh
+# Run the SkipWatch engine from this plugin's uv project.
+#
+# The skill calls this script instead of `uv run` because uv older than 0.9.29
+# panics inside macOS sandboxes (Claude Code's Bash sandbox, `claude plugin eval`)
+# before Python starts, and any uv needs a writable cache and usually network.
+# A synced venv needs neither, so the fast path runs its entry point directly.
+#
+# Bash tool commands do not receive CLAUDE_PLUGIN_ROOT, so derive the root from
+# this script's own location (scripts/ sits directly under the plugin root).
+
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd) || exit 1
+venv="$root/.venv"
+stamp="$venv/.skipwatch-synced"
+
+if [ -x "$venv/bin/skipwatch" ]; then
+  engine="$venv/bin/skipwatch"
+else
+  engine="$venv/Scripts/skipwatch.exe" # Windows venv layout (Git Bash)
+fi
+
+# The venv counts as fresh when it was last synced against these exact files.
+is_fresh() {
+  [ -x "$engine" ] && [ -f "$stamp" ] &&
+    cat "$root/uv.lock" "$root/pyproject.toml" | cmp -s - "$stamp"
+}
+
+if ! is_fresh; then
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "skipwatch: uv is not installed. Install it from https://docs.astral.sh/uv/ and retry." >&2
+    exit 127
+  fi
+  if sync_log=$(uv sync --quiet --locked --project "$root" 2>&1); then
+    cat "$root/uv.lock" "$root/pyproject.toml" >"$stamp" 2>/dev/null || true
+    [ -x "$venv/bin/skipwatch" ] && engine="$venv/bin/skipwatch"
+  elif [ -x "$engine" ]; then
+    echo "skipwatch: could not refresh the environment (sandboxed?), using the existing one." >&2
+  else
+    printf '%s\n' "$sync_log" >&2
+    echo "skipwatch: could not create the Python environment. Run this once outside any sandbox:" >&2
+    echo "  uv sync --project \"$root\"" >&2
+    exit 1
+  fi
+fi
+
+[ -n "$SKIPWATCH_SYNC_ONLY" ] && exit 0
+# doctor and transcribe build install advice from CLAUDE_PLUGIN_ROOT; point it at this plugin.
+CLAUDE_PLUGIN_ROOT="$root"
+export CLAUDE_PLUGIN_ROOT
+exec "$engine" "$@"

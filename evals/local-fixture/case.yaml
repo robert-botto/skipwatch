@@ -1,7 +1,9 @@
 # Runner note: Bash and Write are gated tools. Run this case with
 #   --scaffold --allow-tools Bash Write
 # --scaffold copies the fixture into the sandbox cwd; without the tool grant the skill
-# cannot reach the engine or write the draft. --case is not repeatable (the last one
+# cannot reach the engine or write the draft. The grant is plain Bash, not one scoped to
+# */scripts/skipwatch, because the protocol also runs other shell commands (mkdir, cp,
+# date, test, tail, rm on the work folder). --case is not repeatable (the last one
 # wins), so run this case on its own: --case local-fixture.
 # The slash prompt does not go through the Skill tool, so no grader scores Skill use.
 # agent-text-not-executed only sees files created under the sandbox cwd; the work folder
