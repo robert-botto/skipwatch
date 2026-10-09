@@ -21,6 +21,7 @@ from typing import Any
 
 import requests
 
+from skipwatch import audio
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, Segment, Transcript, TranscriptOrigin, Word
 from skipwatch.workdir import WorkDir, read_model
@@ -63,10 +64,7 @@ def language_code(name: str | None) -> str | None:
 
 
 def audio_chunks(work: WorkDir) -> list[tuple[Path, float]]:
-    """media/audio-16k.wav (M2-C), cut into MP3 chunks with their start offsets."""
-    # M2-C; imported here so the registry never depends on it. Drop the ignore once M2-C merges.
-    from skipwatch import audio  # pyright: ignore[reportAttributeAccessIssue]
-
+    """media/audio-16k.wav, cut into MP3 chunks with their start offsets."""
     bundle = read_model(work.file("ingest.json"), IngestBundle)
     wav = audio.extract_audio(work, bundle)
     return audio.encode_mp3_chunks(wav, work.path / "media" / "chunks", CHUNK_S, MP3_KBPS)
