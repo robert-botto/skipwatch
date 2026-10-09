@@ -217,3 +217,15 @@ def test_identical_mirror_formats_pick_the_same_one_in_any_order(reverse):
     if reverse:
         formats = formats[::-1]
     assert select_format({"duration": None, "formats": formats}) == "mirror-a"
+
+
+@pytest.mark.parametrize("name", sorted(PINNED))
+def test_recorded_fixture_choice_survives_any_format_order(name):
+    """From review-m3b/pin.py: the choice never depends on the order yt-dlp lists formats."""
+    import random
+
+    info = json.loads((REC.parent / f"{name}.info.json").read_text())
+    for seed in range(20):
+        shuffled = json.loads(json.dumps(info))
+        random.Random(seed).shuffle(shuffled["formats"])
+        assert select_format(shuffled) == PINNED[name], seed
