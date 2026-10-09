@@ -524,3 +524,35 @@ def test_session_cookies_are_never_persisted_and_not_user_cookies(tmp_path, sess
                 text = path.read_text(encoding="utf-8", errors="replace")
                 assert "guest_id" not in text and GUEST_VALUE not in text, path
     assert "guest_id" not in r.output
+
+
+G4 = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "instagram"
+G4_SPEC = "dash-18630250069054910v+dash-18630246724054910a"
+
+
+def g4_info() -> dict:
+    info = json.loads((G4 / "g4-gh-secure.info.json").read_text(encoding="utf-8"))
+    assert info["duration"] is None  # Instagram gives no duration
+    return info
+
+
+def test_r_cli_1_without_a_duration_a_merged_file_with_video_and_audio_is_reused(
+    tmp_path, monkeypatch
+):
+    files = {"video.mp4": (31.0, VIDEO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    assert cf.download(g4_info(), work, IngestOptions()).path == "media/video.mp4"
+    assert calls == []
+
+
+def test_r_cli_1_without_a_duration_a_silent_or_partial_file_is_downloaded_again(
+    tmp_path, monkeypatch
+):
+    files = {"video.mp4": (31.0, VIDEO_STREAMS[:1]), "video.f1.mp4": (31.0, VIDEO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    cf.download(g4_info(), work, IngestOptions())
+    assert calls == [G4_SPEC]  # no audio in the merged file, and intermediates never count

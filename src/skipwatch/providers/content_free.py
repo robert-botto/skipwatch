@@ -321,28 +321,33 @@ def has_video(info: dict[str, Any]) -> bool:
     return not formats or any(f.get("vcodec") != "none" for f in formats)
 
 
+def _has_audio(info: dict[str, Any]) -> bool:
+    """True unless every format says it has no audio codec (an acodec field left out counts)."""
+    return any(f.get("acodec") != "none" for f in info.get("formats") or [])
+
+
 def _existing_download(work: WorkDir, info: dict[str, Any]) -> MediaInfo | None:
     """R-CLI-1: a finished download whose length matches is not fetched again.
 
     Only the final file counts: `video.<ext>`, never yt-dlp's per-format intermediates
     (`video.f398.mp4`, `video.f251.webm`) or partial files, and it must carry a picture when
-    the source has video.
+    the source has video. Without a duration to compare (Instagram), the file must instead carry
+    audio whenever the source has audio, so a half-merged video-only file is fetched again.
     """
     duration = info.get("duration")
-    if not duration:
-        return None
+    needs_audio = not duration and _has_audio(info)
     for path in sorted((work.path / "media").glob("video.*")):
         if path.name.count(".") != 1 or path.suffix in (".part", ".ytdl") or not path.is_file():
             continue
         probed = media.probe(path)
         length = float(probed.get("format", {}).get("duration") or 0)
-        if abs(length - float(duration)) > 1:
+        if duration and abs(length - float(duration)) > 1:
             continue
         try:
             found = media_info(path, probed)
         except SkipwatchError:
             continue
-        if has_video(info) and found.width is None:
+        if (has_video(info) and found.width is None) or (needs_audio and not found.has_audio):
             continue
         return found.model_copy(update={"path": f"media/{path.name}"})
     return None
