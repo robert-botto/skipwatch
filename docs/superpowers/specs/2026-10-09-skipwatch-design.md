@@ -143,7 +143,7 @@ Applied without asking. Change by editing this table, not by asking mid-build.
 
 | Question | Default |
 |---|---|
-| Install scope | User (`~/.claude/skills/<name>/`). `--project` installs to `./.claude/skills/<name>/`. `--to <dir>` installs anywhere (for other agents) |
+| Install scope | User (`~/.claude/skills/<name>/`). `--project` installs to `./.claude/skills/<name>/`. `--agents` installs to `./.agents/skills/<name>/`, the folder Codex, Gemini CLI, Cursor and Copilot read. `--to <dir>` installs anywhere |
 | Name collision | Review screen offers: replace (previous copy moved to `~/.skipwatch/backups/<name>-<timestamp>/`), rename, or cancel. Never silent |
 | Frame budget | 3 frames per minute, 60 total. `--thorough`: 5 per minute, 150 total. Silent video: 6 per minute. Cue frames are always kept |
 | Whisper model | mlx: `large-v3-turbo`. faster-whisper: `small` int8; `--thorough` uses `large-v3-turbo` |
@@ -211,9 +211,13 @@ This skill credits @creator. /skipwatch share prints a thank-you post with the i
 | `/skipwatch share <skill>` | Print a copy-ready thank-you post for the creator with the install line |
 | `/skipwatch update <skill>` [v1.1] | Re-run on the source, show a step diff, offer to replace |
 
-Flags: `--project`, `--to <dir>`, `--thorough`, `--fast`, `--test`, `--yes`,
+Flags: `--project`, `--agents`, `--to <dir>`, `--thorough`, `--fast`, `--test`, `--yes`,
 `--keep-media`, `--no-frames`, `--lang source`, `--provider free|treg|auto` (default
 `auto`), `--name <skill-name>`, `--cookies-from-browser <browser>`.
+
+The plugin skill is addressable as `/skipwatch:skipwatch`; the bare `/skipwatch` also works
+unless another installed command uses that name. The URL and flags arrive through
+`$ARGUMENTS`, and the skill declares `argument-hint: "<url or path> [flags]"`.
 
 - R-UX-3: The plugin skill triggers on `/skipwatch` and when the user pastes a video link
   and asks to learn, capture or do what the video shows. It does not trigger on video links
@@ -254,13 +258,17 @@ The engine never calls a model. The orchestrator never parses media. Readers nev
 whole transcript; they see their batch's transcript windows. This split is what lets the
 pieces be built and tested independently.
 
+Each agent file lists its `tools` explicitly and omits Agent, so no agent can spawn further
+agents (Claude Code otherwise allows three layers). Plugin agents ignore `permissionMode`,
+`hooks` and `mcpServers`, so every safety rule an agent must follow lives in its prompt.
+
 ### 5.2 Repository layout
 
 ```
 skipwatch/
   .claude-plugin/
     plugin.json                 name, version, description, author, homepage, repository, license, keywords
-    marketplace.json            lets `/plugin marketplace add skipwatch/skipwatch` work
+    marketplace.json            single-plugin marketplace with source "./"; makes `/plugin marketplace add skipwatch/skipwatch` work
   skills/skipwatch/
     SKILL.md                    orchestrator, under 300 lines; detail lives in references
     references/
@@ -380,7 +388,7 @@ skipwatch frames --work <dir> [--per-minute N] [--max N] [--dense] [--json]
 skipwatch plan --work <dir> [--batch-size 20] [--json]            writes batches.json
 skipwatch redact --stdin                                           redacted text on stdout
 skipwatch check <staging-dir> --work <dir> [--json]               writes check-report.json
-skipwatch install <staging-dir> [--scope user|project] [--to <dir>] [--force] [--json]
+skipwatch install <staging-dir> [--scope user|project|agents] [--to <dir>] [--force] [--json]
 skipwatch pack <skill-dir> [-o <file>]
 skipwatch unpack <pack> --staging <dir>                            verifies checksums; exit 9 on mismatch
 skipwatch export <skill-dir> [--provider mem0|notes]
@@ -705,7 +713,7 @@ Rules (also written in `distill-rules.md` and repeated in each agent file):
 `skipwatch check` runs these in order and writes `check-report.json`:
 
 1. **frontmatter**: name 1 to 64 chars of lowercase letters, digits and hyphens, matching
-   the folder; description 1 to 1024 chars; only portable keys; `allowed-tools` absent.
+   the folder; description 1 to 1024 chars; compatibility under 500 chars; only portable keys; `allowed-tools` absent.
 2. **structure**: required sections present in order; SKILL.md under 500 lines; every
    referenced file exists; `skipwatch.json` present and valid; frames under the cap.
 3. **provenance**: every procedure step has exactly one tag; every `[spoken]` quote block
@@ -784,6 +792,10 @@ metadata:
 ---
 ```
 
+Only these six keys are portable. The Agent Skills spec says any other key fails on upload or
+packaging outside Claude Code, which is why generated skills never carry Claude Code
+extensions such as `argument-hint` or `model`. The plugin skill itself may use them.
+
 Body sections, in order: title; What this does (two sentences); Prerequisites (versions
 marked "as of <video date>"); Procedure (numbered; each step is the action, then a quote
 block with the exact command, prompt or setting, then the expected result, then the tag);
@@ -855,17 +867,30 @@ For each check in 8.7, `test_<check>_fails_on_<bad input>` is written and seen r
 
 ### 11.4 Plugin evals
 
-`evals/` holds `claude plugin eval` cases in the format Claude Code expects (a `case.yaml`
-per case, or `prompt.md` with `graders/*.md`). Cases in v1:
-- `doctor`: `/skipwatch doctor` prints a tier line.
-- `local-fixture`: `/skipwatch tests/fixtures/tutorial-60s.mp4 --yes --to <tmp>` produces
-  a skill with at least 5 tagged steps, zero check failures, the fake key redacted, and the
-  agent-directed text present as a step and never executed.
-- `no-trigger`: a prompt containing a YouTube link that asks only for a summary does not
-  invoke the skill.
+`evals/` holds `claude plugin eval` cases (Claude Code 2.1.269 or later). Each case is a
+folder with `prompt.md` (YAML frontmatter plus the prompt), `graders/<name>.md` and an
+optional `case.yaml`. Grader types are fixed (`regex`, `tool_used`, `tool_order`,
+`file_exists`, `llm`, `baseline`) and there is no custom-code grader, so every assertion
+below is expressed with those. The runner executes each case with and without the plugin
+and reports the delta. Cases in v1:
+- `doctor`: `/skipwatch doctor`. Graders: `regex` for a line starting with `Tier`;
+  `tool_used` with `tool: Skill` to confirm the plugin skill fired.
+- `local-fixture`: `/skipwatch tests/fixtures/tutorial-60s.mp4 --yes --to <tmp>`. Graders:
+  `file_exists` for `SKILL.md` and `skipwatch.json` in the target; `regex` for at least five
+  provenance tags; `regex` asserting the fake key is absent and its placeholder present; an
+  `llm` grader checking that the agent-directed text appears as a step and that no Bash call
+  in the transcript ran it.
+- `no-trigger`: a prompt with a YouTube link that asks only for a summary. Grader:
+  `tool_used` with `tool: Skill`, expected absent.
 
-Evals run before every release on the maintainer's machine (they spend the maintainer's
-credential) and in CI only when `ANTHROPIC_API_KEY` is set.
+Release command, also used in CI when `ANTHROPIC_API_KEY` is set:
+
+```
+claude plugin eval . --trust-plugin --json evals/results/latest.json --threshold 0.8 --no-publish --max-cost-usd 20
+```
+
+Exit 0 passes, 1 fails, 2 is partial. `claude plugin validate --strict` runs on every CI job
+for manifest and frontmatter validation.
 
 ### 11.5 Golden set
 
@@ -888,7 +913,8 @@ anyone.
 **M0 Skeleton.** Repo scaffold, `plugin.json`, `marketplace.json`, `SKILL.md` stub that
 runs `doctor`, three agent files, engine with `doctor` and `cache`, pydantic models and
 schemas for section 7, CI on macOS, Linux and Windows, `check_versions.py`.
-Done when: CI is green on all three; `/plugin marketplace add <local path>` then
+Done when: CI is green on all three; `claude plugin validate --strict` passes;
+`/plugin marketplace add <local path>` then
 `/plugin install skipwatch` works; `/skipwatch doctor` prints the tier table;
 `claude plugin details skipwatch` lists 1 skill and 3 agents.
 
@@ -939,7 +965,7 @@ describes it.
   trusted publishing, creates a GitHub release from the CHANGELOG section, and the
   marketplace entry points at the tag.
 - **CI.** `ci.yml`: ruff, pyright, pytest on ubuntu, macos and windows; fixture pipeline on
-  ubuntu and macos; schema freshness; version check; plugin manifest validation.
+  ubuntu and macos; schema freshness; version check; `claude plugin validate --strict`.
 - **Community files.** CONTRIBUTING (how to add a platform adapter, a transcription backend
   or an export provider, each with a template), SECURITY (reporting, 72-hour
   acknowledgement), CODE_OF_CONDUCT (Contributor Covenant), issue templates (platform
@@ -972,13 +998,16 @@ describes it.
 
 ### 14.2 Distribution surfaces
 
-- Anthropic's official plugin marketplace (submit after v0.1.0 with golden set results in
-  the PR), `awesome-claude-code`, and the skill directories (skills.sh, skillselion,
-  skills.cat, the tessl registry).
+- Anthropic's plugin directory, submitted at claude.ai/directory/manage after v0.1.0 (a paid
+  claude.ai plan is required; the `claude-plugins-official` marketplace takes no
+  submissions), plus `awesome-claude-code` and the skill directories (skills.sh,
+  skillselion, skills.cat, the tessl registry).
 - PyPI listing for `skipwatch`, so agents other than Claude Code (Codex, Cursor, Gemini
   CLI) can run the engine and use the same SKILL.md output, which widens who installs it.
-- The GitHub repo as the owned channel: README with a 20-second GIF, one-line install,
-  three example skills, Discussions for requests, Releases as the changelog.
+- The GitHub repo as the owned channel: README with a 20-second GIF, the one-line install
+  (`claude plugin install skipwatch --marketplace skipwatch/skipwatch`, since the
+  `marketplace.json` in the repo is the whole publish step), three example skills,
+  Discussions for requests, Releases as the changelog.
 
 ### 14.3 Launch, in phases
 
@@ -990,7 +1019,7 @@ describes it.
    (Robert's own UGC pipeline), a Show HN, posts in r/ClaudeAI and r/ClaudeCode, a LinkedIn
    post, all pointing at the README. Creator outreach wave one: the five golden-set
    creators receive their skill and the share text.
-4. **Marketplace (v0.2).** Official marketplace PR, directory listings, creator outreach
+4. **Directory (v0.2).** Anthropic directory submission, skill directory listings, creator outreach
    wave two (twenty tutorial creators in the AI tooling space).
 5. **Full launch (v1.0, with the index).** Product Hunt with the gallery as the landing
    page, and a weekly "skills from videos" roundup post.
