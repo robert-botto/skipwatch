@@ -1,0 +1,126 @@
+{
+  "_handmade": true,
+  "_note": "Built from manual-captions.info.json with formats replaced by the vertical list of test_r_ing_4_vertical_uses_short_side and automatic_captions emptied.",
+  "age_limit": 0,
+  "automatic_captions": {},
+  "availability": "public",
+  "channel": "GitHub",
+  "description": "Take your Git skills to the next level with this beginner-friendly guide to the most essential Git commands. From configuring your Git environment to creating repositories and managing branches, this video will walk you through the daily commands you'll use. Learn how to efficiently stage, commit, and push your changes, and discover the power of commands like git status and git switch. By the end of this tutorial, you'll be using Git like a pro!\n\n#Git #Coding #GitHub\n\n\u2014 CHAPTERS \u2014 \n00:00 Intro \n00:21 Configuring Git with 'git config'\n01:49 Initializing a Git Repository with 'git init'\n02:14 Checking Repository Status with 'git status'\n02:43 Creating and Staging Files with 'git add'\n03:55 Committing Changes with 'git commit'\n05:43 Cloning a Repository with 'git clone'\n06:55 Working with Branches using 'git branch'\n07:44 Switching Between Branches with 'git switch'\n08:51 Pushing Changes to a Remote Repository with 'git push'\n10:41 Updating Local Repository with 'git pull'\n12:13 Viewing Change History with 'git show'\n13:54 Deleting Branches Locally and Remotely\n\nResources & links: \nhttps://gh.io/AArr0ib\nhttps://gh.io/AArm31o\nhttps://gh.io/AArr885\nhttps://gh.io/AArr0id\n\nStay up-to-date on all things GitHub by connecting with us:\nBlog: https://github.blog\nX: https://twitter.com/github\nLinkedIn: https://linkedin.com/company/github\nInsider newsletter: https://resources.github.com/newsletter/\nInstagram: https://www.instagram.com/github\nTikTok: https://www.tiktok.com/@github\n\n\n\ud83d\udcad To keep conversing about Git and getting started on GitHub, head to the GitHub Community: https://gh.io/learn-git\n\nAbout GitHub\nIt\u2019s where over 100 million developers create, share, and ship the best code possible. It\u2019s a place for anyone, from anywhere, to build anything\u2014it\u2019s where the world builds software. https://github.com",
+  "duration": 868,
+  "extractor_key": "Youtube",
+  "formats": [
+    {
+      "acodec": "none",
+      "ext": "mp4",
+      "filesize": 4000000,
+      "filesize_approx": null,
+      "format_id": "a",
+      "height": 1024,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "avc1",
+      "width": 576
+    },
+    {
+      "acodec": "none",
+      "ext": "mp4",
+      "filesize": 6000000,
+      "filesize_approx": null,
+      "format_id": "b",
+      "height": 1280,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "avc1",
+      "width": 720
+    },
+    {
+      "acodec": "none",
+      "ext": "mp4",
+      "filesize": 9000000,
+      "filesize_approx": null,
+      "format_id": "c",
+      "height": 1920,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "avc1",
+      "width": 1080
+    },
+    {
+      "acodec": "none",
+      "ext": "mp4",
+      "filesize": 40000000,
+      "filesize_approx": null,
+      "format_id": "d",
+      "height": 3840,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "avc1",
+      "width": 2160
+    },
+    {
+      "acodec": "mp4a",
+      "ext": "m4a",
+      "filesize": 3000000,
+      "filesize_approx": null,
+      "format_id": "140",
+      "height": null,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "none",
+      "width": null
+    },
+    {
+      "acodec": "opus",
+      "ext": "webm",
+      "filesize": 2500000,
+      "filesize_approx": null,
+      "format_id": "251",
+      "height": null,
+      "tbr": null,
+      "url": "https://www.youtube.com",
+      "vcodec": "none",
+      "width": null
+    }
+  ],
+  "id": "rE2zRhZdjFU",
+  "is_live": false,
+  "language": "en",
+  "subtitles": {
+    "en-US": [
+      {
+        "ext": "json3",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "srv1",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "srv2",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "srv3",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "ttml",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "srt",
+        "url": "https://www.youtube.com"
+      },
+      {
+        "ext": "vtt",
+        "url": "https://www.youtube.com"
+      }
+    ]
+  },
+  "timestamp": 1718024457,
+  "title": "Beginner Git commands you need to know (WITH EXAMPLES)",
+  "upload_date": "20240610",
+  "uploader": "GitHub",
+  "uploader_id": "@GitHub",
+  "webpage_url": "https://www.youtube.com/watch?SCRUBBED"
+}

@@ -1,9 +1,10 @@
-"""Parse WebVTT and SRT captions into timed segments (R-TR-1)."""
+"""Parse WebVTT and SRT captions into timed segments (R-TR-1); json3 is in captions_json3."""
 
 import html
 import re
 from pathlib import Path
 
+from skipwatch.captions_json3 import parse_json3
 from skipwatch.models import Segment
 
 _TIMING_RE = re.compile(
@@ -85,6 +86,8 @@ def parse_file(path: Path) -> list[Segment]:
     text = path.read_text(encoding="utf-8-sig", errors="replace")
     if path.suffix.lower() == ".srt":
         return parse_srt(text)
+    if path.suffix.lower() == ".json3":
+        return parse_json3(text)
     return parse_vtt(text)
 
 

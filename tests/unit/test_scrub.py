@@ -22,7 +22,7 @@ def test_scrub_removes_cookies_headers_and_signed_queries(tmp_path):
         "formats": [
             {
                 "format_id": "18",
-                "url": "https://rr1.googlevideo.com/videoplayback?sig=SECRET&ip=1.2.3.4",
+                "url": "https://rr1.googlevideo.com/videoplayback?sig=SECRET&ip=203.0.113.7",
                 "height": 360,
                 "width": 640,
                 "filesize": 10,
@@ -32,7 +32,7 @@ def test_scrub_removes_cookies_headers_and_signed_queries(tmp_path):
     }
     out = run(tmp_path, data)
     text = json.dumps(out)
-    assert "SECRET" not in text and "1.2.3.4" not in text and "SIGNED" not in text
+    assert "SECRET" not in text and "203.0.113.7" not in text and "SIGNED" not in text
     assert "Cookie" not in text and "cookies" not in out
     assert out["formats"][0]["url"] == "https://rr1.googlevideo.com"  # host only (plan)
     assert out["uploader"] == "@creator"  # attribution data stays
@@ -41,10 +41,10 @@ def test_scrub_removes_cookies_headers_and_signed_queries(tmp_path):
 def test_scrub_drops_token_session_and_signed_subtitle_keys(tmp_path):
     data = {
         "_cookies": "c",
-        "__x_forwarded_for_ip": "9.9.9.9",
+        "__x_forwarded_for_ip": "198.51.100.23",
         "requested_subtitles": {"en": {"url": "https://x.example/s?sig=1"}},
         "nested": {"access_token": "t", "SessionId": "s", "keep": "k"},
-        "description": "from 10.0.0.1 with love",
+        "description": "from 192.0.2.10 with love",
     }
     out = run(tmp_path, data)
     assert out == {"description": "from 0.0.0.0 with love", "nested": {"keep": "k"}}
@@ -149,3 +149,28 @@ def test_scrub_bearer_and_jwt_values_without_telltale_keys(tmp_path):
     assert "BEARERVALUE" not in text and "eyJ" not in text and "SIGNATUREPART" not in text
     assert out["note"] == "call with SCRUBBED then SCRUBBED done"
     assert run(tmp_path, out) == out
+
+
+def test_scrub_percent_encoded_ip_inside_a_url_path(tmp_path):
+    hls = (
+        "https://manifest.example.com/api/timedtext/tts_params/"
+        "caps%3Dasr%26ip%3D203.0.113.7%26ipbits%3D0/playlist/index.m3u8"
+    )
+    data = {"tracks": [{"ext": "vtt", "url": hls}], "note": f"see {hls} and ip%253D198.51.100.23"}
+    out = run(tmp_path, data)
+    text = json.dumps(out)
+    assert "203.0.113.7" not in text and "198.51.100.23" not in text
+    assert "203%2E0" not in text
+    assert run(tmp_path, out) == out
+
+
+def test_scrub_ip_parameter_in_a_path_is_scrubbed_even_when_not_an_address(tmp_path):
+    out = run(tmp_path, {"u": "https://h.example.com/a/ip=203.0.113.7/b", "v": "x?y&ip=abcd&z"})
+    assert "203.0.113.7" not in json.dumps(out)
+    assert "ip=SCRUBBED" in out["u"] and "abcd" not in out["v"]
+
+
+def test_scrub_percent_encoded_email(tmp_path):
+    out = run(tmp_path, {"d": "contact a.person%40example.com or b%2540example.org"})
+    text = json.dumps(out)
+    assert "a.person" not in text and "b%40" not in text and "b@" not in text

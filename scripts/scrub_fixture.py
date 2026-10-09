@@ -11,7 +11,9 @@ signature, sig, csrf, xsrf, email, ip, bearer, jwt, credential, otp, ...), the k
 account or user id, or it is a session cookie name (`sid`, `*sid`, `*sessid`). Creator
 attribution (`author`, `uploader`) and `extractor_key` stay: adapters need them.
 
-Strings, in values and in keys: every URL loses its query and fragment (`?SCRUBBED`) and any
+Strings, in values and in keys: first percent-decoded up to twice (YouTube HLS timedtext
+URLs carry the caller's IP as `ip%3D<addr>` inside the path); `ip=` style parameters anywhere
+become `ip=SCRUBBED`; every URL loses its query and fragment (`?SCRUBBED`) and any
 path-style signature (`/signature/X/`, `/sig/X/`), protocol-relative URLs (`//host/...`)
 included; `Bearer <token>` and JWT-shaped strings, emails, IPv4 and IPv6 literals are replaced.
 Media URLs (formats, fragments, manifests) are cut to scheme and host.
@@ -25,7 +27,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 SENSITIVE_WORDS = {
     "cookie", "header", "auth", "authorization", "authentication", "key", "apikey", "secret",
@@ -51,6 +53,11 @@ BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
 JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[^\s\"'<>]+")
 PATH_SIG_RE = re.compile(
     r"/(signature|sig|lsig|sparams|key|token|expire|ip|ei)/[^/?#\s]+", re.IGNORECASE
+)
+# An address-carrying parameter anywhere in a string, path segments included (`/ip=X/`).
+IP_PARAM_RE = re.compile(
+    r"(?<![A-Za-z0-9_])(ip|ipbits|ipaddr|ip_address|client_ip|remote_addr)=[^&/?#\s\"'<>]*",
+    re.IGNORECASE,
 )
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 IPV4_RE = re.compile(r"\b\d{1,3}(\.\d{1,3}){3}\b")
@@ -107,11 +114,23 @@ def _ipv6(match: re.Match[str]) -> str:
     return "::"
 
 
+def _decoded(value: str) -> str:
+    """Percent-decode up to twice, so `ip%3D<addr>` and `%2540` cannot hide from the patterns
+    below. The decoded form is what gets written; a fixture never needs the encoded one."""
+    for _ in range(2):
+        if "%" not in value:
+            break
+        value = unquote(value)
+    return value
+
+
 def _scrub_string(value: str) -> str:
+    value = _decoded(value)
     value = BEARER_RE.sub("SCRUBBED", value)
     value = JWT_RE.sub("SCRUBBED", value)
     value = URL_RE.sub(lambda m: _scrub_url(m.group(0)), value)
     value = PROTOCOL_RELATIVE_RE.sub(lambda m: _scrub_url(m.group(0)), value)
+    value = IP_PARAM_RE.sub(lambda m: f"{m.group(1)}=SCRUBBED", value)
     value = EMAIL_RE.sub(EMAIL_PLACEHOLDER, value)
     value = IPV4_RE.sub("0.0.0.0", value)
     return IPV6_CANDIDATE_RE.sub(_ipv6, value)
