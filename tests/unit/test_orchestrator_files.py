@@ -731,31 +731,51 @@ def test_ingest_url_failures_are_explained():
 
 
 def test_r_tr_2_cloud_audio_needs_consent_by_name():
-    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+    for path in (SKILL / "SKILL.md", REFS / "review-screen.md"):
         text = flat(path)
         assert "only after the user said yes to that provider by name" in text, path
-    text = flat(REFS / "run-protocol.md")
-    assert "--backend <openai|groq|deepgram>" in text  # named explicitly, never auto
-    assert "`--yes` is never consent to send audio to a cloud provider" in text
+    text = flat(REFS / "review-screen.md")
     assert "cloud-keys" in text  # offered only for keys doctor found
+    assert "transcribe with <Provider> and re-run" in text
+    assert "(sends the audio to <Provider>)" in text  # the option itself names the provider
+    # the backend is named explicitly, never auto, and only after the user picked it
+    cmd = '<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>'
+    assert cmd in text
+    assert "with exactly the backend the user picked, never `auto`" in text
+    assert "`--yes` never picks one of these options" in text
+    assert "`--yes` never picks one of these options" in flat(REFS / "run-protocol.md")
 
 
-def test_exit_8_offers_install_then_degrades_to_frames_only():
+def test_exit_8_degrades_and_offers_on_the_review_screen():
     text = flat(REFS / "run-protocol.md")
-    assert "offer the install command the engine printed" in text  # R-TIER-2, R-DOC-1
-    assert "Run it only after the user accepts it" in text
-    assert "continue from frames only" in text
-    assert "[install / frames only" in text
+    # R-UX-1: no mid-run question when there is no transcript source; the offer waits for review
+    assert "Exit 8 (no captions and no local Whisper): do not ask" in text
+    assert "[install / frames only" not in text
+    assert "Send the audio to" not in text
+    assert "continue from frames only" in text and "`--dense`" in text  # R-TIER-2
+    review = flat(REFS / "review-screen.md")
+    assert "install Whisper and re-run" in review
+    # never install without consent (R-DOC-1)
+    assert "Run it only after the user picks it" in review
     skill = flat(SKILL / "SKILL.md")
     assert "Do not ask to install anything mid-run" not in skill
+    assert "offering the Whisper install" not in skill
+
+
+def test_offer_picked_resumes_from_transcribe():
+    review = flat(REFS / "review-screen.md")
+    assert '<ENGINE> resume "<W>" --json' in review
+    # a cloud pick runs its own transcribe first: resume's transcribe is auto, never cloud
+    assert "then continue from stage 3 step 5" in review
 
 
 def test_questions_allowed_in_a_run_are_listed():
     text = flat(REFS / "run-protocol.md")
     assert "No question is asked except the review prompt" in text  # R-UX-1
-    assert "two named exceptions" in text
+    assert "one named exception" in text
+    assert "two named exceptions" not in text
     skill = flat(SKILL / "SKILL.md")
-    assert "two named exceptions" in skill
+    assert "one named exception" in skill
 
 
 def test_thorough_uses_the_large_whisper_model():

@@ -72,6 +72,38 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   without a prompt line, then `Installing (--yes, nothing to review)`, and install.
   Anything else under `--yes` shows the prompt and waits (R-REV-1).
 
+## Transcription offers
+
+When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 of
+`run-protocol.md`), the run went on from frames only and the offers wait here, never
+mid-run (R-UX-1). The prompt line gains them at the end:
+
+- Each key listed under `cloud-keys` in `doctor.json` adds one option, naming the
+  provider (`OPENAI_API_KEY` is OpenAI `openai`, `GROQ_API_KEY` is Groq `groq`,
+  `DEEPGRAM_API_KEY` is Deepgram `deepgram`):
+  `transcribe with <Provider> and re-run (sends the audio to <Provider>)`, for example
+  `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run / transcribe with OpenAI and re-run (sends the audio to OpenAI)]`
+
+The collision prompt gains the same options. `--yes` never picks one of these options:
+under `--yes` a skill that qualifies installs from frames only, and the Unverified line
+still names the install command.
+
+- **install Whisper and re-run:** the install command the engine printed. Run it only
+  after the user picks it (R-DOC-1), output to `<W>/logs/whisper-install.log`. On rc 0,
+  run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
+  the `## Resume` section of `run-protocol.md` says; frames, readers, draft and check run
+  again and this screen is shown anew. On any other rc, show the last log line and the
+  prompt line again.
+- **transcribe with <Provider> and re-run:** R-TR-2. Audio goes to a cloud provider only
+  after the user said yes to that provider by name; picking this option, which names
+  the provider, is that yes, and nothing else is. Print
+  `Sending the audio to <Provider> for transcription.`, then run
+  `<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>` with exactly the
+  backend the user picked, never `auto`, timed as any stage. On exit 0, then continue
+  from stage 3 step 5 of `run-protocol.md` (frames without `--dense`, then the rest);
+  `resume` would run transcribe under `auto`, which never picks a cloud backend. Exit 8
+  (key rejected) or 3 (request failed): show the engine's line and the prompt line again.
+
 ## Answers
 
 - **yes / replace:** run install (stage 9 of `run-protocol.md`); add `--force` only for

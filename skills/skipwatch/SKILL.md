@@ -110,11 +110,12 @@ transcribe, frames, plan, read, outline, draft, check, review, install.
 - Every line printed during a run is one line. Progress lines name the stage and the
   elapsed seconds, for example `Sampling frames: 21 kept from 1:00 of video (4s)`
   (R-UX-2).
-- The only question in a run is the review prompt (R-UX-1, R-REV-1), with two named
-  exceptions, never asked under `--yes`: a video over 60 minutes gets one "continue?"
-  question after probe, and a source with no captions and no local Whisper gets one
-  question offering the Whisper install, frames only, or a cloud provider by name.
-  Flags decide the rest.
+- The only question in a run is the review prompt (R-UX-1, R-REV-1), with one named
+  exception, never asked under `--yes`: a video over 60 minutes gets one "continue?"
+  question after probe. Flags decide the rest.
+- No captions and no local Whisper is not a question: the run continues from frames
+  only, and the review screen offers "install Whisper and re-run" and, per cloud key
+  doctor found, "transcribe with <Provider> and re-run".
 - Cloud transcription (R-TR-2): audio goes to OpenAI, Groq or Deepgram only after the
   user said yes to that provider by name, and then only with `--backend <name>`. `--yes`
   is never that consent.
@@ -166,7 +167,7 @@ with different inputs to get past it.
 | 3 | probe, ingest | `Download failed:` then every route line and its reason, then the fix the engine names. |
 | 4 | probe, ingest | `This content is private or needs a login: <engine message>.` then `Re-run with --cookies-from-browser <browser> if you can open it logged in.` |
 | 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | `No usable content: no transcript, no readable frames, no text. Nothing was written.` |
-| 7 or 8 | transcribe | do not stop: exit 8 gets the one transcription question (stage 3, step 4); otherwise continue from frames and list `no transcript (install: <command from the engine message>)` under Unverified. |
+| 7 or 8 | transcribe | do not stop: continue from frames only and list `no transcript (install: <command from the engine message>)` under Unverified; exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run skipwatch check again.` |
 | 6 | install | show the review screen again with the collision prompt. |

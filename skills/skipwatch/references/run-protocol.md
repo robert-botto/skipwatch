@@ -2,7 +2,7 @@
 
 Follow these stages in order. Each stage either finishes, degrades and continues, or stops
 with one message. The user is asked something only at the review prompt (stage 8) and at
-the two named exceptions listed under the conventions below. `## Resume` at the end
+the one named exception listed under the conventions below. `## Resume` at the end
 continues an interrupted run.
 
 ## Placeholders
@@ -30,10 +30,10 @@ continues an interrupted run.
   elapsed seconds (R-UX-2), for example
   `Sampling frames: 21 kept from 1:00 of video (4s)`. One line per stage. No tables, no
   multi-line status, no echo of engine output.
-- No question is asked except the review prompt (R-UX-1), with two named exceptions,
-  each asked at most once and never under `--yes`: the long-video question (stage 3,
-  step 2) and the transcription question when there is no transcript source (stage 3,
-  step 4). Flags decide everything else.
+- No question is asked except the review prompt (R-UX-1), with one named exception,
+  asked at most once and never under `--yes`: the long-video question (stage 3, step 2,
+  sanctioned by spec 3.4). A missing transcript source is never a mid-run question; its
+  offers wait for the review screen. Flags decide everything else.
 - A missing optional dependency is never fatal: degrade and say so on the review screen
   (R-TIER-2). Keep a list of degradations as you go; stage 8 prints them.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.
@@ -178,28 +178,16 @@ Run, each timed as above:
    - Print `Transcript: <n> segments from <captions|mlx-whisper|faster-whisper> (<n>s)`.
      The engine reuses a cached transcript under 7 days old for the same source (R-TR-3);
      its log line then says so, and so does your progress line.
-   - Exit 8 (no captions and no local Whisper): offer the install command the engine
-     printed, and, only for keys listed under `cloud-keys` in `doctor.json`, the matching
-     cloud provider (`OPENAI_API_KEY` is OpenAI `openai`, `GROQ_API_KEY` is Groq `groq`,
-     `DEEPGRAM_API_KEY` is Deepgram `deepgram`). Ask once, one line:
-     `No captions and no local Whisper. Install it (<command>), continue from frames only, or send the audio to <Provider> for transcription? [install / frames only / <Provider>]`
-     - install: Run it only after the user accepts it (R-DOC-1): the exact command,
-       timed, output to `<W>/logs/whisper-install.log`. On rc 0 run this step again once.
-       If the install or the second transcribe fails, show the last log line and continue
-       from frames only.
-     - `<Provider>`: R-TR-2. Audio goes to a cloud provider only after the user said yes
-       to that provider by name. Then run
-       `<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>` with exactly the
-       backend the user named, never `auto`. Exit 8 (key rejected) or 3 (request failed):
-       show the engine's line and continue from frames only.
-     - frames only, cancel or anything else: continue from frames only.
-     - `--yes` is never consent to send audio to a cloud provider. Under `--yes` do not
-       ask: continue from frames only.
-     Continuing from frames only means: record
+   - Exit 8 (no captions and no local Whisper): do not ask anything now (R-UX-1);
+     continue from frames only (R-TIER-2): record
      `no transcript: no captions and no Whisper backend (install: <command from the engine message>)`,
      print `Transcript: none, continuing from frames only (<n>s)`, and run frames with
-     `--dense` in the next step (R-TIER-2).
-   - Exit 7: same degradation without the question, reason
+     `--dense` in the next step. Also note, for the review screen, the install command
+     the engine printed and each key listed under `cloud-keys` in `doctor.json`: the
+     review screen offers `install Whisper and re-run` and, per key,
+     `transcribe with <Provider> and re-run` (review-screen.md, "Transcription offers").
+     `--yes` never picks one of these options.
+   - Exit 7: the same frames-only degradation without an offer, reason
      `captions file had no usable text`.
    - Silent video: when `<W>/transcript.json` has `"silent": true` (check with
      `grep -Eq '"silent": ?true' "<W>/transcript.json" && echo silent`), print
