@@ -47,6 +47,7 @@ jobs:
       - run: uv run pytest -m "not pipeline and not live" --cov --cov-report=term --cov-fail-under=85
 
   # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
+  # Whisper tests run in the whisper job, which has the extras and the models.
   pipeline:
     strategy:
       fail-fast: false
@@ -74,7 +75,7 @@ jobs:
             echo "no system ffmpeg; fetching static-ffmpeg"
             uv run python -c "from static_ffmpeg import run; print(run.get_or_fetch_platform_executables_else_raise())"
           fi
-      - run: uv run pytest -m pipeline -v
+      - run: uv run pytest -m "pipeline and not whisper and not live" -v
 
   plugin-validate:
     runs-on: ubuntu-latest
