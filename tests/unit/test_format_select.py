@@ -186,3 +186,22 @@ def test_recorded_fixture_format_choice_is_pinned(name, spec):
     """Every recorded platform fixture keeps its choice when the format rules change."""
     info = json.loads((REC.parent / f"{name}.info.json").read_text())
     assert select_format(info) == spec
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_without_duration_or_sizes_the_lowest_bitrate_wins_in_any_order(reverse):
+    """Instagram gives no duration and no sizes: every rendition shares one duration, so bitrate
+    ranks them. List order must not decide (reversed, G4 used to pick the 1080 rendition)."""
+    info = json.loads((REC.parent / "instagram" / "g4-gh-secure.info.json").read_text())
+    if reverse:
+        info["formats"] = info["formats"][::-1]
+    assert select_format(info) == "dash-18630250069054910v+dash-18630246724054910a"
+
+
+def test_without_duration_or_bitrate_the_lower_rendition_wins():
+    formats = [f("hi", 1080, 1920, None), f("lo", 720, 1280, None)]
+    assert select_format({"duration": None, "formats": formats}) == "lo"
+    formats = [dict(f("hi", 1080, 1920, None), filesize_approx=9e6), f("lo", 720, 1280, None)]
+    formats[1]["filesize_approx"] = 5e6
+    assert select_format({"duration": None, "formats": formats[::-1]}) == "lo"
+    assert select_format({"duration": None, "formats": formats}) == "lo"

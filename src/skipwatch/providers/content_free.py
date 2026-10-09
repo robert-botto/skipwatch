@@ -204,6 +204,13 @@ def _size(fmt: dict[str, Any], duration: float | None) -> float:
     return math.inf
 
 
+def _rank(fmt: dict[str, Any], duration: float | None) -> tuple[float, float, int]:
+    """Smaller is cheaper. Without a duration or sizes (Instagram) every _size is inf, so the
+    bitrate decides (renditions share one duration), then the short side; never list order."""
+    tbr = fmt.get("tbr")
+    return _size(fmt, duration), float(tbr) if tbr else math.inf, _short_side(fmt) or 0
+
+
 def _usable(fmt: dict[str, Any]) -> bool:
     return not fmt.get("has_drm") and fmt.get("format_id") is not None
 
@@ -212,11 +219,11 @@ def _pick_video(videos: list[dict[str, Any]], cap: int, duration: float | None) 
     low = min(MIN_SHORT_SIDE, cap)
     window = [f for f in videos if low <= (_short_side(f) or 0) <= cap]
     if window:
-        return min(window, key=lambda f: _size(f, duration))
+        return min(window, key=lambda f: _rank(f, duration))
     below = [f for f in videos if (_short_side(f) or 0) < low]
     if below:
-        return max(below, key=lambda f: (_short_side(f) or 0, -_size(f, duration)))
-    return min(videos, key=lambda f: (_short_side(f) or 0, _size(f, duration)))
+        return min(below, key=lambda f: (-(_short_side(f) or 0), *_rank(f, duration)))
+    return min(videos, key=lambda f: (_short_side(f) or 0, *_rank(f, duration)))
 
 
 def _primary_lang(value: Any) -> str | None:
@@ -237,7 +244,7 @@ def _pick_audio(
         if (lang and _primary_lang(f.get("language")) == lang)
         or "original" in str(f.get("format_note") or "").casefold()
     ]
-    return min(original or audios, key=lambda f: _size(f, duration))
+    return min(original or audios, key=lambda f: _rank(f, duration))
 
 
 def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
