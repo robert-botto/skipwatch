@@ -34,6 +34,19 @@ continues an interrupted run.
   asked at most once and never under `--yes`: the long-video question (stage 3, step 2,
   sanctioned by spec 3.4). A missing transcript source is never a mid-run question; its
   offers wait for the review screen. Flags decide everything else.
+- Long stages and the Bash timeout: the Bash tool stops a call after 120 s by default.
+  Run ingest, transcribe, frames and any install with the Bash tool's `timeout: 600000`.
+  When the expected stage time exceeds 500 s, run that stage with `run_in_background`.
+  The expected time is probe's `estimated_run_s`, or for transcribe the duration times
+  the backend factor (mlx 0.25, faster 0.6, cloud about 0.1, captions about 0). Then
+  poll `<W>/stages.json` every 30 to 60 s, one short Bash call per poll and never a sleep
+  longer than the call's timeout, until that stage is `done` or `failed`:
+
+      sleep 45; tr -d ' \n' < "<W>/stages.json" | grep -o '"transcribe":{"status":"[a-z]*"'
+
+  Each poll prints one progress line naming the stage and the elapsed seconds, for
+  example `Transcribing: still running (240s)` (R-UX-2). When the background command
+  ends, take its `rc=` and log tail as for any stage.
 - A missing optional dependency is never fatal: degrade and say so on the review screen
   (R-TIER-2). Keep a list of degradations as you go; stage 8 prints them.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.

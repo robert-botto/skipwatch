@@ -778,6 +778,18 @@ def test_questions_allowed_in_a_run_are_listed():
     assert "one named exception" in skill
 
 
+def test_long_stages_avoid_the_bash_timeout():
+    text = flat(REFS / "run-protocol.md")
+    assert "120 s" in text  # the Bash tool's default timeout
+    assert "timeout: 600000" in text
+    assert "run that stage with `run_in_background`" in text
+    assert "exceeds 500 s" in text
+    for factor in ("mlx 0.25", "faster 0.6", "cloud about 0.1", "captions about 0"):
+        assert factor in text, factor
+    assert "poll `<W>/stages.json` every 30 to 60 s" in text
+    assert "Each poll prints one progress line" in text  # R-UX-2
+
+
 def test_thorough_uses_the_large_whisper_model():
     text = flat(REFS / "run-protocol.md")
     assert "--model large-v3-turbo" in text  # 3.4 faster-whisper under --thorough

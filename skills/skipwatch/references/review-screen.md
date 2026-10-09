@@ -89,7 +89,8 @@ under `--yes` a skill that qualifies installs from frames only, and the Unverifi
 still names the install command.
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
-  after the user picks it (R-DOC-1), output to `<W>/logs/whisper-install.log`. On rc 0,
+  after the user picks it (R-DOC-1), with the Bash tool's `timeout: 600000`, output to
+  `<W>/logs/whisper-install.log`. On rc 0,
   run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
   the `## Resume` section of `run-protocol.md` says; frames, readers, draft and check run
   again and this screen is shown anew. On any other rc, show the last log line and the

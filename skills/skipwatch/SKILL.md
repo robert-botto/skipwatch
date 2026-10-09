@@ -119,6 +119,8 @@ transcribe, frames, plan, read, outline, draft, check, review, install.
 - Cloud transcription (R-TR-2): audio goes to OpenAI, Groq or Deepgram only after the
   user said yes to that provider by name, and then only with `--backend <name>`. `--yes`
   is never that consent.
+- Long stages run with the Bash tool's `timeout: 600000`, or in the background with
+  polling past 500 s (run-protocol.md conventions).
 - Never fail a run for a missing optional dependency. Degrade, keep going, and say so on
   the review screen (R-TIER-2). Example: no captions, no Whisper and the install declined
   means frames only, with the install command listed under Unverified.
