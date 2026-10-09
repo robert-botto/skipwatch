@@ -22,7 +22,7 @@ Install to <target>? [yes / show draft / test it / rename / cancel]
 ```
 Skill ready for review: run-skipdemo-tutorial
   Triggers: "initialise a skipdemo project", "run the skipdemo tutorial", "set up skipdemo with a prompt"
-  Steps: 5 (1 spoken, 4 on-screen, 0 written, 0 inferred), 0 gaps
+  Steps: 4 (1 spoken, 3 on-screen, 0 written, 0 inferred), 0 gaps
   Unverified: none
   Safety flags: none
   Confidence: medium (critic not run)
