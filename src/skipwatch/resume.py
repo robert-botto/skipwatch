@@ -4,11 +4,13 @@ A stage left `running` by a killed process counts as incomplete. Read-only: noth
 writes to the work folder.
 """
 
+import importlib.util
 import re
 from pathlib import Path
 
 from pydantic import ValidationError
 
+from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, ResumeResult, RunFile, StageName, StagesFile
 from skipwatch.workdir import STAGE_ORDER, WorkDir, read_model
@@ -49,6 +51,30 @@ def _media_present(work: Path) -> bool:
     return (path if path.is_absolute() else work / path).is_file()
 
 
+def _export_command_exists() -> bool:
+    return importlib.util.find_spec("skipwatch.commands.export") is not None
+
+
+def _exports_enabled() -> bool:
+    """M6 seam: export is a stage to resume only once its command exists and is enabled."""
+    if not _export_command_exists():
+        return False
+    try:
+        exports = load_config().exports
+    except (OSError, ValueError):
+        return False
+    return exports.mem0.enabled or exports.notes.enabled
+
+
+def next_stage(work: Path) -> StageName | None:
+    """The first stage not done; a run whose only missing stage is export is complete
+    unless exports are on, since export never runs before M6."""
+    stage = WorkDir(work).first_incomplete()
+    if stage == "export" and not _exports_enabled():
+        return None
+    return stage
+
+
 def resume_info(work: Path) -> ResumeResult:
     stages = _stages(work).stages
     completed: list[StageName] = [
@@ -56,7 +82,7 @@ def resume_info(work: Path) -> ResumeResult:
     ]
     return ResumeResult(
         work=str(work),
-        next_stage=WorkDir(work).first_incomplete(),
+        next_stage=next_stage(work),
         completed=completed,
         run=_run(work),
         media_present=_media_present(work),
@@ -71,7 +97,7 @@ def _resumable(work: Path) -> bool:
     review = stages.get("review")
     if review is not None and review.status == "done":
         return False
-    return WorkDir(work).first_incomplete() is not None
+    return next_stage(work) is not None
 
 
 def newest_incomplete(home: Path) -> Path | None:

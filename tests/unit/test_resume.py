@@ -184,3 +184,53 @@ def test_resume_of_a_complete_folder_says_so(tmp_path):
     r = resume(str(w.path), "--json")
     assert r.exit_code == 0 and json.loads(r.stdout)["next_stage"] is None
     assert f"Resume: {w.path} is complete (12 stages done)" in r.stderr
+
+
+FINISHED = (
+    "detect",
+    "ingest",
+    "transcribe",
+    "frames",
+    "plan",
+    "read",
+    "distill",
+    "critique",
+    "check",
+    "review",
+    "install",
+)
+
+
+def test_finished_run_is_complete_without_the_export_feature(tmp_path, sw_home):
+    # export never runs before M6, so a run whose install is done has nothing left
+    w = work_at(tmp_path / "w", done=FINISHED)
+    r = resume_info(w.path)
+    assert r.next_stage is None and r.completed[-1] == "install"
+    out = resume(str(w.path), "--json")
+    assert out.exit_code == 0 and json.loads(out.stdout)["next_stage"] is None
+
+
+def test_install_not_done_is_still_next(tmp_path, sw_home):
+    w = work_at(tmp_path / "w", done=FINISHED[:-1])
+    assert resume_info(w.path).next_stage == "install"
+
+
+def test_export_is_next_only_when_the_feature_exists_and_is_enabled(tmp_path, sw_home, monkeypatch):
+    import skipwatch.resume as resume_mod
+
+    w = work_at(tmp_path / "w", done=FINISHED)
+    sw_home.mkdir(parents=True, exist_ok=True)
+    (sw_home / "config.toml").write_text("[exports.notes]\nenabled = true\n")
+    assert resume_info(w.path).next_stage is None  # enabled, but no export command yet
+    monkeypatch.setattr(resume_mod, "_export_command_exists", lambda: True)
+    assert resume_info(w.path).next_stage == "export"  # the M6 seam
+    (sw_home / "config.toml").write_text("[exports.notes]\nenabled = false\n")
+    assert resume_info(w.path).next_stage is None
+
+
+def test_newest_incomplete_skips_a_finished_run(sw_home):
+    older = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",))
+    newer = work_at(sw_home / "work" / "demo-20261005-090000", done=FINISHED)
+    newer.mark("review", "running")  # even with review re-opened, install done ends it
+    newer.mark("review", "done")
+    assert newest_incomplete(sw_home) == older.path

@@ -8,6 +8,7 @@ Skill ready for review: <name>
   Triggers: "<t1>", "<t2>", "<t3>"
   Steps: <n> (<spoken> spoken, <on_screen> on-screen, <written> written, <inferred> inferred), <gaps> gaps
   Unverified: <list or "none">
+  Unread frames: <none | frame ids (reason)>
   Safety flags: <none | kind (severity) at step N, ...>
   Confidence: <high|medium|low> (<reason when not high, e.g. "critic not run">)
   Source: "<title>" by <author or "local file">, <date or "undated">
@@ -24,6 +25,7 @@ Skill ready for review: run-skipdemo-tutorial
   Triggers: "initialise a skipdemo project", "run the skipdemo tutorial", "set up skipdemo with a prompt"
   Steps: 4 (1 spoken, 3 on-screen, 0 written, 0 inferred), 0 gaps
   Unverified: none
+  Unread frames: none
   Safety flags: none
   Confidence: medium (critic not run)
   Source: "tutorial-60s" by local file, undated
@@ -37,10 +39,20 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 
 - **Triggers:** the first three quoted phrasings in the description.
 - **Steps and gaps:** `counts` in `W/check-report.json`.
-- **Unverified:** each inferred step as `step N (<reason>)`, each unread frame range, and
+- **Unverified:** each inferred step as `step N (<reason>)` and
   each degradation from the run (for example `no transcript: Whisper not installed
   (install: <command>)`, or `work folder moved into the project (<path>): home folder
-  not writable`). `none` only when all three lists are empty.
+  not writable`). `none` only when both lists are empty.
+- **Unread frames:** the frame ids a reader failed twice to cover (run-protocol stage
+  4), with the reason, for example `f006032 (reader failed twice)`; `none` when every
+  frame was read. Unread frames are not gaps (section 15): they are not in the gap count
+  and never become `GAP:` lines. Unread frames never block `--yes`; the screen says so
+  and the confidence reason says `frames unread`. A frame whose `dhash` differs from both
+  neighbours shows `may hold a step` in its reason. The exception is an unread cue frame
+  (`reason` `cue` in `frames.json`): it may hold the only copy of a command, so it is a
+  gap line in the skill,
+  `GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`, counts
+  in `gaps` and blocks `--yes`, and it is not repeated on this line.
 - **Safety flags:** the safety result's `flags` in `check-report.json`, as
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
@@ -124,6 +136,10 @@ still names the install command.
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
   staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
   then show the whole screen again with the new target.
-- **cancel:** print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
+- **cancel:** mark review done at once, so the cancelled run is not offered for resume:
+
+      <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
+
+  Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
   installed and `W` is kept.
 - Anything else: re-show the prompt line once with the five answers.

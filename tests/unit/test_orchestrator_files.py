@@ -192,6 +192,7 @@ REVIEW_LINES = [  # (prefix, full pattern for the filled-in example), in 4.3 ord
         r"  Steps: \d+ \(\d+ spoken, \d+ on-screen, \d+ written, \d+ inferred\), \d+ gaps",
     ),
     ("  Unverified: ", r"  Unverified: .+"),
+    ("  Unread frames: ", r"  Unread frames: (none|f\d+(, f\d+)* \(.+\))"),
     ("  Safety flags: ", r"  Safety flags: .+"),
     ("  Confidence: ", r"  Confidence: (high|medium \(.+\)|low \(.+\))"),
     ("  Source: ", r'  Source: ".+" by .+, .+'),
@@ -940,3 +941,141 @@ def test_cloud_transcript_rebuilds_like_the_whisper_path():
     assert "remove the `no transcript` entry from Unverified" in review
     assert "outline and draft rebuilt from the new transcript" in review
     assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
+
+
+# ---- G1 golden run fixes ----
+
+
+def test_redispatch_only_the_missing_frames_and_merge():
+    text = flat(REFS / "run-protocol.md")
+    # a reader that skipped one frame of 20 gets those frames read again, not the batch
+    assert "dispatch one reader for just those frame ids" in text
+    assert "`notes/batch-02.retry.json`" in text
+    assert '<ENGINE> merge-notes --work "<W>" --batch <id>' in text
+    assert _before(text, "<ENGINE> merge-notes", "run validate-notes again")
+    assert "Never re-dispatch the whole batch for a few missing frames" in text
+    assert "re-dispatch the whole batch once with the same prompt" in text
+    assert "A missing or malformed file gets re-dispatched once, with the same prompt." not in text
+
+
+def test_unread_frames_are_reported_not_counted_as_gaps():
+    # spec 15: unread frames are said on the review screen; they are not gaps (G1 run)
+    review = flat(REFS / "review-screen.md")
+    assert "**Unread frames:**" in review
+    assert "`none` when every frame was read" in review
+    assert "Unread frames are not gaps" in review
+    assert "Unread frames never block `--yes`" in review
+    assert "each unread frame range" not in review  # no longer under Unverified
+    text = flat(REFS / "run-protocol.md")
+    assert "Unread frames are not gaps" in text
+    assert "never write a `GAP:` line for a frame that is only unread" in text
+    assert "unread frames do not count" in text  # the --yes gate in stage 8
+
+
+def test_distill_rules_list_unread_frames_without_a_gap_line():
+    from skipwatch.checks.runner import counts_for
+    from skipwatch.skillmd import parse
+
+    text = flat(REFS / "distill-rules.md")
+    assert "Frames the readers could not read are not a gap" in text
+    assert "unread (reader failed twice)`" not in text.split("not a gap", 1)[0]
+    example = re.search(r"`(Unread frames: f\d+ \(reader failed twice\))`", text)
+    assert example, "distill-rules needs the exact unread-frames line"
+    # the line the rules prescribe must not count as a gap in the engine's check
+    skill = f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {example.group(1)}\n"
+    assert counts_for(parse(skill)).gaps == 0
+    assert counts_for(parse(skill.replace("Unread frames:", "GAP: frames"))).gaps == 1
+
+
+def test_frame_reader_writes_one_entry_per_listed_frame():
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "exactly one entry per listed frame id, in the order given" in reader
+    assert '`"note": "same as <id>"`' in reader and "empty `verbatim`" in reader
+    assert "count your entries against the list" in reader
+    assert _before(reader, "count your entries against the list", "Write to the output path")
+
+
+def test_claude_stages_are_marked_in_stages_json():
+    text = flat(REFS / "run-protocol.md")
+
+    def mark(stage, status):
+        return f'<ENGINE> mark --work "<W>" --stage {stage} --status {status}'
+
+    for stage in ("read", "distill", "review"):
+        assert mark(stage, "running") in text, stage
+        assert mark(stage, "done") in text, stage
+        assert _before(text, mark(stage, "running"), mark(stage, "done")), stage
+    assert mark("critique", "done") in text  # no critic agent yet; resume must move past it
+    assert "`--status failed`" in text
+    # read is marked before the readers go out, and done only after validation
+    assert _before(text, mark("read", "running"), "all in one message")
+    assert _before(text, "<ENGINE> validate-notes", mark("read", "done"))
+    assert _before(text, mark("read", "done"), mark("distill", "running"))
+    assert _before(text, mark("distill", "done"), "<ENGINE> check")
+    assert _before(text, mark("review", "running"), "## Stage 9")
+
+
+def test_unread_cue_frames_stay_gaps_and_others_are_informational():
+    from skipwatch.checks.runner import counts_for
+    from skipwatch.skillmd import parse
+
+    # a cue frame was kept because the narration said "paste this" or "type": it may hold
+    # the only verbatim copy of a command, so it stays a gap and blocks --yes
+    cue_line = 'GAP: frame f006032 at 01:40:32 was not read (cue: "now paste this")'
+    other_line = "Unread frames: f006040 (reader failed twice; may hold a step)"
+    for path in (REFS / "distill-rules.md", REFS / "review-screen.md"):
+        text = flat(path)
+        assert (
+            'GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")' in text
+        ), path
+        assert "may hold a step" in text, path
+    rules = flat(REFS / "distill-rules.md")
+    assert "`reason` is `cue`" in rules
+    assert "differs from both neighbours" in rules
+    assert "unread frames do not count, except unread cue frames" in flat(REFS / "run-protocol.md")
+
+    def gaps(line):
+        return counts_for(parse(f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {line}\n")).gaps
+
+    assert gaps(cue_line) == 1  # blocks --yes
+    assert gaps(other_line) == 0  # informational only
+
+
+REVIEW_DONE = '<ENGINE> mark --work "<W>" --stage review --status done'
+
+
+def test_review_done_only_after_install_or_cancel():
+    # a failed or interrupted install must stay resumable, so yes waits for install exit 0
+    text = flat(REFS / "run-protocol.md")
+    assert "mark review done only after install exits 0" in text
+    assert _before(text, '<ENGINE> install "<W>/staging/<name>"', REVIEW_DONE)
+    assert "before stage 9, so a finished" not in text
+    assert "On cancel, mark review done at once" in text
+    review = flat(REFS / "review-screen.md")
+    cancel = review.split("**cancel:**", 1)[1].split("- Anything else", 1)[0]
+    assert REVIEW_DONE in cancel
+
+
+def test_review_running_marked_when_the_screen_is_printed():
+    # the review stage's timing must not include check (stage 7)
+    text = flat(REFS / "run-protocol.md")
+    running = '<ENGINE> mark --work "<W>" --stage review --status running'
+    assert _before(text, "Print the review screen in the exact format", running)
+    assert "as you print the review screen" in text
+    stage8 = read(REFS / "run-protocol.md").split("## Stage 8: review", 1)[1]
+    assert not stage8.lstrip().startswith("<ENGINE> mark")
+
+
+def test_install_is_marked_done_after_it_succeeds():
+    text = flat(REFS / "run-protocol.md")
+    install_done = '<ENGINE> mark --work "<W>" --stage install --status done'
+    assert _before(text, '<ENGINE> install "<W>/staging/<name>"', install_done)
+    assert _before(text, install_done, "Then print two lines")
+
+
+def test_unconditional_critique_mark_goes_when_the_critic_arrives():
+    text = read(REFS / "run-protocol.md")
+    critique_done = '<ENGINE> mark --work "<W>" --stage critique --status done'
+    assert "# no critic before M5; the M5 critic package replaces this mark" in text
+    # once a skill-critic dispatch exists, the critique mark must be conditional or gone
+    assert not ("skill-critic" in text and critique_done in text)
