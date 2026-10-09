@@ -23,10 +23,15 @@ def test_trim_cuts_track_and_format_urls_to_a_scrubbed_host():
     info = {
         "id": "x",
         "cookies": "SID=1",
-        "formats": [{"format_id": "1", "url": "https://rr5---sn-abcd1234.googlevideo.com/v?a=1",
-                     "http_headers": {"Cookie": "a"}}],
+        "formats": [
+            {
+                "format_id": "1",
+                "url": "https://rr5---sn-abcd1234.googlevideo.com/v?a=1",
+                "http_headers": {"Cookie": "a"},
+            }
+        ],
         "automatic_captions": {"en": [{"ext": "vtt", "url": "https://m.g.com/ip/198.51.100.23/x"}]},
-    }  # fmt: skip
+    }
     out = rf.trim(info)
     assert "cookies" not in out and "http_headers" not in out["formats"][0]
     assert out["formats"][0]["url"] == "https://rr5---sn-SCRUBBED.googlevideo.com"
