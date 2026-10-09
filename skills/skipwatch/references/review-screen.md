@@ -78,6 +78,8 @@ When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 of
 `run-protocol.md`), the run went on from frames only and the offers wait here, never
 mid-run (R-UX-1). The prompt line gains them at the end:
 
+- No cloud key in `doctor.json`:
+  `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run]`
 - Each key listed under `cloud-keys` in `doctor.json` adds one option, naming the
   provider (`OPENAI_API_KEY` is OpenAI `openai`, `GROQ_API_KEY` is Groq `groq`,
   `DEEPGRAM_API_KEY` is Deepgram `deepgram`):

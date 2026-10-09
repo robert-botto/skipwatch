@@ -756,6 +756,11 @@ def test_exit_8_degrades_and_offers_on_the_review_screen():
     assert "continue from frames only" in text and "`--dense`" in text  # R-TIER-2
     review = flat(REFS / "review-screen.md")
     assert "install Whisper and re-run" in review
+    # N2: the variant with no cloud key offers no provider
+    assert (
+        "Install to <target>? [yes / show draft / test it / rename / cancel / "
+        "install Whisper and re-run]" in review
+    )
     # never install without consent (R-DOC-1)
     assert "Run it only after the user picks it" in review
     assert _before(review, "Run it only after the user picks it", "timeout: 600000")
