@@ -62,6 +62,25 @@ def test_caption_choice_never_takes_a_machine_translation():
     assert choose_caption_track(info) is None
 
 
+def test_caption_choice_unknown_language_takes_the_single_orig_track():
+    info = {
+        "language": None,
+        "subtitles": {},
+        "automatic_captions": {"en": [{}], "de-orig": [{}], "de": [{}]},
+    }
+    assert choose_caption_track(info) == ("de-orig", "auto")
+
+
+def test_caption_choice_unknown_language_with_several_orig_tracks_prefers_english():
+    auto = {"en": [{}], "en-orig": [{}], "de-orig": [{}]}
+    assert choose_caption_track(
+        {"language": None, "subtitles": {}, "automatic_captions": auto}
+    ) == (
+        "en-orig",
+        "auto",
+    )
+
+
 # ---- bundles from recorded fixtures (no network: content_free is monkeypatched) ----
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "youtube"

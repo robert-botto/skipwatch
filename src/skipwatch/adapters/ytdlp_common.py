@@ -36,7 +36,8 @@ def choose_caption_track(
     """Manual first, then the original-language auto track; never a machine translation.
 
     Manual: a `prefer` language (en, en-US, ...), else the video's language, else the first.
-    Auto: `<language>-orig`, then `prefer` only when the video is in that language (or its
+    Auto: `<language>-orig` (or, when the language is unknown, the only `*-orig` track), then
+    `prefer` only when the video is in that language (or its
     language is unknown), then the video's own language.
     """
     language = info.get("language")
@@ -53,6 +54,12 @@ def choose_caption_track(
     candidates = []
     if language:
         candidates += [f"{language}-orig", f"{_primary(language)}-orig"]
+    else:
+        # Unknown language: a single original track is the spoken language, so it beats an
+        # English track that may be a machine translation.
+        originals = [k for k in auto if k.endswith("-orig")]
+        if len(originals) == 1:
+            candidates.append(originals[0])
     if language is None or _primary(language) == prefer:
         candidates += [f"{prefer}-orig", prefer]
     if language:
