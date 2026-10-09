@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths-ignore: ["docs/**"]
   pull_request:
+    # labeled: adding run-whisper to an open PR starts the whisper job without a new push.
+    types: [opened, synchronize, reopened, labeled]
     paths-ignore: ["docs/**"]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -44,9 +47,10 @@ jobs:
       - run: uv run pyright
       - run: uv run python scripts/export_schemas.py --check
       - run: uv run python scripts/check_versions.py
-      - run: uv run pytest -m "not pipeline" --cov --cov-report=term --cov-fail-under=85
+      - run: uv run pytest -m "not pipeline and not live" --cov --cov-report=term --cov-fail-under=85
 
   # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
+  # Whisper tests run in the whisper job, which has the extras and the models.
   pipeline:
     strategy:
       fail-fast: false
@@ -74,7 +78,67 @@ jobs:
             echo "no system ffmpeg; fetching static-ffmpeg"
             uv run python -c "from static_ffmpeg import run; print(run.get_or_fetch_platform_executables_else_raise())"
           fi
-      - run: uv run pytest -m pipeline -v
+      - run: uv run pytest -m "pipeline and not whisper and not live" -v
+
+  # Spec 8.4 and 11.2: local Whisper end to end. The tests run offline (HF_HUB_OFFLINE), so the
+  # models are fetched in an earlier step and cached. tests/pipeline/test_whisper_pipeline.py
+  # pins the default models: faster-whisper small (about 480 MB) everywhere, and mlx-whisper
+  # large-v3-turbo (about 1.6 GB) on Apple Silicon only.
+  # macOS bills 10x and a cold cache downloads about 2 GB, so both legs run only on push to
+  # main, on workflow_dispatch, and on pull requests labelled run-whisper.
+  whisper:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-whisper')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            extras: --extra whisper
+            models: faster-whisper-small
+            passed: 3  # the two mlx cases skip: mlx needs Apple Silicon
+          - os: macos-latest
+            extras: --extra whisper --extra mlx
+            models: faster-whisper-small mlx-whisper-large-v3-turbo
+            passed: 5
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --dev ${{ matrix.extras }}
+      # The tests skip without ffmpeg on PATH, so put static-ffmpeg there when the runner has none.
+      - name: ffmpeg
+        run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+            echo "system ffmpeg: $(command -v ffmpeg)"
+          else
+            echo "no system ffmpeg; fetching static-ffmpeg"
+            uv run python -c "import os; from static_ffmpeg import run; print(os.path.dirname(run.get_or_fetch_platform_executables_else_raise()[0]))" >> "$GITHUB_PATH"
+          fi
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-${{ runner.os }}-${{ runner.arch }}-${{ matrix.models }}
+      - name: Whisper models (network allowed here only)
+        run: |
+          uv run python -c "from faster_whisper.utils import download_model; print(download_model('small'))"
+          if [[ "${{ matrix.models }}" == *mlx* ]]; then
+            uv run python -c "from huggingface_hub import snapshot_download; print(snapshot_download('mlx-community/whisper-large-v3-turbo'))"
+          fi
+      # A skipped test is not a pass: require the exact count this OS can run.
+      - name: pytest (pipeline and whisper)
+        run: |
+          set -o pipefail
+          uv run pytest -m "pipeline and whisper and not live" -v -rs | tee whisper.log
+          grep -Eq "[^0-9]${{ matrix.passed }} passed" whisper.log || {
+            echo "::error::expected ${{ matrix.passed }} Whisper tests to pass"; exit 1; }
 
   plugin-validate:
     runs-on: ubuntu-latest
