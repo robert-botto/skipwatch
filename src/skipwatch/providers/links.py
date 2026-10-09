@@ -195,6 +195,9 @@ def fetch_link(url: str, calls: list[ProviderCall] | None = None) -> LinkContext
     except Refused as exc:
         _log(calls, "link.get", url, started, str(exc))
         return None
+    except Exception as exc:  # best-effort context: no link failure ever ends ingest
+        _log(calls, "link.get", url, started, type(exc).__name__)
+        return None
     _log(calls, "link.get", url, started, None)
     return got
 
@@ -216,8 +219,11 @@ def resolve(url: str, calls: list[ProviderCall] | None = None) -> str | None:
         _check(url)
         response = requests.head(url, timeout=TIMEOUT_S, allow_redirects=False)
         response.close()
-    except (Refused, requests.RequestException) as exc:
-        _log(calls, "link.resolve", url, started, str(exc) or type(exc).__name__)
+    except Refused as exc:
+        _log(calls, "link.resolve", url, started, str(exc))
+        return None
+    except Exception as exc:  # best-effort, as fetch_link
+        _log(calls, "link.resolve", url, started, type(exc).__name__)
         return None
     location = response.headers.get("Location")
     if response.status_code not in REDIRECT_CODES or not location:

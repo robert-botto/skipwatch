@@ -299,3 +299,16 @@ def test_html_to_text_drops_scripts_and_keeps_headings():
 
 def test_html_to_text_without_title():
     assert htmltext.html_to_text("<p>just text</p>") == (None, "just text")
+
+
+def test_link_fetching_never_raises(net, monkeypatch):
+    """Links are best-effort context: any failure is logged and the link left out."""
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("anything at all")
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", boom)
+    calls: list[ProviderCall] = []
+    assert links.fetch_link("https://i.example.com/", calls) is None
+    assert links.resolve("https://t.co/abc", calls) is None
+    assert [(c.ok, c.error) for c in calls] == [(False, "RuntimeError"), (False, "RuntimeError")]
