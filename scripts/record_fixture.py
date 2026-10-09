@@ -4,8 +4,8 @@ Live: touches the real network, so it refuses to run unless SKIPWATCH_LIVE=1. Me
 captions only, never media; never cookies. The output is passed through scrub_fixture.scrub and
 cut down to the keys adapters read. Caption track URLs are cut to scheme and host before the
 scrub: YouTube's HLS timedtext URLs carry the caller's IP percent-encoded inside the path
-(`ip%3D198.51.100.23`), which the scrubber's word-boundary IP pattern does not see. As a last check
-the percent-decoded output must hold no IPv4 literal other than 0.0.0.0. Text is written as
+(`ip%3D198.51.100.23`); the scrubber decodes those too, and this is a second layer. As a last
+check the percent-decoded output must hold no IPv4 literal other than 0.0.0.0. Text is written as
 ASCII JSON (json3 captions are re-serialised the same way) so no em dash character lands in a
 file; a vtt or srt track has it replaced by a hyphen. Caption text is scrubbed too. A human
 still reads every recorded file before commit.
