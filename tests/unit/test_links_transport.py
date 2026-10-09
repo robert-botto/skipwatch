@@ -491,3 +491,34 @@ def test_tls_handshake_trickle_is_cut_by_the_watchdog(tls_server, monkeypatch):
         assert call(f"https://tls.test:{port}/", calls) is None
         assert time.monotonic() - started < 2.5, call.__name__
         assert calls[0].error and "deadline" in calls[0].error
+
+
+class PartialHeaders(socketserver.BaseRequestHandler):
+    """A complete-looking status line and type at once, then one header trickled byte by
+    byte: when the watchdog cuts it, http.client may take the partial headers as a 200."""
+
+    def handle(self):
+        sock = self.request
+        sock.recv(4096)
+        try:
+            sock.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n")
+            for byte in b"X-Pad: " + b"a" * 60:
+                sock.sendall(bytes([byte]))
+                time.sleep(0.2)
+        except OSError:
+            pass
+
+
+def test_a_reply_cut_by_the_watchdog_is_never_a_page(short_deadline):
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), PartialHeaders)
+    srv.daemon_threads = True
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        port = srv.server_address[1]
+        for call in (links.fetch_link, links.resolve):
+            calls: list[ProviderCall] = []
+            assert call(f"http://hdr.test:{port}/", calls) is None
+            assert calls[0].error == links._deadline_message(), call.__name__
+    finally:
+        srv.shutdown()
+        srv.server_close()

@@ -83,11 +83,23 @@ def _timeout(deadline: float) -> float:
     return min(TIMEOUT_S, left)
 
 
+WATCHDOG_SLACK_S = 0.05  # timer granularity: this close to the deadline, the watchdog fired
+
+
+def _expired(deadline: float | None) -> bool:
+    return deadline is not None and time.monotonic() >= deadline - WATCHDOG_SLACK_S
+
+
+def _in_time(deadline: float) -> None:
+    """Refuse a reply that completed only because the watchdog cut the socket: http.client
+    can take partial headers as a 200 with an empty body."""
+    if _expired(deadline):
+        raise Refused(_deadline_message())
+
+
 def _failure(exc: Exception, deadline: float | None) -> str:
     """A failure past the deadline is the watchdog's doing: say so, not "ConnectionError"."""
-    if deadline is not None and time.monotonic() >= deadline - 0.05:  # timer granularity
-        return _deadline_message()
-    return type(exc).__name__
+    return _deadline_message() if _expired(deadline) else type(exc).__name__
 
 
 def _shut(sock: socket.socket) -> None:
@@ -368,6 +380,7 @@ def _fetch(url: str, deadline: float) -> LinkContext:
     except requests.RequestException as exc:
         raise Refused(_failure(exc, deadline)) from exc
     try:
+        _in_time(deadline)
         if response.status_code != 200:
             raise Refused(f"HTTP {response.status_code}")
         content_type = response.headers.get("Content-Type") or ""
@@ -378,6 +391,7 @@ def _fetch(url: str, deadline: float) -> LinkContext:
             body = _read(response, deadline)
         except requests.RequestException as exc:
             raise Refused(_failure(exc, deadline)) from exc
+        _in_time(deadline)
     finally:
         _close(response)
     try:
@@ -457,6 +471,7 @@ def resolve(
         deadline = _deadline(budget)
         response = _send_any("HEAD", url, _check(url), deadline)
         _close(response)
+        _in_time(deadline)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))
         return None
