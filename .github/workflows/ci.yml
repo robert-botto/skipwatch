@@ -3,7 +3,9 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**"]
   pull_request:
+    paths-ignore: ["docs/**"]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -31,7 +33,7 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
@@ -52,8 +54,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      # Installed into the runner only; whether validate needs a login in CI is
-      # unverified (plan M0-D1). If it does, mark these steps continue-on-error.
-      - run: npm install -g @anthropic-ai/claude-code
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
       - run: claude plugin validate --strict .
       - run: claude plugin validate --strict .claude-plugin/plugin.json
