@@ -14,7 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from skipwatch.cli import app
-from skipwatch.models import FramesFile, IngestBundle, Transcript
+from skipwatch.models import FramesFile, IngestBundle, ProbeResult, Transcript
 from skipwatch.providers.registry import transcription_backends
 
 pytestmark = pytest.mark.live
@@ -56,10 +56,16 @@ def test_live_x_g2_ingest_transcribe_frames(tmp_path, sw_home):
     url = g2_url()
     work = tmp_path / "g2"
     try:
+        r = run("probe", url, "--json")
+        assert r.exit_code == 0, r.output
+        probed = ProbeResult.model_validate_json(r.stdout)
+        assert probed.platform == "x" and probed.duration_s and probed.duration_s > 100
+
         r = run("ingest", url, "--work", str(work), "--provider", "free", "--json")
         assert r.exit_code == 0, r.output
         bundle = IngestBundle.model_validate_json(r.stdout)
         assert bundle.source.platform == "x" and bundle.source.kind == "video"
+        assert bundle.media is not None and bundle.media.has_audio
         post = url.rstrip("/").rsplit("/", 1)[-1]
         assert bundle.source.canonical_url == f"https://x.com/i/status/{post}"
         assert (bundle.source.author or "").startswith("@")
@@ -88,7 +94,7 @@ def test_live_x_g2_ingest_transcribe_frames(tmp_path, sw_home):
         assert len(frames.frames) >= 3
         print(
             f"\nlive G2: {bundle.source.author} {bundle.source.duration_s}s, media "
-            f"{bundle.media.width}x{bundle.media.height}, backend {backend}, "
+            f"{bundle.media.width}x{bundle.media.height} audio {bundle.media.has_audio}, backend {backend}, "
             f"{segments} segments, {len(frames.frames)} frames, "
             f"calls {[(c.op, c.ok, c.ms) for c in bundle.provider_calls]}"
         )
@@ -109,7 +115,8 @@ def test_live_x_reply_linking_a_video_credits_the_linked_post(tmp_path, sw_home)
         ]
         assert bundle.context.thread and reply_id in bundle.context.thread[0]
         assert bundle.context.links[0].url == bundle.source.canonical_url
-        print(f"\nlive linked: {bundle.source.canonical_url} {bundle.source.title!r}")
+        assert bundle.media is not None and bundle.media.has_audio
+        print(f"\nlive linked: {bundle.source.canonical_url} {bundle.source.author}")
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
