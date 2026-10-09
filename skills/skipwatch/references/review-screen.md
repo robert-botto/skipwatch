@@ -105,9 +105,12 @@ still names the install command.
   the provider, is that yes, and nothing else is. Print
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> transcribe --work "<W>" --backend <openai|groq|deepgram>` with exactly the
-  backend the user picked, never `auto`, timed as any stage. On exit 0, then continue
-  from stage 3 step 5 of `run-protocol.md` (frames without `--dense`, then the rest);
-  `resume` would run transcribe under `auto`, which never picks a cloud backend. Exit 8
+  backend the user picked, never `auto`, timed as any stage. On exit 0, remove the
+  `no transcript` entry from Unverified, then continue from stage 3 step 5 of
+  `run-protocol.md`: frames without `--dense`, readers, outline and draft rebuilt from
+  the new transcript, check, and this screen anew, the same rebuild the Whisper path
+  gets from resume. `resume` would run transcribe under `auto`, which never picks a
+  cloud backend. Exit 8
   (key rejected) or 3 (request failed): show the engine's line and the prompt line again.
 
 ## Answers

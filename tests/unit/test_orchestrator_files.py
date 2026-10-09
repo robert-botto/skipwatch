@@ -932,3 +932,11 @@ def test_only_the_provider_named_option_is_cloud_consent():
     for loose in ("any option is consent", "any answer is consent", "yes is consent"):
         assert loose not in review, loose
     assert review.count("is that yes") == 1
+
+
+def test_cloud_transcript_rebuilds_like_the_whisper_path():
+    review = flat(REFS / "review-screen.md")
+    # after a cloud transcript the skill is rebuilt from it, as resume does for Whisper
+    assert "remove the `no transcript` entry from Unverified" in review
+    assert "outline and draft rebuilt from the new transcript" in review
+    assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
