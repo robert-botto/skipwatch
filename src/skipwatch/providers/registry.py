@@ -3,8 +3,8 @@ backends (`transcribe_*.py` defining BACKENDS).
 
 content_free is the shared yt-dlp library the adapters use, not a provider, so it is skipped.
 Backend modules import heavy libraries (faster_whisper, mlx_whisper) lazily inside
-transcribe(). A module that still fails to import is reported on stderr and skipped, so one
-broken backend never takes captions down with it.
+transcribe(). A module that still fails to import (any exception) is reported on stderr and
+skipped, so one broken backend never takes captions down with it.
 """
 
 import importlib
@@ -29,7 +29,7 @@ def _modules(prefix: str) -> list[ModuleType]:
     for name in names:
         try:
             modules.append(importlib.import_module(f"{providers.__name__}.{name}"))
-        except ImportError as exc:
+        except Exception as exc:  # one broken backend must not take the others down
             progress(f"skipwatch: skipped provider module {name}: {exc}")
     return modules
 

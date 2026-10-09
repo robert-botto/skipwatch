@@ -131,12 +131,10 @@ def uv_install_kind(version_line: str | None, path: str | None) -> UvInstall:
         return "homebrew"
     if "/pipx/" in where:
         return "pipx"
-    if path:
-        bin_dir = Path(path).parent
-        if "site-packages" in where or any(
-            (bin_dir / exe).exists() for exe in ("python", "python3")
-        ):
-            return "pip"
+    # A python next to uv proves nothing: the standalone installer and `uv python install
+    # --default` share ~/.local/bin. Only a virtualenv or site-packages means pip.
+    if "site-packages" in where or (path and (Path(path).parent.parent / "pyvenv.cfg").exists()):
+        return "pip"
     return "standalone"
 
 

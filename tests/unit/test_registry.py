@@ -362,3 +362,15 @@ def test_duplicate_platform_names_both_modules(extra_package_dir):
     with pytest.raises(RuntimeError) as e:
         adapter_for("local")
     assert "localfile" in str(e.value) and "zz_dup" in str(e.value)
+
+
+def test_backend_module_raising_at_import_is_skipped(extra_package_dir, capsys):
+    from skipwatch import providers
+    from skipwatch.providers.registry import transcription_backends as backends
+
+    extra_package_dir(
+        providers, {"transcribe_zz_raises": "raise RuntimeError('no GPU driver here')\n"}
+    )
+    assert "captions" in backends()
+    err = capsys.readouterr().err
+    assert err.count("transcribe_zz_raises") == 1 and "no GPU driver here" in err

@@ -114,3 +114,38 @@ def test_scrub_adversarial_nested_mixed_case(tmp_path):
     assert out["fragments"][0]["url"] == "https://a.example"
     assert "https://example.com/page?SCRUBBED" in out["description"]
     assert run(tmp_path, out) == out  # idempotent on the adversarial case too
+
+
+def test_scrub_more_credential_keys_and_sid_cookies(tmp_path):
+    keys = [
+        "bearer", "jwt", "credential", "Credentials", "passcode", "pwd", "otp", "authuser",
+        "x-goog-authuser", "sid", "PHPSESSID", "SAPISID", "__Secure-3PSID", "HSID", "SSID",
+        "APISID", "dsid",
+    ]  # fmt: skip
+    data = {"nested": {k: f"LEAK{i}X" for i, k in enumerate(keys)}, "keep": "ok"}
+    out = run(tmp_path, data)
+    assert out == {"keep": "ok", "nested": {}}
+
+
+def test_scrub_protocol_relative_urls(tmp_path):
+    data = {
+        "a": "//cdn.example.com/v.mp4?sig=PRQUERY#PRFRAG",
+        "b": '<img src=//img.example.com/sig/PRPATH/x.jpg> and <a src="//c.example.org/p?t=PRQ2">',
+        "ratio": "16//9 and a//b",
+    }
+    out = run(tmp_path, data)
+    text = json.dumps(out)
+    for leak in ("PRQUERY", "PRFRAG", "PRPATH", "PRQ2"):
+        assert leak not in text
+    assert out["a"] == "//cdn.example.com/v.mp4?SCRUBBED"
+    assert out["ratio"] == "16//9 and a//b"
+
+
+def test_scrub_bearer_and_jwt_values_without_telltale_keys(tmp_path):
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.SIGNATUREPART"
+    data = {"note": f"call with Bearer BEARERVALUE then {jwt} done", "list": [jwt]}
+    out = run(tmp_path, data)
+    text = json.dumps(out)
+    assert "BEARERVALUE" not in text and "eyJ" not in text and "SIGNATUREPART" not in text
+    assert out["note"] == "call with SCRUBBED then SCRUBBED done"
+    assert run(tmp_path, out) == out

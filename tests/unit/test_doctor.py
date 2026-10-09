@@ -236,8 +236,14 @@ def test_uv_install_kind_from_version_line_and_path(tmp_path):
     )
     venv_bin = tmp_path / "venv" / "bin"
     venv_bin.mkdir(parents=True)
-    (venv_bin / "python3").write_text("")
+    (tmp_path / "venv" / "pyvenv.cfg").write_text("")
     assert kind("uv 0.9.26", str(venv_bin / "uv")) == "pip"
+    # The standalone installer and `uv python install --default` share ~/.local/bin.
+    local_bin = tmp_path / "home" / ".local" / "bin"
+    local_bin.mkdir(parents=True)
+    (local_bin / "uv").write_text("")
+    (local_bin / "python3").write_text("")
+    assert kind("uv 0.9.26", str(local_bin / "uv")) == "standalone"
     assert kind("uv 0.9.26", "/usr/lib/python3/site-packages/uv/bin/uv") == "pip"
     assert kind("uv 0.9.30 (abc 2026-10-01)", str(tmp_path / "local" / "uv")) == "standalone"
 

@@ -1,12 +1,19 @@
 """Scrub a recorded yt-dlp or provider fixture before it is committed.
 
+Recording fixtures: this script is a safety net, not a review. A human must read every
+recorded fixture before it is committed. Known residuals it does not catch: JSON stringified
+inside a string value, opaque bare tokens under innocent keys, YouTube `visitor_data`, and
+`client_id` values.
+
 Keys: compared casefolded and split into words (snake, kebab and camel case). A key is dropped
 when any word is sensitive (cookie, header, auth, key, secret, password, token, session,
-signature, sig, csrf, xsrf, email, ip, ...) or the key names an account or user id. Creator
+signature, sig, csrf, xsrf, email, ip, bearer, jwt, credential, otp, ...), the key names an
+account or user id, or it is a session cookie name (`sid`, `*sid`, `*sessid`). Creator
 attribution (`author`, `uploader`) and `extractor_key` stay: adapters need them.
 
 Strings, in values and in keys: every URL loses its query and fragment (`?SCRUBBED`) and any
-path-style signature (`/signature/X/`, `/sig/X/`); emails, IPv4 and IPv6 literals are replaced.
+path-style signature (`/signature/X/`, `/sig/X/`), protocol-relative URLs (`//host/...`)
+included; `Bearer <token>` and JWT-shaped strings, emails, IPv4 and IPv6 literals are replaced.
 Media URLs (formats, fragments, manifests) are cut to scheme and host.
 Usage: scrub_fixture.py IN -o OUT. scripts/record_fixture.py imports `scrub` directly.
 """
@@ -23,7 +30,7 @@ from urllib.parse import urlsplit
 SENSITIVE_WORDS = {
     "cookie", "header", "auth", "authorization", "authentication", "key", "apikey", "secret",
     "password", "passwd", "token", "session", "sessionid", "signature", "sig", "csrf", "xsrf",
-    "email", "ip",
+    "email", "ip", "bearer", "jwt", "credential", "passcode", "pwd", "otp", "authuser",
 }  # fmt: skip
 # Joined spellings that word splitting cannot see ("setcookie", "sessiontoken").
 SENSITIVE_PARTS = (
@@ -39,6 +46,9 @@ MEDIA_LISTS = {"formats", "requested_formats", "requested_downloads", "fragments
 HOST_ONLY_KEYS = {"manifest_url", "fragment_base_url"}
 
 URL_RE = re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s\"'<>]+", re.IGNORECASE)
+PROTOCOL_RELATIVE_RE = re.compile(r"(?<![:\w])//[A-Za-z0-9.-]+\.[A-Za-z]{2,}/[^\s\"'<>]*")
+BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
+JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[^\s\"'<>]+")
 PATH_SIG_RE = re.compile(
     r"/(signature|sig|lsig|sparams|key|token|expire|ip|ei)/[^/?#\s]+", re.IGNORECASE
 )
@@ -58,8 +68,8 @@ def _dropped(key: str) -> bool:
     folded = key.casefold()
     if folded in KEPT_KEYS:
         return False
-    if folded in DROPPED_KEYS:
-        return True
+    if folded in DROPPED_KEYS or folded.endswith(("sid", "sessid")):
+        return True  # session cookies: PHPSESSID, SAPISID, __Secure-3PSID, HSID, dsid
     words = _words(key)
     if any(w in SENSITIVE_WORDS for w in words):
         return True
@@ -98,7 +108,10 @@ def _ipv6(match: re.Match[str]) -> str:
 
 
 def _scrub_string(value: str) -> str:
+    value = BEARER_RE.sub("SCRUBBED", value)
+    value = JWT_RE.sub("SCRUBBED", value)
     value = URL_RE.sub(lambda m: _scrub_url(m.group(0)), value)
+    value = PROTOCOL_RELATIVE_RE.sub(lambda m: _scrub_url(m.group(0)), value)
     value = EMAIL_RE.sub(EMAIL_PLACEHOLDER, value)
     value = IPV4_RE.sub("0.0.0.0", value)
     return IPV6_CANDIDATE_RE.sub(_ipv6, value)
