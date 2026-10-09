@@ -23,7 +23,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
-from urllib3.exceptions import LocationParseError
+from urllib3.exceptions import ConnectTimeoutError, LocationParseError, NewConnectionError
 from urllib3.util import parse_url
 
 from skipwatch.htmltext import html_to_text
@@ -170,9 +170,9 @@ def _is_dotted_quad(host: str) -> bool:
     return True
 
 
-def _check(url: str) -> str:
-    """The address to connect to, or Refused unless url is http(s) on a host whose every
-    address is public.
+def _check(url: str) -> list[str]:
+    """The addresses to connect to, in resolver order, or Refused unless url is http(s) on a
+    host whose every address is public.
 
     The host is read with urllib3's parse_url, the parser requests itself uses, so the host
     checked is the host connected to. A backslash or userinfo (`user@`) anywhere is refused:
@@ -205,7 +205,7 @@ def _check(url: str) -> str:
         raise Refused(f"cannot resolve {host}") from exc
     if not public:
         raise Refused(f"refused: {host} resolves to a private or local address")
-    return str(infos[0][4][0])
+    return list(dict.fromkeys(str(info[4][0]) for info in infos))
 
 
 # ---- the pinned transport ----
@@ -287,6 +287,24 @@ def _send(method: str, url: str, address: str, deadline: float) -> requests.Resp
         raise
 
 
+def _connect_failed(exc: requests.ConnectionError) -> bool:
+    """True when no socket was ever established (refused, unreachable, connect timeout)."""
+    reason = getattr(exc.args[0], "reason", None) if exc.args else None
+    return isinstance(reason, NewConnectionError | ConnectTimeoutError)
+
+
+def _send_any(method: str, url: str, addresses: list[str], deadline: float) -> requests.Response:
+    """Try each vetted address in turn (IPv6 first on a v4-only network fails to connect),
+    every attempt pinned to its address; any failure after connecting is final."""
+    for n, address in enumerate(addresses):
+        try:
+            return _send(method, url, address, deadline)
+        except requests.ConnectionError as exc:
+            if n == len(addresses) - 1 or not _connect_failed(exc):
+                raise
+    raise Refused("no address to connect to")
+
+
 def _close(response: requests.Response) -> None:
     """Close the response and its per-request _PinnedAdapter with its pool: requests sets
     response.connection to the adapter that sent it."""
@@ -303,8 +321,7 @@ def _get(url: str, deadline: float) -> requests.Response:
     """GET with redirects followed by hand; every hop is re-checked and pinned; at most 3."""
     current = url
     for _ in range(MAX_REDIRECTS + 1):
-        address = _check(current)
-        response = _send("GET", current, address, deadline)
+        response = _send_any("GET", current, _check(current), deadline)
         location = response.headers.get("Location")
         if response.status_code not in REDIRECT_CODES or not location:
             return response
@@ -424,7 +441,7 @@ def resolve(
     deadline = None
     try:
         deadline = _deadline(budget)
-        response = _send("HEAD", url, _check(url), deadline)
+        response = _send_any("HEAD", url, _check(url), deadline)
         _close(response)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))

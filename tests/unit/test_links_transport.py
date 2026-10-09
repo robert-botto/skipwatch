@@ -341,3 +341,52 @@ def test_every_pinned_adapter_is_closed(server, loopback, monkeypatch):
     assert links.fetch_link(f"{base}/img") is None
     assert len(opened) == 5
     assert {id(a) for a in opened} <= {id(a) for a in closed}
+
+
+V6_PUBLIC = "2606:2800:21f:cb07:6820:80da:af6b:8b2c"
+
+
+@pytest.fixture
+def dual_stack(monkeypatch):
+    """dual.test resolves to [a public IPv6, 127.0.0.1]; IPv6 refuses to connect, as on a
+    v4-only network. Connections go to 127.0.0.1 only."""
+    connected: list[str] = []
+
+    def connect(sock, address):
+        connected.append(address[0])
+        if address[0] != "127.0.0.1":
+            raise ConnectionRefusedError(61, "Connection refused")
+        return _REAL_CONNECT(sock, address)
+
+    def getaddrinfo(host, port, *args, **kwargs):
+        if host == "dual.test":
+            return [
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (V6_PUBLIC, port or 0, 0, 0)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port or 0)),
+            ]
+        family = socket.AF_INET6 if ":" in host else socket.AF_INET
+        sockaddr = (host, port or 0, 0, 0) if family == socket.AF_INET6 else (host, port or 0)
+        return [(family, socket.SOCK_STREAM, 6, "", sockaddr)]
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    trust_loopback(monkeypatch)
+    return connected
+
+
+def test_an_unreachable_first_address_falls_back_to_the_next_vetted_one(server, dual_stack):
+    port = server.server_address[1]
+    got = links.fetch_link(f"http://dual.test:{port}/readme")
+    assert got is not None and got.text == "ok"
+    assert dual_stack == [V6_PUBLIC, "127.0.0.1"]
+    assert links.resolve(f"http://dual.test:{port}/readme") is None  # a 200: no redirect
+    assert len(server.hits) == 2
+
+
+def test_every_address_is_vetted_before_any_fallback(server, dual_stack, monkeypatch):
+    """A host is fetched only when ALL its addresses are public; the fallback never widens
+    that to a private second address."""
+    monkeypatch.setattr(links, "_is_public", lambda a: a == V6_PUBLIC)
+    port = server.server_address[1]
+    assert links.fetch_link(f"http://dual.test:{port}/readme") is None
+    assert dual_stack == [] and server.hits == []
