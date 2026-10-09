@@ -1,6 +1,10 @@
+import json
 import re
 from pathlib import Path
 
+from typer.testing import CliRunner
+
+from skipwatch.cli import app
 from skipwatch.frames import (
     HELD_SECONDS,
     Candidate,
@@ -14,8 +18,9 @@ from skipwatch.frames import (
     transcript_window,
 )
 from skipwatch.media import ffmpeg_paths
-from skipwatch.models import Segment, Transcript, Word
-from tests.unit._media import make_held_video, make_video, needs_ffmpeg
+from skipwatch.models import FramesFile, IngestBundle, Segment, Transcript, Word
+from skipwatch.workdir import WorkDir, read_model, write_model
+from tests.unit._media import make_held_video, make_local_work, make_video, needs_ffmpeg
 
 
 def C(t, reason="scene", h="0" * 16):
@@ -182,3 +187,94 @@ def test_sample_scene_handles_paths_with_spaces_and_percent(tmp_path):
     video = make_video(folder / "clip one.mp4", 3)
     ffmpeg, _ = ffmpeg_paths(allow_fetch=False)
     assert sample_scene(ffmpeg, video, folder / "out")
+
+
+# ---- frames command ----
+
+
+@needs_ffmpeg
+def test_r_cli_1_frames_idempotent(tmp_path, sw_home):
+    w = make_local_work(tmp_path, make_video(tmp_path / "v.mp4", 20))
+    r1 = CliRunner().invoke(app, ["frames", "--work", str(w)])
+    a = (w / "frames.json").read_bytes()
+    (w / "frames" / "f999999.jpg").write_bytes(b"stale")
+    r2 = CliRunner().invoke(app, ["frames", "--work", str(w)])
+    b = (w / "frames.json").read_bytes()
+    assert r1.exit_code == r2.exit_code == 0 and a == b
+    names = sorted(p.name for p in (w / "frames").iterdir())
+    assert names == sorted(f"{f['id']}.jpg" for f in json.loads(a)["frames"])
+    assert WorkDir(w).stages().stages["frames"].status == "done"
+
+
+@needs_ffmpeg
+def test_frames_command_cues_windows_and_json(tmp_path, sw_home):
+    w = make_local_work(tmp_path, make_video(tmp_path / "v.mp4", 20))
+    transcript = Transcript(
+        origin="captions",
+        segments=[
+            Segment(start=8.0, end=10.0, text="now paste the key"),
+            Segment(start=15.0, end=16.0, text="done"),
+        ],
+    )
+    write_model(w / "transcript.json", transcript)
+    r = CliRunner().invoke(app, ["frames", "--work", str(w), "--json"])
+    assert r.exit_code == 0, r.output
+    out = FramesFile.model_validate_json(r.stdout)  # R-CLI-2
+    assert out == read_model(w / "frames.json", FramesFile)
+    cues = [f for f in out.frames if f.reason == "cue"]
+    assert cues and all(6.0 <= f.t <= 10.0 for f in cues)
+    assert "paste the key" in cues[0].transcript_window
+    assert out.sampling.cue_terms and out.sampling.per_minute == 3
+    assert len(out.frames) <= 1  # budget(20 s, 3/min) is 1, and a cue frame fills it
+    assert all((w / f.path).is_file() for f in out.frames)
+
+
+@needs_ffmpeg
+def test_frames_command_flags_and_silent(tmp_path, sw_home):
+    w = make_local_work(tmp_path, make_video(tmp_path / "v.mp4", 30, pattern="testsrc"))
+    r = CliRunner().invoke(app, ["frames", "--work", str(w), "--per-minute", "60", "--max", "4"])
+    assert r.exit_code == 0, r.output
+    out = read_model(w / "frames.json", FramesFile)
+    assert out.sampling.per_minute == 60 and out.sampling.max == 4 and len(out.frames) <= 4
+    write_model(w / "transcript.json", Transcript(origin="captions", segments=[], silent=True))
+    CliRunner().invoke(app, ["frames", "--work", str(w)])
+    assert read_model(w / "frames.json", FramesFile).sampling.per_minute == 6
+    CliRunner().invoke(app, ["frames", "--work", str(w), "--dense"])
+    dense = read_model(w / "frames.json", FramesFile).sampling
+    assert dense.dense and dense.per_minute == 6
+
+
+def test_frames_audio_only_writes_empty_frames(tmp_path, sw_home):
+    w = make_local_work(tmp_path, _fake_media(tmp_path))
+    bundle = read_model(w / "ingest.json", IngestBundle)
+    bundle.source.kind = "audio"
+    write_model(w / "ingest.json", bundle)
+    r = CliRunner().invoke(app, ["frames", "--work", str(w)])
+    assert r.exit_code == 0, r.output
+    assert read_model(w / "frames.json", FramesFile).frames == []
+
+
+def test_frames_without_media_exits_7(tmp_path, sw_home):
+    w = make_local_work(tmp_path, _fake_media(tmp_path))
+    bundle = read_model(w / "ingest.json", IngestBundle)
+    write_model(w / "ingest.json", bundle.model_copy(update={"media": None}))
+    r = CliRunner().invoke(app, ["frames", "--work", str(w)])
+    assert r.exit_code == 7
+    assert WorkDir(w).stages().stages["frames"].status == "failed"
+
+
+def test_frames_without_ingest_exits_7(tmp_path, sw_home):
+    w = tmp_path / "w"
+    WorkDir(w).ensure()
+    assert CliRunner().invoke(app, ["frames", "--work", str(w)]).exit_code == 7
+
+
+def test_frames_missing_work_dir_is_a_usage_error(tmp_path, sw_home):
+    r = CliRunner().invoke(app, ["frames", "--work", str(tmp_path / "nope")])
+    assert r.exit_code == 2 and not (tmp_path / "nope").exists()  # 64 through cli.main
+
+
+def _fake_media(tmp_path):
+    path = tmp_path / "a.m4a"
+    path.write_bytes(b"not decoded in these tests")
+    return path
