@@ -1118,3 +1118,17 @@ def test_cookies_runs_cannot_be_packed():
     review = read(REFS / "review-screen.md")
     assert "  Fetched with your browser cookies: this skill cannot be packed for sharing." in review
     assert "`fetched_with_cookies`" in flat(REFS / "review-screen.md")
+
+
+def test_platform_specific_failures():
+    text = flat(REFS / "run-protocol.md")
+    assert "Instagram often needs a login. Re-run with --cookies-from-browser <browser>." in text
+    assert "This post has no video. Enable treg (Tier 3) to read text posts." in text
+    # Facebook media comes from the free route only (spike decision 4)
+    assert "never offer `--provider treg` for Facebook" in text
+    # Instagram reels have no duration logged out
+    assert "Checking the source: time unknown" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "per-platform failures" in skill and "platforms.md" in skill
+    for name in ("X", "TikTok", "Instagram", "Facebook"):
+        assert name in fm(SKILL / "SKILL.md")["description"], name

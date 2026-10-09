@@ -94,7 +94,8 @@ other references when the protocol reaches them:
   redaction, naming).
 - `references/skill-template.md` before drafting the skill.
 - `references/review-screen.md` before printing the review screen.
-- `references/platforms.md` when a source behaves unexpectedly.
+- `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
+  text posts) and whenever a source behaves unexpectedly.
 
 Stage order: doctor (cached for a day), work folder and `run.json`, probe, ingest,
 transcribe, frames, plan, read, outline, draft, check, review, install.
