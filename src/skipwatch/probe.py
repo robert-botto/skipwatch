@@ -95,5 +95,5 @@ def probe(value: str, opts: IngestOptions) -> ProbeResult:
         kind="video" if has_video(info) else "audio",
         platform=detected.platform,
         title=info.get("title"),
-        author=author_of(info),
+        author=author_of(info, detected.platform),
     )

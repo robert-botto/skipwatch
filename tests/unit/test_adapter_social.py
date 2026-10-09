@@ -12,10 +12,12 @@ from typer.testing import CliRunner
 
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.registry import adapter_for
+from skipwatch.adapters.ytdlp_common import author_name_of, author_of
 from skipwatch.cli import app
 from skipwatch.detect import Detected, detect
 from skipwatch.errors import ExitCode
 from skipwatch.models import MediaInfo
+from skipwatch.probe import probe
 from skipwatch.providers import content_free as cf
 from skipwatch.workdir import WorkDir
 
@@ -99,6 +101,7 @@ def test_recorded_fixture_builds_a_video_bundle(
     seen = free_route(info)
     bundle = build(platform, url, tmp_path / "w")
     assert bundle.source.kind == "video" and bundle.source.platform == platform
+    assert bundle.source.author == author and bundle.source.author_name == author_name
     assert bundle.source.canonical_url == info["webpage_url"]
     assert bundle.context.post_text == info["description"]  # the caption is the post text
     assert bundle.context.captions_available is False and seen["captions"] == 0
@@ -177,6 +180,35 @@ def test_cookies_flag_sets_fetched_with_cookies(tmp_path, monkeypatch, platform,
     bundle = build(platform, url, tmp_path / "w", IngestOptions(cookies_from_browser="firefox"))
     assert params and params[0]["cookiesfrombrowser"] == ("firefox",)
     assert bundle.fetched_with_cookies is True
+
+
+@pytest.mark.parametrize(("platform", "fixture", "url", "author"), [r[:4] for r in SOCIAL], ids=IDS)
+def test_probe_names_the_author_from_the_platform_fields(
+    monkeypatch, platform, fixture, url, author
+):
+    monkeypatch.setattr(cf, "extract", lambda url_, opts: recorded(fixture))
+    assert probe(url, IngestOptions()).author == author
+
+
+@pytest.mark.parametrize(
+    ("platform", "fixture"),
+    [
+        ("youtube", "youtube/manual-captions"),
+        ("youtube", "youtube/vertical-short"),
+        ("generic", "generic/archive-org"),
+        ("generic", "generic/wikimedia-commons"),
+    ],
+)
+def test_youtube_and_generic_authors_are_unchanged(platform, fixture):
+    """Pinned: the per-platform author fields never change YouTube or generic attribution."""
+    info = recorded(fixture)
+    handle = info.get("uploader_id")
+    if handle:
+        before = handle if str(handle).startswith("@") else f"@{handle}"
+    else:
+        before = info.get("uploader")
+    assert author_of(info, platform) == before == author_of(info)
+    assert author_name_of(info, platform) == (info.get("uploader") or info.get("channel"))
 
 
 # ---- login walls through the CLI (R-ING-6): exit 4 naming the cookie flag ----
