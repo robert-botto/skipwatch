@@ -1,0 +1,8 @@
+{
+  "cookies": false,
+  "exception": "yt_dlp.utils.DownloadError",
+  "extractor": "twitter",
+  "message": "ERROR: [twitter] 1506032263359864843: No video could be found in this tweet",
+  "note": "yt-dlp 2026.8.19 on a public text-only X reply by the G2 author (no media, no link card), recorded 2026-10-09 for M3-A. A text post that links or quotes a video post is NOT this case: see x/link-to-video-post.info.json.",
+  "url": "https://x.com/mattpocockuk/status/1506032263359864843"
+}

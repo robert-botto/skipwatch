@@ -1,0 +1,28 @@
+{
+  "costUsd": 0.0008,
+  "items": 1,
+  "output": {
+    "data": {
+      "authorHandle": "github",
+      "authorName": "GitHub",
+      "caption": "Get GitHub Copilot directly in your terminal. \ud83d\udcbb Here's how to set it up. \u25b6\ufe0f #GitHub #Copilot #CLI #softwaredevelopment #opensource",
+      "createdUtc": 1775164502,
+      "durationSeconds": 35,
+      "id": "7624273546776153377",
+      "image": "https://p16-common-sign.tiktokcdn-us.com",
+      "region": "US",
+      "url": "https://www.tiktok.com/@github/video/7624273546776153377",
+      "videoUrl": "https://v16m.tiktokcdn-us.com",
+      "watermarkedUrl": "https://v16m.tiktokcdn-us.com"
+    },
+    "found": true
+  },
+  "provider": "AnyAPI",
+  "replayed": false,
+  "resultId": "00000000-0000-0000-0000-000000000000",
+  "source": {
+    "id": "anonymous-bison-cb2f8f3c",
+    "kind": "anonymous",
+    "name": "Bison"
+  }
+}

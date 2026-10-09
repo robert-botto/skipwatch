@@ -1,0 +1,18 @@
+{
+  "costUsd": 0.0012,
+  "items": 1,
+  "output": {
+    "data": {
+      "transcript": "Deep partials are incredibly useful for very very narrow use cases. For instance, if you're in a test file, let's say you're like writing a unit test or something, and you want to make a um like a seed for something, like you have an entity that you want to mock basically. Like let's say it's a post here. Um you don't really want to have to go into let's say comments, value, like this for instance and have to mock out all of everything every single time. Usually what you want to do is just provide like a little bit of it enough to make the test run essentially. So what you can do there is you can use a deep partial for this. Now, a deep partial, if you were to just wrap this in a partial for instance, which is something that TypeScript gives you, then you would for instance have like uh meta, let's say. You wouldn't need to provide meta. But let's say that you do provide meta, then you still have to provide description and a name because the partial is only one level deep. It doesn't go deeper. So a deep partial as we've got there, it actually goes and makes everything inside it partial, too. So even in comments here, we don't have to provide this value here. So again, this is very, very useful for very narrow use cases, and let's break down how this works. We have deep partial where we have a thing, essentially, and if that thing extends a function then we just return the thing, because there's nothing to make partial there. If it extends an array and we infer the inferred array member, then we use deep partial array, which basically just calls deep partial on the thing inside it. Um otherwise, if it's an object, then for each key of the thing then we call deep uh we first of all make sure it's not required there, that's crucial and then we call deep partial on that thing again. So, you can see how it just gets recursively partial down until everything is there."
+    },
+    "found": true
+  },
+  "provider": "AnyAPI",
+  "replayed": false,
+  "resultId": "00000000-0000-0000-0000-000000000000",
+  "source": {
+    "id": "anonymous-giraffe",
+    "kind": "anonymous",
+    "name": "Giraffe"
+  }
+}

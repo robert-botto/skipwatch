@@ -1,0 +1,106 @@
+{
+  "costUsd": 0.00375,
+  "items": 3,
+  "output": {
+    "data": {
+      "author": {
+        "avatarUrl": "https://pbs.twimg.com",
+        "bio": "I teach devs for a living. Author of Total TypeScript and AI Hero. Ex-@vercel. Used to be a voice coach.",
+        "blueVerified": true,
+        "coverUrl": "https://pbs.twimg.com",
+        "createdUtc": 1312214906,
+        "followers": 368017,
+        "following": 807,
+        "handle": "mattpocockuk",
+        "id": "346640777",
+        "location": "Oxford, England",
+        "name": "Matt Pocock",
+        "url": "https://x.com/mattpocockuk",
+        "verified": false
+      },
+      "complete": true,
+      "conversationId": "1505892984658743300",
+      "threadLength": 3,
+      "tweets": [
+        {
+          "authorHandle": "mattpocockuk",
+          "authorId": "346640777",
+          "authorName": "Matt Pocock",
+          "bookmarkCount": 148,
+          "conversationId": "1505892984658743300",
+          "createdUtc": 1647867840,
+          "id": "1505892984658743300",
+          "inReplyToId": null,
+          "isReply": false,
+          "lang": "en",
+          "likeCount": 574,
+          "media": [
+            {
+              "type": "video",
+              "url": "https://pbs.twimg.com",
+              "videoUrl": "https://video.twimg.com"
+            }
+          ],
+          "quoteCount": 4,
+          "replyCount": 16,
+          "repostCount": 76,
+          "source": "",
+          "text": "\ud83d\udd25 TypeScript Tip #11 \ud83d\udd25\n\nDeep partials are SUPER useful and not natively supported by TypeScript. Here, I use one to help with mocking an entity in a (imaginary) test file. https://t.co/jgKkwTzSKL",
+          "url": "https://x.com/i/web/status/1505892984658743300",
+          "viewCount": 0
+        },
+        {
+          "authorHandle": "mattpocockuk",
+          "authorId": "346640777",
+          "authorName": "Matt Pocock",
+          "bookmarkCount": 3,
+          "conversationId": "1505892984658743300",
+          "createdUtc": 1647869226,
+          "id": "1505898799335628805",
+          "inReplyToId": "1505892984658743300",
+          "isReply": true,
+          "lang": "en",
+          "likeCount": 14,
+          "media": [],
+          "quoteCount": 0,
+          "replyCount": 1,
+          "repostCount": 1,
+          "source": "",
+          "text": "Previous tip:\n\nhttps://x.com/mpocock1/status/1504802045794078723",
+          "url": "https://x.com/i/web/status/1505898799335628805",
+          "viewCount": 0
+        },
+        {
+          "authorHandle": "mattpocockuk",
+          "authorId": "346640777",
+          "authorName": "Matt Pocock",
+          "bookmarkCount": 1,
+          "conversationId": "1505892984658743300",
+          "createdUtc": 1648038712,
+          "id": "1506609674552066052",
+          "inReplyToId": "1505898799335628805",
+          "isReply": true,
+          "lang": "en",
+          "likeCount": 6,
+          "media": [],
+          "quoteCount": 0,
+          "replyCount": 0,
+          "repostCount": 0,
+          "source": "Twitter Web App",
+          "text": "Next tip:\n\nhttps://x.com/mpocock1/status/1506607945445949446",
+          "url": "https://x.com/i/web/status/1506609674552066052",
+          "viewCount": 0
+        }
+      ]
+    },
+    "found": true
+  },
+  "provider": "AnyAPI",
+  "replayed": false,
+  "resultId": "00000000-0000-0000-0000-000000000000",
+  "source": {
+    "id": "anonymous-capybara",
+    "kind": "anonymous",
+    "name": "Capybara"
+  }
+}
