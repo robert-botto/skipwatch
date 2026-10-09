@@ -366,6 +366,7 @@ there is no critic agent yet, and a critique left pending would make `resume` se
 finished run back to the readers.
 
     <ENGINE> mark --work "<W>" --stage distill --status done 2>>"<W>/logs/mark.log"
+    # no critic before M5; the M5 critic package replaces this mark
     <ENGINE> mark --work "<W>" --stage critique --status done 2>>"<W>/logs/mark.log"
 
 ## Stage 7: check

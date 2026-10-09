@@ -1071,3 +1071,11 @@ def test_install_is_marked_done_after_it_succeeds():
     install_done = '<ENGINE> mark --work "<W>" --stage install --status done'
     assert _before(text, '<ENGINE> install "<W>/staging/<name>"', install_done)
     assert _before(text, install_done, "Then print two lines")
+
+
+def test_unconditional_critique_mark_goes_when_the_critic_arrives():
+    text = read(REFS / "run-protocol.md")
+    critique_done = '<ENGINE> mark --work "<W>" --stage critique --status done'
+    assert "# no critic before M5; the M5 critic package replaces this mark" in text
+    # once a skill-critic dispatch exists, the critique mark must be conditional or gone
+    assert not ("skill-critic" in text and critique_done in text)
