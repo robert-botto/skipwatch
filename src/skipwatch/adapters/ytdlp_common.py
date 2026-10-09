@@ -32,6 +32,7 @@ PLATFORM_NAMES = {
     "tiktok": "TikTok",
     "instagram": "Instagram",
     "facebook": "Facebook",
+    "x": "X",
 }
 
 

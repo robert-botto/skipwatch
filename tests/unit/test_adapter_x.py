@@ -226,3 +226,13 @@ def test_x_post_with_own_video_and_a_post_link_keeps_its_own_video(tmp_path, fre
     assert bundle.source.canonical_url == "https://x.com/i/status/1505892984658743300"
     assert bundle.route.fallbacks == [] and bundle.context.thread == []
     assert seen["extract"] == [G2_URL]
+
+
+def test_x_login_error_names_x(tmp_path, free_route, sw_home):
+    message = "ERROR: [twitter] 1: NSFW tweet requires authentication. Use --cookies, ..."
+    free_route({G2_URL: cf.FreeRouteError("metadata", message)})
+    r = CliRunner().invoke(
+        app, ["ingest", G2_URL, "--work", str(tmp_path / "w"), "--provider", "free"]
+    )
+    assert r.exit_code == ExitCode.PRIVATE_CONTENT
+    assert "X says this needs a login" in r.output
