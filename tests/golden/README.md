@@ -14,7 +14,7 @@ uv run python scripts/golden_check.py --only G1,G5
 # Full run (paid: one `claude -p` per video, up to 30 minutes each).
 uv run python scripts/golden_run.py --only G1 --out /tmp/sw-golden
 
-# Engine stages only (probe, ingest, transcribe, frames, plan) on the free provider; no Claude, nothing judged.
+# Engine stages only (probe to plan) on the free provider; no Claude, nothing judged.
 uv run python scripts/golden_run.py --engine-only --only G2 --stages probe,ingest,frames --out /tmp/sw-golden
 uv run python scripts/golden_run.py --engine-only --only G1 --out /tmp/sw-golden
 ```
@@ -26,6 +26,13 @@ installed=yes`, or `FAIL` followed by each out-of-range value, for example
 `steps=4 (want 6..20)`. `illegible_in_quotes` counts `[illegible` markers on blockquote lines
 and inside fenced code blocks. Cookies are passed only when an entry has
 `needs_cookies: true` and `SKIPWATCH_GOLDEN_COOKIES=chrome` is set.
+
+`<out>` holds data fetched from the golden videos: the downloaded video (`work/*/media/`),
+extracted frames (`work/*/frames/`), captions, transcripts, notes and the generated drafts.
+By default `golden_run.py` deletes `media/` and `frames/` after judging each video (or after
+the engine stages with `--engine-only`), success or failure; pass `--keep-media` to keep
+them. Captions, transcripts and drafts stay so a run can be inspected; delete `<out>` when
+done. Everything in `<out>` is for local testing only: never commit it or share it.
 
 ## Selection rules
 
