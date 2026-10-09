@@ -67,3 +67,25 @@ def test_recorded_auto_json3_has_word_timings():
     assert len(worded) > len(segs) // 2
     assert all(w.s <= w.e for s in worded for w in s.words or [])
     assert all(a.end <= b.start + 1e-9 for a, b in zip(segs, segs[1:], strict=False))
+
+
+def test_json3_word_starts_are_clipped_to_the_clipped_cue_end():
+    text = """{"events": [
+     {"tStartMs": 0, "dDurationMs": 5000,
+      "segs": [{"utf8": "a"}, {"utf8": " b", "tOffsetMs": 4000}]},
+     {"tStartMs": 2000, "dDurationMs": 1000, "segs": [{"utf8": "c"}]}]}"""
+    first = parse_json3(text)[0]
+    assert first.end == 2.0
+    assert [(w.w, w.s, w.e) for w in first.words or []] == [("a", 0.0, 2.0), ("b", 2.0, 2.0)]
+
+
+def test_json3_events_with_the_same_start_become_one_cue():
+    text = """{"events": [
+     {"tStartMs": 1000, "dDurationMs": 2000, "segs": [{"utf8": "top line"}]},
+     {"tStartMs": 1000, "dDurationMs": 3000, "segs": [{"utf8": "bottom line"}]},
+     {"tStartMs": 5000, "dDurationMs": 1000, "segs": [{"utf8": "next"}]}]}"""
+    segs = parse_json3(text)
+    assert [(s.start, s.end, s.text) for s in segs] == [
+        (1.0, 4.0, "top line bottom line"),
+        (5.0, 6.0, "next"),
+    ]

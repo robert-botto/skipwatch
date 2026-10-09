@@ -2,7 +2,8 @@
 
 Each event with `segs` is one cue: start tStartMs, end tStartMs + dDurationMs, clipped to the
 next cue's start (auto captions keep a line on screen while the next one is spoken, so raw
-events overlap). Word timings come from `tOffsetMs` when a cue has more than one seg.
+events overlap). Events sharing a start (two rows shown together) are merged first. Word
+timings come from `tOffsetMs` when a cue has more than one seg, clipped to the cue's end.
 Events that hold only a newline ("aAppend" line breaks) are dropped, and a cue repeated back
 to back is extended instead of duplicated, as in parse_vtt.
 """
@@ -25,7 +26,7 @@ def _words(event: dict[str, Any], start_ms: int, end: float) -> list[Word] | Non
     if len(segs) < 2:
         return None
     timed = [
-        ((start_ms + int(seg.get("tOffsetMs", 0))) / 1000, _clean(seg.get("utf8", "")))
+        (min((start_ms + int(seg.get("tOffsetMs", 0))) / 1000, end), _clean(seg.get("utf8", "")))
         for seg in segs
     ]
     timed = [(s, w) for s, w in timed if w]
@@ -36,6 +37,21 @@ def _words(event: dict[str, Any], start_ms: int, end: float) -> list[Word] | Non
     return words or None
 
 
+def _merge_same_start(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Two rows shown at the same moment are one cue: texts joined, the longer duration."""
+    merged: list[dict[str, Any]] = []
+    for event in events:
+        last = merged[-1] if merged else None
+        if last is not None and int(last.get("tStartMs", 0)) == int(event.get("tStartMs", 0)):
+            last["dDurationMs"] = max(
+                int(last.get("dDurationMs", 0)), int(event.get("dDurationMs", 0))
+            )
+            last["segs"] = [*last["segs"], {"utf8": " "}, *event["segs"]]
+        else:
+            merged.append(dict(event))
+    return merged
+
+
 def parse_json3(text: str) -> list[Segment]:
     events = [
         e
@@ -43,6 +59,7 @@ def parse_json3(text: str) -> list[Segment]:
         if e.get("segs") and _clean("".join(s.get("utf8", "") for s in e["segs"]))
     ]
     events.sort(key=lambda e: int(e.get("tStartMs", 0)))
+    events = _merge_same_start(events)
     segments: list[Segment] = []
     for i, event in enumerate(events):
         start_ms = int(event.get("tStartMs", 0))
