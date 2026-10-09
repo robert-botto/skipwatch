@@ -15,6 +15,8 @@ import time
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from urllib3.exceptions import LocationParseError
+from urllib3.util import parse_url
 
 from skipwatch.htmltext import html_to_text
 from skipwatch.models import IngestBundle, LinkContext, ProviderCall
@@ -92,14 +94,23 @@ def _is_public(address: str) -> bool:
 
 
 def _check(url: str) -> None:
-    """Raise Refused unless url is http(s) on a host whose every address is public."""
+    """Raise Refused unless url is http(s) on a host whose every address is public.
+
+    The host is read with urllib3's parse_url, the parser requests itself uses, so the host
+    checked is the host connected to. A backslash or userinfo (`user@`) anywhere is refused:
+    parsers disagree on both (`http://169.254.169.254\\@example.com/`).
+    """
+    if "\\" in url:
+        raise Refused("refused: backslash in URL")
     try:
-        parts = urlsplit(url)
-        host = parts.hostname
-    except ValueError as exc:
+        parts = parse_url(url)
+    except LocationParseError as exc:
         raise Refused("not a valid URL") from exc
-    if parts.scheme.lower() not in ("http", "https"):
+    if (parts.scheme or "").lower() not in ("http", "https"):
         raise Refused(f"refused: scheme {parts.scheme or '(none)'}")
+    if parts.auth is not None or "@" in (parts.netloc or ""):
+        raise Refused("refused: credentials in URL")
+    host = (parts.host or "").strip("[]")
     if not host:
         raise Refused("refused: no host")
     try:

@@ -312,3 +312,32 @@ def test_link_fetching_never_raises(net, monkeypatch):
     assert links.fetch_link("https://i.example.com/", calls) is None
     assert links.resolve("https://t.co/abc", calls) is None
     assert [(c.ok, c.error) for c in calls] == [(False, "RuntimeError"), (False, "RuntimeError")]
+
+
+# ---- parser mismatch: the host SkipWatch checks must be the host requests connects to ----
+
+CONFUSED = [
+    "http://169.254.169.254\\@example.com/",  # urlsplit: example.com; urllib3: 169.254.169.254
+    "http://example.com\\@169.254.169.254/",
+    "http://user:pass@example.com/",  # userinfo is refused outright
+    "http://example.com@169.254.169.254/",
+    "http://169.254.169.254\\example.com/",
+]
+
+
+@pytest.mark.parametrize("url", CONFUSED)
+def test_urls_the_parsers_disagree_on_are_refused(net, url):
+    assert links.fetch_link(url) is None
+    assert net["requested"] == []
+
+
+@pytest.mark.parametrize("location", CONFUSED)
+def test_redirect_to_a_confusing_url_is_refused(net, location):
+    net["pages"]["https://hop.example.com/"] = FakeResponse(302, location=location)
+    assert links.fetch_link("https://hop.example.com/") is None
+    assert net["requested"] == ["https://hop.example.com/"]
+
+
+def test_resolve_refuses_a_confusing_url(net):
+    assert links.resolve(CONFUSED[0]) is None
+    assert net["requested"] == []
