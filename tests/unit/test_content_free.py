@@ -61,7 +61,7 @@ def test_ydl_params_always_pass_js_runtimes_and_download_paths(tmp_path, monkeyp
     assert p["js_runtimes"] == {} and p["noplaylist"] is True and "paths" not in p
     d = cf.ydl_params(tmp_path, IngestOptions(), download=True)
     assert d["paths"] == {"home": str(tmp_path / "media")} and d["outtmpl"] == "video.%(ext)s"
-    assert d["ffmpeg_location"] == "/x/bin" and d["merge_output_format"] == "mp4"
+    assert d["ffmpeg_location"] == str(Path("/x/bin")) and d["merge_output_format"] == "mp4"
 
 
 @pytest.mark.parametrize(
