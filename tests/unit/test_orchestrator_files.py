@@ -86,8 +86,12 @@ def test_run_protocol_frames_exit_7_and_audio_only():
 
 
 def test_run_protocol_work_path():
-    text = read(REFS / "run-protocol.md")
-    assert "${SKIPWATCH_HOME:-$HOME/.skipwatch}/work/<slug>-<yyyymmdd-hhmmss>" in text
+    # G5 golden run: a hand-built path ignored SKIPWATCH_HOME; the engine makes the folder
+    text = flat(REFS / "run-protocol.md")
+    assert "<ENGINE> new-work --slug <slug> --json" in text
+    assert "take `<W>` only from its output" in text
+    assert "Never build the work path by hand" in text
+    assert "/work/<slug>-<yyyymmdd-hhmmss>" not in text
 
 
 def test_run_protocol_parallel_readers_and_r_dis_4():
@@ -543,7 +547,8 @@ def test_every_tool_used_grader_is_covered():
 def test_work_folder_falls_back_inside_the_workspace():
     # eval sandboxes confine writes to the workspace, so $HOME/.skipwatch may be read-only
     text = flat(REFS / "run-protocol.md")
-    assert 'If `mkdir -p "<W>/logs" "<W>/draft"` fails' in text
+    assert "If `new-work` fails" in text
+    assert 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work --slug <slug> --json' in text
     assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
     assert "as an env prefix to every `<ENGINE>` call" in text
     review = flat(REFS / "review-screen.md")
@@ -1132,3 +1137,22 @@ def test_platform_specific_failures():
     assert "per-platform failures" in skill and "platforms.md" in skill
     for name in ("X", "TikTok", "Instagram", "Facebook"):
         assert name in fm(SKILL / "SKILL.md")["description"], name
+
+
+def test_no_hand_built_skipwatch_home_paths():
+    # the shell expands ${SKIPWATCH_HOME:-$HOME/.skipwatch}; a bare $HOME/.skipwatch or
+    # ~/.skipwatch is a path the model would build by hand, which ignores SKIPWATCH_HOME
+    documentation = (
+        "${SKIPWATCH_HOME:-$HOME/.skipwatch}",
+        "(default `$HOME/.skipwatch/doctor.json`)",
+        "`~/.skipwatch/backups/`",
+    )
+    for path in PROMPT_FILES:
+        text = read(path)
+        for doc in documentation:
+            text = text.replace(doc, "")
+        assert "$HOME/.skipwatch" not in text, path
+        assert "~/.skipwatch" not in text, path
+        assert "${SKIPWATCH_HOME:-$HOME/.skipwatch}/work/" not in read(path), path
+    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    assert "Set `<W>` to `work`" in resume  # resume's folder comes from the engine too

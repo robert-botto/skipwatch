@@ -93,13 +93,20 @@ Capture the engine's own exit code and stderr, not those of a later command:
 
 ## Stage 2: work folder and arguments
 
-Work path: `${SKIPWATCH_HOME:-$HOME/.skipwatch}/work/<slug>-<yyyymmdd-hhmmss>` where slug
-is the lowercased hyphenated file stem (or `--name` if given). Example: `Screen Recording
+The slug is the lowercased hyphenated file stem (or `--name` if given). Example: `Screen Recording
 2026-10-09 at 14.02.11.mov` gives slug `screen-recording-2026-10-09-at-14-02-11`. For a URL
 the slug is the host without `www.` plus the video id or last path segment, lowercased,
 hyphenated and cut to 40 characters: `https://www.youtube.com/watch?v=AbC_12` gives
-`youtube-com-abc-12`. Get the timestamp from `date +%Y%m%d-%H%M%S`, resolve the path to an absolute one, then
-`mkdir -p "<W>/logs" "<W>/draft"`.
+`youtube-com-abc-12`. Then let the engine create the work folder, with `logs/`, `draft/`
+and `stages.json`, under its own home, and take `<W>` only from its output:
+
+    <ENGINE> new-work --slug <slug> --json; echo "rc=$?"
+
+`<W>` is the `work` value, copied exactly. Never build the work path by hand and never
+expand `$HOME` yourself: the engine's home is `SKIPWATCH_HOME` when that is set (eval and
+golden runners set it to a scratch folder), otherwise `.skipwatch` in the home folder, and
+only the engine applies that rule. Exit 64 means the slug broke the rule (lowercase
+letters, digits and hyphens, at most 80): fix the slug and run it again.
 
 Then use the Write tool to write `<W>/logs/.write-probe` with the content `ok`. Bash and
 the Write tool can have different permissions: in some sandboxes `mkdir` succeeds in the
@@ -108,16 +115,17 @@ reader tries to save its notes.
 
 ### Fallback: move the work folder into the project
 
-If `mkdir -p "<W>/logs" "<W>/draft"` fails, move SkipWatch's home into the project as
-below. If that Write is denied or fails, do the same, even though `mkdir` worked:
+If `new-work` fails (any exit other than 64), move SkipWatch's home into the project as
+below. If that Write is denied or fails, do the same, even though `new-work` worked:
 
 1. Let `<P>` be the literal absolute current directory (`$PWD`). Run
    `mkdir -p "<P>/.skipwatch" && printf '*\n' > "<P>/.skipwatch/.gitignore"`, so the
    `<P>/.skipwatch/.gitignore` file containing `*` keeps the work files out of the user's
    commits.
-2. Use `SKIPWATCH_HOME="$PWD/.skipwatch"`, written with `<P>` in place of `$PWD`, so the
-   new `<W>` is `<P>/.skipwatch/work/<slug>-<timestamp>`. Create it and repeat the Write
-   probe there.
+2. Use `SKIPWATCH_HOME="$PWD/.skipwatch"`, written with `<P>` in place of `$PWD`. Create
+   the new work folder with
+   `SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work --slug <slug> --json`, take the new
+   `<W>` from its output, and repeat the Write probe there.
 3. Pass it as an env prefix to every `<ENGINE>` call for the rest of the run, for example
    `SKIPWATCH_HOME="/abs/project/.skipwatch" <ENGINE> ingest ...`, so the engine's
    backups and config land there too. If doctor in stage 1 failed to write
