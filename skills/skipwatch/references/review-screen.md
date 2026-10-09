@@ -82,12 +82,16 @@ each only when it applies:
 
 ```
   video came from a linked post: <url>
+  Fetched with your browser cookies: this skill cannot be packed for sharing.
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
   `run-protocol.md`); `<url>` is `source.canonical_url`. `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
+- **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
+  `--cookies-from-browser`, R-ING-5). The skill came from content only the user's login
+  could see, so it is never packed or shared (section 10); the manifest records it.
 
 ## The prompt line
 

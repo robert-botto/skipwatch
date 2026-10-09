@@ -1096,14 +1096,12 @@ def test_text_sources_skip_the_video_stages():
     assert "a text source never runs transcribe, frames, plan or read" in text
 
 
-
 def test_context_wins_over_frames():
     text = flat(REFS / "run-protocol.md")
     assert (
         "When `context` and the frames disagree, context wins and the step is tagged "
         "`[written]` (R-ING-1)" in text
     )
-
 
 
 def test_linked_video_post_credits_the_linked_author():
@@ -1114,3 +1112,9 @@ def test_linked_video_post_credits_the_linked_author():
     assert "names the linked post's author" in review
     template = flat(REFS / "skill-template.md")
     assert "names the linked post's author" in template
+
+
+def test_cookies_runs_cannot_be_packed():
+    review = read(REFS / "review-screen.md")
+    assert "  Fetched with your browser cookies: this skill cannot be packed for sharing." in review
+    assert "`fetched_with_cookies`" in flat(REFS / "review-screen.md")
