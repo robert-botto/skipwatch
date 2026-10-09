@@ -97,7 +97,8 @@
         "treg": {
           "$ref": "#/$defs/TregConfig",
           "default": {
-            "enabled": "auto"
+            "enabled": "auto",
+            "max_cost_usd": 0.05
           }
         }
       },
@@ -158,6 +159,12 @@
             false
           ],
           "title": "Enabled"
+        },
+        "max_cost_usd": {
+          "default": 0.05,
+          "minimum": 0,
+          "title": "Max Cost Usd",
+          "type": "number"
         }
       },
       "title": "TregConfig",
@@ -196,7 +203,8 @@
       "$ref": "#/$defs/ProvidersConfig",
       "default": {
         "treg": {
-          "enabled": "auto"
+          "enabled": "auto",
+          "max_cost_usd": 0.05
         }
       }
     },

@@ -69,6 +69,7 @@ class TranscribeConfig(_ConfigModel):
 
 class TregConfig(_ConfigModel):
     enabled: Literal["auto", True, False] = "auto"
+    max_cost_usd: float = Field(default=0.05, ge=0)  # per run (M2-M4 issue 9)
 
 
 class ProvidersConfig(_ConfigModel):
@@ -133,6 +134,8 @@ class IngestContext(_Model):
     links: list[LinkContext] = []
     captions_available: bool = False
     captions_path: str | None = None  # work-relative path of the copied sidecar (M1 localfile)
+    captions_lang: str | None = None
+    captions_kind: Literal["manual", "auto"] | None = None
 
 
 class MediaInfo(_Model):
@@ -154,6 +157,10 @@ class ProviderCall(_Model):
     ok: bool
     cost_usd: float = 0
     ms: int = 0
+    endpoint: str | None = None
+    call_id: str | None = None
+    review: Literal["useful", "partly", "not_useful", "not_sure"] | None = None
+    error: str | None = None
 
 
 class Route(_Model):
@@ -171,6 +178,7 @@ class IngestBundle(_Tagged):
     provider_calls: list[ProviderCall] = []
     route: Route
     fetched_with_cookies: bool = False
+    from_cache: bool = False
 
 
 # ---- transcript.json (7.2) ----
@@ -396,6 +404,24 @@ class Critique(_Tagged):
     fixes: list[CritiqueFix] = Field(default=[], max_length=8)
 
 
+class RunFile(_Tagged):
+    """run.json: the original input and flags, written by the orchestrator before ingest."""
+
+    schema_: Literal["skipwatch/run/1"] = _tag("skipwatch/run/1")
+    input: str
+    flags: list[str] = []
+    name: str | None = None
+    started_at: str
+
+
+class CacheEntry(_Tagged):
+    schema_: Literal["skipwatch/cache-entry/1"] = _tag("skipwatch/cache-entry/1")
+    key: str
+    source: str
+    created_at: str
+    files: list[str] = []
+
+
 # ---- command --json outputs ----
 Tier = Literal["none", "0", "1", "1c", "2", "3"]
 
@@ -438,6 +464,28 @@ class InstallResult(_Tagged):
     backup: str | None = None
 
 
+class ProbeResult(_Tagged):
+    schema_: Literal["skipwatch/probe/1"] = _tag("skipwatch/probe/1")
+    value: str
+    kind: Literal["video", "audio", "text", "file", "unknown"]
+    platform: str
+    title: str | None = None
+    author: str | None = None
+    duration_s: float | None = None
+    captions_available: bool = False
+    long_video: bool = False
+    estimated_run_s: int | None = None
+
+
+class ResumeResult(_Tagged):
+    schema_: Literal["skipwatch/resume/1"] = _tag("skipwatch/resume/1")
+    work: str
+    next_stage: StageName | None
+    completed: list[StageName] = []
+    run: RunFile | None = None
+    media_present: bool = False
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -460,4 +508,8 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "cache": CacheResult,
     "install": InstallResult,
     "config": Config,
+    "probe": ProbeResult,
+    "run": RunFile,
+    "resume": ResumeResult,
+    "cache-entry": CacheEntry,
 }

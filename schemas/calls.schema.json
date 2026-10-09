@@ -3,10 +3,46 @@
     "ProviderCall": {
       "additionalProperties": false,
       "properties": {
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Id"
+        },
         "cost_usd": {
           "default": 0,
           "title": "Cost Usd",
           "type": "number"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
         },
         "ms": {
           "default": 0,
@@ -24,6 +60,24 @@
         "provider": {
           "title": "Provider",
           "type": "string"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "enum": [
+                "useful",
+                "partly",
+                "not_useful",
+                "not_sure"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
         }
       },
       "required": [

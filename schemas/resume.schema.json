@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "RunFile": {
+      "additionalProperties": false,
+      "description": "run.json: the original input and flags, written by the orchestrator before ingest.",
+      "properties": {
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "input": {
+          "title": "Input",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "schema": {
+          "const": "skipwatch/run/1",
+          "default": "skipwatch/run/1",
+          "title": "Schema",
+          "type": "string"
+        },
+        "started_at": {
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "input",
+        "started_at"
+      ],
+      "title": "RunFile",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "completed": {
+      "default": [],
+      "items": {
+        "enum": [
+          "detect",
+          "ingest",
+          "transcribe",
+          "frames",
+          "plan",
+          "read",
+          "distill",
+          "critique",
+          "check",
+          "review",
+          "install",
+          "export"
+        ],
+        "type": "string"
+      },
+      "title": "Completed",
+      "type": "array"
+    },
+    "media_present": {
+      "default": false,
+      "title": "Media Present",
+      "type": "boolean"
+    },
+    "next_stage": {
+      "anyOf": [
+        {
+          "enum": [
+            "detect",
+            "ingest",
+            "transcribe",
+            "frames",
+            "plan",
+            "read",
+            "distill",
+            "critique",
+            "check",
+            "review",
+            "install",
+            "export"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Stage"
+    },
+    "run": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunFile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema": {
+      "const": "skipwatch/resume/1",
+      "default": "skipwatch/resume/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "work": {
+      "title": "Work",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "work",
+    "next_stage"
+  ],
+  "title": "ResumeResult",
+  "type": "object"
+}

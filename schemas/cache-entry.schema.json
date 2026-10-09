@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "files": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "key": {
+      "title": "Key",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/cache-entry/1",
+      "default": "skipwatch/cache-entry/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "key",
+    "source",
+    "created_at"
+  ],
+  "title": "CacheEntry",
+  "type": "object"
+}

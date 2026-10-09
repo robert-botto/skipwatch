@@ -16,6 +16,34 @@
           "title": "Captions Available",
           "type": "boolean"
         },
+        "captions_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "manual",
+                "auto"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Kind"
+        },
+        "captions_lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Lang"
+        },
         "captions_path": {
           "anyOf": [
             {
@@ -150,10 +178,46 @@
     "ProviderCall": {
       "additionalProperties": false,
       "properties": {
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Id"
+        },
         "cost_usd": {
           "default": 0,
           "title": "Cost Usd",
           "type": "number"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
         },
         "ms": {
           "default": 0,
@@ -171,6 +235,24 @@
         "provider": {
           "title": "Provider",
           "type": "string"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "enum": [
+                "useful",
+                "partly",
+                "not_useful",
+                "not_sure"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
         }
       },
       "required": [
@@ -368,6 +450,8 @@
       "default": {
         "author_replies": [],
         "captions_available": false,
+        "captions_kind": null,
+        "captions_lang": null,
         "captions_path": null,
         "links": [],
         "post_text": null,
@@ -377,6 +461,11 @@
     "fetched_with_cookies": {
       "default": false,
       "title": "Fetched With Cookies",
+      "type": "boolean"
+    },
+    "from_cache": {
+      "default": false,
+      "title": "From Cache",
       "type": "boolean"
     },
     "media": {

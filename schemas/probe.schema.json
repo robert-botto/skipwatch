@@ -1,0 +1,96 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "author": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Author"
+    },
+    "captions_available": {
+      "default": false,
+      "title": "Captions Available",
+      "type": "boolean"
+    },
+    "duration_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration S"
+    },
+    "estimated_run_s": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Estimated Run S"
+    },
+    "kind": {
+      "enum": [
+        "video",
+        "audio",
+        "text",
+        "file",
+        "unknown"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "long_video": {
+      "default": false,
+      "title": "Long Video",
+      "type": "boolean"
+    },
+    "platform": {
+      "title": "Platform",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/probe/1",
+      "default": "skipwatch/probe/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Title"
+    },
+    "value": {
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "value",
+    "kind",
+    "platform"
+  ],
+  "title": "ProbeResult",
+  "type": "object"
+}
