@@ -4,10 +4,16 @@
 unlinked, never followed, so nothing outside SKIPWATCH_HOME can be deleted.
 """
 
+import contextlib
+import os
 import shutil
+import stat
+import sys
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import CacheResult
 
 WORK_MAX_AGE = timedelta(days=7)
@@ -27,11 +33,26 @@ def cache_status(home: Path) -> CacheResult:
     )
 
 
+def _make_writable_and_retry(func: Callable[[str], object], path: str, _exc: object) -> None:
+    """rmtree error hook: clear the read-only bit (Windows files, POSIX folders), retry once."""
+    for target in (os.path.dirname(path), path):
+        with contextlib.suppress(OSError):
+            os.chmod(target, os.stat(target).st_mode | stat.S_IWRITE | stat.S_IRWXU)
+    func(path)
+
+
 def _remove(path: Path) -> None:
-    if path.is_symlink():
-        path.unlink()
-    else:
-        shutil.rmtree(path)
+    try:
+        if path.is_symlink():
+            path.unlink()
+        elif sys.version_info >= (3, 12):
+            shutil.rmtree(path, onexc=_make_writable_and_retry)
+        else:
+            shutil.rmtree(path, onerror=_make_writable_and_retry)
+    except OSError as exc:
+        raise SkipwatchError(
+            ExitCode.CHECK_FAILED, f"could not remove {path}: {exc.strerror or exc}"
+        ) from exc
 
 
 def clear_cache(home: Path, now: datetime) -> CacheResult:

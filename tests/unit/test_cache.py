@@ -1,12 +1,17 @@
 import json
 import os
+import stat
+import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import pytest
 from typer.testing import CliRunner
 
+from skipwatch import cache as cache_mod
 from skipwatch.cache import cache_status, clear_cache
 from skipwatch.cli import app
+from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import CacheResult
 
 
@@ -53,11 +58,11 @@ def test_clear_never_follows_symlinks_out_of_home(sw_home, tmp_path):
     (sw_home / "work").mkdir(parents=True)
     link = sw_home / "work/linked-20260901-000000"
     link.symlink_to(outside, target_is_directory=True)
-    os.utime(link, (0, 0), follow_symlinks=False)
     (sw_home / "cache").mkdir()
     (sw_home / "cache/link").symlink_to(outside, target_is_directory=True)
-    clear_cache(sw_home, datetime.now())
+    r = clear_cache(sw_home, datetime.now() + timedelta(days=30))  # link counts as old
     assert (outside / "precious").exists()
+    assert not link.is_symlink() and str(link) in r.removed
 
 
 def test_cache_status_counts(sw_home):
@@ -79,3 +84,35 @@ def test_cache_command_json_and_clear(sw_home):
     assert json.loads(cleared.stdout)["cleared"] is True
     assert not (sw_home / "cache").exists()
     assert cleared.stderr
+
+
+def test_clear_removes_read_only_files_and_folders(sw_home):
+    entry = sw_home / "cache/abc"
+    entry.mkdir(parents=True)
+    frozen = entry / "ingest.json"
+    frozen.write_text("{}")
+    frozen.chmod(stat.S_IREAD)  # read-only file: rmtree fails on Windows without a handler
+    if sys.platform != "win32":
+        entry.chmod(stat.S_IREAD | stat.S_IEXEC)  # read-only folder: fails on POSIX too
+    try:
+        clear_cache(sw_home, datetime.now())
+    finally:
+        if entry.exists():
+            entry.chmod(stat.S_IRWXU)
+            frozen.chmod(stat.S_IRWXU)
+    assert not (sw_home / "cache").exists()
+
+
+def test_clear_failure_is_a_clean_error_not_a_traceback(sw_home, monkeypatch):
+    (sw_home / "cache/abc").mkdir(parents=True)
+
+    def boom(path, **kwargs):
+        raise PermissionError(13, "Permission denied", str(path))
+
+    monkeypatch.setattr(cache_mod.shutil, "rmtree", boom)
+    with pytest.raises(SkipwatchError) as exc:
+        clear_cache(sw_home, datetime.now())
+    assert "could not remove" in exc.value.message and "cache" in exc.value.message
+    r = CliRunner().invoke(app, ["cache", "--clear"])
+    assert r.exit_code == ExitCode.CHECK_FAILED and isinstance(r.exception, SystemExit)
+    assert "Traceback" not in r.output and "could not remove" in r.stderr
