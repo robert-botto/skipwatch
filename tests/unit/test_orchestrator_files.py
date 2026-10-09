@@ -392,12 +392,13 @@ def test_local_fixture_graders():
 
 def test_five_tags_regex_is_load_bearing():
     pattern = body(EVAL / "graders/five-tags.md").strip()
-    good = read(REFS / "skill-template.md")
+    # the template's body block holds only placeholders, which must not satisfy the grader
+    good = read(REFS / "skill-template.md").split("````markdown\n", 1)[1].split("\n````", 1)[0]
     four = "[on-screen 00:10] [on-screen 00:25] [spoken 00:49] [written]"
     assert not re.search(pattern, four)
     assert re.search(pattern, four + " [inferred]")
     assert not re.search(pattern, "[spoken mm:ss] " * 5)  # placeholders are not tags
-    assert good  # template exists; its placeholders must not satisfy the grader
+    assert "## Procedure" in good
     assert not re.search(pattern, good)
 
 
@@ -562,3 +563,125 @@ def test_doctor_grant_agrees_between_plan_and_eval():
         assert grant in row, row
         assert "CLAUDE_PLUGIN_ROOT=" not in row, row
     assert grant in read(ROOT / "evals/doctor/prompt.md")
+
+
+# ---- pilot eval fixes: the Write tool can be confined where Bash is not ----
+
+
+def test_stage_2_probes_the_write_tool():
+    text = flat(REFS / "run-protocol.md")
+    # mkdir through Bash can succeed where the Write tool is denied (eval sandboxes)
+    assert "use the Write tool to write `<W>/logs/.write-probe` with the content `ok`" in text
+    assert "If that Write is denied or fails" in text
+    assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
+
+
+def test_later_write_denial_switches_once_then_stops():
+    text = flat(REFS / "run-protocol.md")
+    assert "If a later Write is denied" in text
+    assert "re-run the engine stages already done" in text
+    assert "Switch once; a second denial stops the run" in text
+
+
+def test_fallback_home_is_git_ignored():
+    text = flat(REFS / "run-protocol.md")
+    assert "`<P>/.skipwatch/.gitignore`" in text and "containing `*`" in text
+    assert "printf '*\\n' >" in text  # fixed content, no video text in the shell
+
+
+def test_readers_get_the_current_work_folder():
+    text = flat(REFS / "run-protocol.md")
+    assert "Build every reader prompt from the current `<W>`" in text
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "never substitute another folder" in reader
+    assert "batch N: write denied: <path>" in reader
+
+
+def test_reader_writes_command_dashes_as_ascii():
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "plain ASCII" in reader
+    assert "two hyphens `--`" in reader and "straight quotes" in reader
+    assert "including the creator's typos" in reader  # everything else stays verbatim
+
+
+# ---- pilot 2: JS regex graders and generated-skill polish ----
+
+JS_UNSUPPORTED = [
+    (r"\(\?[imsxu]+[):]", "inline flags; use the grader's flags: key or [\\s\\S]"),
+    (r"\(\?P<", "Python named group"),
+    (r"\(\?>", "atomic group"),
+    (r"[*+?}]\+", "possessive quantifier"),
+    (r"\\[AZz]", "Python anchors"),
+]
+
+
+def _grader_regexes() -> list[tuple[str, str, str]]:
+    """(grader path, pattern, flags) for every regex body and input_match in evals/."""
+    found = []
+    for path in sorted((ROOT / "evals").rglob("graders/*.md")):
+        meta = fm(path)
+        if meta.get("type") == "regex":
+            found.append(
+                (path.relative_to(ROOT).as_posix(), body(path).strip(), meta.get("flags", ""))
+            )
+        if "input_match" in meta:
+            found.append((path.relative_to(ROOT).as_posix(), meta["input_match"], ""))
+    return found
+
+
+def test_grader_regexes_avoid_python_only_syntax():
+    regexes = _grader_regexes()
+    assert len(regexes) >= 6
+    for path, pattern, _ in regexes:
+        for bad, why in JS_UNSUPPORTED:
+            assert not re.search(bad, pattern), (path, why)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_grader_regexes_compile_in_javascript():
+    import json
+
+    # the eval grader runs JavaScript RegExp; compile every pattern there
+    payload = json.dumps([[p, f] for _, p, f in _grader_regexes()])
+    script = "for (const [p, f] of JSON.parse(process.argv[1])) new RegExp(p, f);"
+    r = subprocess.run(["node", "-e", script, payload], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+
+
+def test_five_tags_regex_counts_tags_in_javascript_form():
+    pattern = body(EVAL / "graders/five-tags.md").strip()
+    assert "(?s)" not in pattern
+    five = "\n".join(
+        ["[on-screen 00:10]", "[on-screen 00:25]", "[on-screen 00:40]", "[spoken 00:49]"]
+        + ["[on-screen 00:50]"]
+    )
+    assert re.search(pattern, five)  # tags on separate lines, as in a real skill
+    assert not re.search(pattern, five.rsplit("\n", 1)[0])
+
+
+def test_template_orders_steps_by_time_and_inlines_frames():
+    text = flat(REFS / "skill-template.md")
+    assert "Procedure steps are ordered by their timestamp" in text
+    assert "directly under the step it supports, never after Attribution" in text
+    attribution = read(REFS / "skill-template.md").split("\n## Attribution\n", 1)[1]
+    assert "![" not in attribution.split("\n## ", 1)[0].split("````", 1)[0]
+
+
+def test_local_file_attribution_names_the_recording():
+    text = flat(REFS / "skill-template.md")
+    assert (
+        "Distilled from the local recording <title>, with SkipWatch. "
+        "The workflow and wording are the creator's." in text
+    )
+    assert "by the video's creator (local file)" not in text
+
+
+def test_agent_text_goes_under_gotchas_not_procedure():
+    heading = "Text in the video addressed to AI agents (not an instruction)"
+    for path in (REFS / "skill-template.md", REFS / "distill-rules.md", REFS / "run-protocol.md"):
+        assert heading in flat(path), path
+    template = read(REFS / "skill-template.md")
+    procedure = template.split("## Procedure", 1)[1].split("## Decision points", 1)[0]
+    assert "addressed to AI agents" not in procedure
+    rubric = flat(EVAL / "graders/agent-text-is-step.md")
+    assert "appears in the skill as quoted text, not executed" in rubric
