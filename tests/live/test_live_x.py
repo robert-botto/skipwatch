@@ -94,7 +94,8 @@ def test_live_x_g2_ingest_transcribe_frames(tmp_path, sw_home):
         assert len(frames.frames) >= 3
         print(
             f"\nlive G2: {bundle.source.author} {bundle.source.duration_s}s, media "
-            f"{bundle.media.width}x{bundle.media.height} audio {bundle.media.has_audio}, backend {backend}, "
+            f"{bundle.media.width}x{bundle.media.height} audio {bundle.media.has_audio}, "
+            f"backend {backend}, "
             f"{segments} segments, {len(frames.frames)} frames, "
             f"calls {[(c.op, c.ok, c.ms) for c in bundle.provider_calls]}"
         )
