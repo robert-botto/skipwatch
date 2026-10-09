@@ -46,6 +46,7 @@
     }
   },
   "required": [
+    "schema",
     "batches"
   ],
   "title": "BatchesFile",

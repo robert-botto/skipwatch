@@ -47,7 +47,8 @@
           "default": "user",
           "enum": [
             "user",
-            "project"
+            "project",
+            "agents"
           ],
           "title": "Scope",
           "type": "string"

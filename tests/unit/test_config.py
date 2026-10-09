@@ -43,3 +43,24 @@ def test_unknown_config_key_rejected(tmp_path):
     p.write_text("[frames]\nper_minuet = 5\n", encoding="utf-8")
     with pytest.raises(ValueError):
         load_config(p)
+
+
+def test_relative_home_resolved_to_absolute(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SKIPWATCH_HOME", "rel-home")
+    home = skipwatch_home()
+    assert home.is_absolute()
+    assert home == Path.cwd() / "rel-home"
+
+
+def test_config_types_are_strict(tmp_path):
+    p = tmp_path / "config.toml"
+    p.write_text('[frames]\nper_minute = "5"\n', encoding="utf-8")
+    with pytest.raises(ValueError):
+        load_config(p)
+
+
+def test_install_scope_agents_allowed(tmp_path):
+    p = tmp_path / "config.toml"
+    p.write_text('[install]\nscope = "agents"\n', encoding="utf-8")
+    assert load_config(p).install.scope == "agents"

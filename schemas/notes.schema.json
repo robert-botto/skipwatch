@@ -116,6 +116,7 @@
     }
   },
   "required": [
+    "schema",
     "batch",
     "frames"
   ],

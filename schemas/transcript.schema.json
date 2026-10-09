@@ -166,6 +166,7 @@
     }
   },
   "required": [
+    "schema",
     "origin",
     "segments"
   ],

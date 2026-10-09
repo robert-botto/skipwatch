@@ -188,6 +188,10 @@
       "default": null,
       "title": "Critic Score"
     },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
     "extracted_at": {
       "title": "Extracted At",
       "type": "string"
@@ -204,6 +208,10 @@
       "default": {},
       "title": "Files",
       "type": "object"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
     },
     "safety_flags": {
       "default": [],
@@ -228,6 +236,9 @@
     }
   },
   "required": [
+    "schema",
+    "name",
+    "description",
     "skipwatch_version",
     "source",
     "extracted_at",

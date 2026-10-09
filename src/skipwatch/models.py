@@ -2,7 +2,7 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Model(BaseModel):
@@ -13,49 +13,88 @@ def _tag(value: str) -> Any:
     return Field(default=value, alias="schema")
 
 
+def _schema_tag_required(schema: dict[str, Any]) -> None:
+    required = schema.setdefault("required", [])
+    if "schema" not in required:
+        required.insert(0, "schema")
+
+
+class _Tagged(_Model):
+    """A model written to disk with a `schema` tag.
+
+    Reading (model_validate, model_validate_json) requires the tag, and the generated JSON Schema
+    lists it as required. Constructing in Python fills it in: __init__ injects the field default
+    before validation. __init__ is marked as a base init (the pattern pydantic's own RootModel
+    uses) so model_validate validates the raw data directly and never reaches the injection.
+    The field keeps its default so type checkers accept construction without it.
+    """
+
+    model_config = ConfigDict(json_schema_extra=_schema_tag_required)
+
+    def __init__(self, **data: Any) -> None:
+        if "schema" not in data and "schema_" not in data:
+            data["schema"] = type(self).model_fields["schema_"].default
+        super().__init__(**data)
+
+    __init__.__pydantic_base_init__ = True  # pyright: ignore[reportFunctionMemberAccess]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _require_schema_tag(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "schema" not in data and "schema_" not in data:
+            raise ValueError("missing schema tag: expected 'schema' key")
+        return data
+
+
 # ---- config.toml (7.7) ----
-class InstallConfig(_Model):
-    scope: Literal["user", "project"] = "user"
+class _ConfigModel(_Model):
+    """Config is hand-written TOML: no coercion, so per_minute = "5" is an error."""
+
+    model_config = ConfigDict(strict=True)
 
 
-class FramesConfig(_Model):
+class InstallConfig(_ConfigModel):
+    scope: Literal["user", "project", "agents"] = "user"
+
+
+class FramesConfig(_ConfigModel):
     per_minute: int = Field(default=3, ge=1)
     max: int = Field(default=60, ge=1)
 
 
-class TranscribeConfig(_Model):
+class TranscribeConfig(_ConfigModel):
     backend: Literal["auto", "captions", "mlx", "faster", "openai", "groq", "deepgram"] = "auto"
     model: str = ""
 
 
-class TregConfig(_Model):
+class TregConfig(_ConfigModel):
     enabled: Literal["auto", True, False] = "auto"
 
 
-class ProvidersConfig(_Model):
+class ProvidersConfig(_ConfigModel):
     treg: TregConfig = TregConfig()
 
 
-class StyleConfig(_Model):
+class StyleConfig(_ConfigModel):
     forbid: list[str] = ["em-dash"]
 
 
-class Mem0Config(_Model):
+class Mem0Config(_ConfigModel):
     enabled: bool = False
     tag: str = "skipwatch"
 
 
-class NotesConfig(_Model):
+class NotesConfig(_ConfigModel):
     enabled: bool = False
     folder: str = ""
 
 
-class ExportsConfig(_Model):
+class ExportsConfig(_ConfigModel):
     mem0: Mem0Config = Mem0Config()
     notes: NotesConfig = NotesConfig()
 
 
-class Config(_Model):
+class Config(_ConfigModel):
     install: InstallConfig = InstallConfig()
     frames: FramesConfig = FramesConfig()
     transcribe: TranscribeConfig = TranscribeConfig()
@@ -123,7 +162,7 @@ class Route(_Model):
     fallbacks: list[str] = []
 
 
-class IngestBundle(_Model):
+class IngestBundle(_Tagged):
     schema_: Literal["skipwatch/ingest/1"] = _tag("skipwatch/ingest/1")
     source: SourceInfo
     context: IngestContext = IngestContext()
@@ -159,7 +198,7 @@ class CrossCheck(_Model):
     similarity: float | None = None
 
 
-class Transcript(_Model):
+class Transcript(_Tagged):
     schema_: Literal["skipwatch/transcript/1"] = _tag("skipwatch/transcript/1")
     origin: TranscriptOrigin
     model: str | None = None
@@ -186,7 +225,7 @@ class Frame(_Model):
     dhash: str = Field(pattern=r"^[0-9a-f]{16}$")
 
 
-class FramesFile(_Model):
+class FramesFile(_Tagged):
     schema_: Literal["skipwatch/frames/1"] = _tag("skipwatch/frames/1")
     sampling: Sampling
     frames: list[Frame]
@@ -199,7 +238,7 @@ class Batch(_Model):
     notes_path: str
 
 
-class BatchesFile(_Model):
+class BatchesFile(_Tagged):
     schema_: Literal["skipwatch/batches/1"] = _tag("skipwatch/batches/1")
     batches: list[Batch]
 
@@ -222,7 +261,7 @@ class FrameNote(_Model):
     note: str = ""
 
 
-class NotesFile(_Model):
+class NotesFile(_Tagged):
     schema_: Literal["skipwatch/notes/1"] = _tag("skipwatch/notes/1")
     batch: int
     frames: list[FrameNote]
@@ -262,7 +301,7 @@ class Counts(_Model):
     illegible: int = 0
 
 
-class CheckReport(_Model):
+class CheckReport(_Tagged):
     schema_: Literal["skipwatch/check/1"] = _tag("skipwatch/check/1")
     skill: str
     passed: bool
@@ -280,8 +319,10 @@ class ManifestSource(_Model):
     posted_at: str | None = None
 
 
-class Manifest(_Model):
+class Manifest(_Tagged):
     schema_: Literal["skipwatch/manifest/1"] = _tag("skipwatch/manifest/1")
+    name: str
+    description: str
     skipwatch_version: str
     source: ManifestSource
     extracted_at: str
@@ -318,12 +359,12 @@ class StageState(_Model):
     error: str | None = None
 
 
-class StagesFile(_Model):
+class StagesFile(_Tagged):
     schema_: Literal["skipwatch/stages/1"] = _tag("skipwatch/stages/1")
     stages: dict[StageName, StageState]
 
 
-class SourceFile(_Model):
+class SourceFile(_Tagged):
     schema_: Literal["skipwatch/source/1"] = _tag("skipwatch/source/1")
     kind: SourceKind
     platform: str
@@ -332,7 +373,7 @@ class SourceFile(_Model):
     path: str | None = None
 
 
-class CallsFile(_Model):
+class CallsFile(_Tagged):
     schema_: Literal["skipwatch/calls/1"] = _tag("skipwatch/calls/1")
     calls: list[ProviderCall] = []
 
@@ -343,7 +384,7 @@ class CritiqueFix(_Model):
     fix: str
 
 
-class Critique(_Model):
+class Critique(_Tagged):
     schema_: Literal["skipwatch/critique/1"] = _tag("skipwatch/critique/1")
     scores: dict[
         Literal[
@@ -372,7 +413,7 @@ class DoctorMissing(_Model):
     install_command: str
 
 
-class DoctorReport(_Model):
+class DoctorReport(_Tagged):
     schema_: Literal["skipwatch/doctor/1"] = _tag("skipwatch/doctor/1")
     tier: Tier
     next_tier: Tier | None = None
@@ -381,7 +422,7 @@ class DoctorReport(_Model):
     warnings: list[str] = []
 
 
-class CacheResult(_Model):
+class CacheResult(_Tagged):
     schema_: Literal["skipwatch/cache/1"] = _tag("skipwatch/cache/1")
     cleared: bool
     removed: list[str] = []
@@ -389,7 +430,7 @@ class CacheResult(_Model):
     work_folders: int = 0
 
 
-class InstallResult(_Model):
+class InstallResult(_Tagged):
     schema_: Literal["skipwatch/install/1"] = _tag("skipwatch/install/1")
     name: str
     path: str

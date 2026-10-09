@@ -175,6 +175,8 @@ def test_manifest_confidence_enumerated():
         Manifest.model_validate(
             {
                 "schema": "skipwatch/manifest/1",
+                "name": "run-skipdemo-tutorial",
+                "description": "Run the skipdemo tutorial. Use when asked to run skipdemo.",
                 "skipwatch_version": "0.1.0",
                 "source": {
                     "url": None,
@@ -222,3 +224,58 @@ def test_r_arch_2_registry_covers_every_work_file():
         "config",
     }
     assert set(SCHEMA_MODELS) == expected
+
+
+TAGGED = {key: model for key, model in SCHEMA_MODELS.items() if key != "config"}
+
+
+@pytest.mark.parametrize("key", sorted(TAGGED))
+def test_schema_tag_required_when_reading(key):
+    model = TAGGED[key]
+    with pytest.raises(ValidationError, match="schema"):
+        model.model_validate({})
+    with pytest.raises(ValidationError, match="schema"):
+        model.model_validate_json("{}")
+
+
+@pytest.mark.parametrize("key", sorted(TAGGED))
+def test_schema_tag_required_in_json_schema(key):
+    assert "schema" in TAGGED[key].model_json_schema(by_alias=True).get("required", [])
+
+
+def test_schema_tag_filled_on_construction():
+    t = Transcript(origin="captions", segments=[])
+    assert t.schema_ == "skipwatch/transcript/1"
+    assert json.loads(t.model_dump_json(by_alias=True))["schema"] == "skipwatch/transcript/1"
+    assert Transcript.model_validate_json(t.model_dump_json(by_alias=True)) == t
+
+
+def test_ingest_missing_schema_tag_rejected():
+    data = {k: v for k, v in INGEST_EXAMPLE.items() if k != "schema"}
+    with pytest.raises(ValidationError):
+        IngestBundle.model_validate(data)
+
+
+MANIFEST_EXAMPLE = {
+    "schema": "skipwatch/manifest/1",
+    "name": "run-skipdemo-tutorial",
+    "description": "Run the skipdemo tutorial. Use when asked to run skipdemo.",
+    "skipwatch_version": "0.1.0",
+    "source": {"platform": "local", "title": "t"},
+    "extracted_at": "2026-10-09T18:20:00Z",
+    "counts": {"steps": 1, "spoken": 1},
+    "confidence": "medium",
+    "checks_passed": True,
+}
+
+
+def test_manifest_carries_name_and_description_for_list():
+    m = Manifest.model_validate(MANIFEST_EXAMPLE)
+    assert (m.name, m.description) == (MANIFEST_EXAMPLE["name"], MANIFEST_EXAMPLE["description"])
+
+
+@pytest.mark.parametrize("field", ["name", "description"])
+def test_manifest_name_and_description_required(field):
+    data = {k: v for k, v in MANIFEST_EXAMPLE.items() if k != field}
+    with pytest.raises(ValidationError):
+        Manifest.model_validate(data)

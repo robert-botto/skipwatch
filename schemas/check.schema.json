@@ -193,6 +193,7 @@
     }
   },
   "required": [
+    "schema",
     "skill",
     "passed",
     "results",

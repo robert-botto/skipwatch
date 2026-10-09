@@ -59,6 +59,7 @@
     }
   },
   "required": [
+    "schema",
     "kind",
     "platform"
   ],

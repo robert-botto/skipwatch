@@ -9,7 +9,7 @@ from skipwatch.models import Config
 
 def skipwatch_home() -> Path:
     env = os.environ.get("SKIPWATCH_HOME")
-    return Path(env).expanduser() if env else Path.home() / ".skipwatch"
+    return Path(env).expanduser().absolute() if env else Path.home() / ".skipwatch"
 
 
 def load_config(path: Path | None = None) -> Config:

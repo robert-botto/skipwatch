@@ -125,6 +125,7 @@
     }
   },
   "required": [
+    "schema",
     "tier",
     "components",
     "missing"

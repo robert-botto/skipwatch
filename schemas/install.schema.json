@@ -39,6 +39,7 @@
     }
   },
   "required": [
+    "schema",
     "name",
     "path",
     "scope"
