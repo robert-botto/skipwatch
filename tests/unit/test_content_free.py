@@ -410,3 +410,11 @@ def test_r_cli_1_audio_only_file_is_reused_for_an_audio_source(tmp_path, monkeyp
     audio = {"duration": 600, "formats": [INFO["formats"][1]]}
     assert cf.download(audio, work, IngestOptions()).path == "media/video.webm"
     assert calls == []
+
+
+def test_metadata_never_resolves_playlist_entries(tmp_path, monkeypatch, fake_dl):
+    monkeypatch.setattr(cf.media, "ffmpeg_paths", lambda: (Path("/x/ffmpeg"), Path("/x/ffprobe")))
+    assert cf.ydl_params(tmp_path, IngestOptions(), download=False)["extract_flat"] == "in_playlist"
+    assert "extract_flat" not in cf.ydl_params(tmp_path, IngestOptions(), download=True)
+    cf.extract("https://www.youtube.com/playlist?list=PL1", IngestOptions())
+    assert fake_dl.instances[-1].params["extract_flat"] == "in_playlist"

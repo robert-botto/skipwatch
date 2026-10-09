@@ -129,6 +129,7 @@ def ydl_params(work: Path | None, opts: IngestOptions, *, download: bool) -> dic
         )
     else:
         params["skip_download"] = True
+        params["extract_flat"] = "in_playlist"  # a playlist or channel URL lists, never resolves
     return params
 
 
