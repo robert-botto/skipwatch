@@ -4,8 +4,11 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from skipwatch.audio import audio_duration, extract_audio
+from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, Segment, Word
 from skipwatch.workdir import WorkDir, read_model
+
+MODEL_SIZES = {"small": "500 MB", "large-v3-turbo": "1.6 GB", "turbo": "1.6 GB"}
 
 
 def has_media(bundle: IngestBundle) -> bool:
@@ -15,6 +18,15 @@ def has_media(bundle: IngestBundle) -> bool:
 
 def wav_for(work: WorkDir) -> Path:
     return extract_audio(work, read_model(work.file("ingest.json"), IngestBundle))
+
+
+def download_failed(model: str) -> SkipwatchError:
+    size = MODEL_SIZES.get(model)
+    about = f" (about {size})" if size else ""
+    return SkipwatchError(
+        ExitCode.DOWNLOAD_FAILED,
+        f"Whisper model {model}{about} could not be downloaded: run once with network access",
+    )
 
 
 def make_segment(

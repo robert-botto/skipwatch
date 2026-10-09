@@ -13,6 +13,7 @@ from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command
 from skipwatch.models import IngestBundle, Transcript
 from skipwatch.providers.whisper_common import (
+    download_failed,
     has_media,
     make_segment,
     or_silence,
@@ -44,7 +45,10 @@ class FasterWhisperBackend:
 
         wav = wav_for(work)
         name = model or DEFAULT_MODEL
-        whisper = WhisperModel(name, device="auto", compute_type="int8")
+        try:
+            whisper = WhisperModel(name, device="auto", compute_type="int8")
+        except Exception as exc:  # offline, sandboxed or interrupted download
+            raise download_failed(name) from exc
         samples, offset = load_trimmed(wav)
         raw, info = whisper.transcribe(samples, word_timestamps=True, vad_filter=True)
         segments = [

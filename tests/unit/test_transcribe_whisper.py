@@ -75,6 +75,21 @@ def fake_wav_loader(monkeypatch):
         monkeypatch.setattr(module, "load_trimmed", lambda wav: (FakeArray(wav), TRIM["offset"]))
 
 
+@pytest.fixture(autouse=True)
+def fake_hub(monkeypatch):
+    """mlx resolves its repo first; the stub returns a cache path without any network."""
+    calls = {}
+
+    def snapshot_download(repo):
+        calls["repo"] = repo
+        return f"/hf-cache/{repo}"
+
+    monkeypatch.setitem(
+        sys.modules, "huggingface_hub", types.SimpleNamespace(snapshot_download=snapshot_download)
+    )
+    return calls
+
+
 @pytest.fixture
 def work_with_audio(tmp_path):
     """ingest.json plus a 1 s silent audio-16k.wav newer than the (dummy) media file."""
@@ -158,13 +173,14 @@ MLX_RESULT = {
 }
 
 
-def test_mlx_receives_an_array_not_a_path(work_with_audio, monkeypatch):
+def test_mlx_receives_an_array_not_a_path(work_with_audio, monkeypatch, fake_hub):
     calls = {}
     fake_mlx(monkeypatch, MLX_RESULT, calls)
     t = MlxWhisperBackend().transcribe(work_with_audio, None)
     assert isinstance(calls["audio"], FakeArray)  # plan issue 13: never a path
     assert calls["audio"].path == work_with_audio.path / "media" / "audio-16k.wav"
-    assert calls["repo"] == "mlx-community/whisper-large-v3-turbo"
+    assert fake_hub["repo"] == "mlx-community/whisper-large-v3-turbo"
+    assert calls["repo"] == "/hf-cache/mlx-community/whisper-large-v3-turbo"
     assert calls["word_timestamps"] is True
     assert t.origin == "mlx-whisper" and t.model == "large-v3-turbo" and t.language == "en"
     assert t.segments[0].text == "Next, paste this."
@@ -180,11 +196,10 @@ def test_mlx_receives_an_array_not_a_path(work_with_audio, monkeypatch):
         ("someone/custom-whisper", "someone/custom-whisper"),
     ],
 )
-def test_mlx_model_names_map_to_repos(work_with_audio, monkeypatch, model, repo):
-    calls = {}
-    fake_mlx(monkeypatch, MLX_RESULT, calls)
+def test_mlx_model_names_map_to_repos(work_with_audio, monkeypatch, fake_hub, model, repo):
+    fake_mlx(monkeypatch, MLX_RESULT, {})
     MlxWhisperBackend().transcribe(work_with_audio, model)
-    assert calls["repo"] == repo
+    assert fake_hub["repo"] == repo
 
 
 def test_no_speech_gives_one_empty_timed_segment_and_silent(work_with_audio, monkeypatch):
@@ -242,6 +257,42 @@ def test_no_speech_after_trim_still_covers_the_whole_audio(work_with_audio, monk
     fake_faster(monkeypatch, [], {})
     t = FasterWhisperBackend().transcribe(work_with_audio, None)
     assert [(s.start, s.end) for s in t.segments] == [(0.0, 1.0)]
+
+
+def test_faster_model_download_failure_is_exit_3_without_traceback(work_with_audio, monkeypatch):
+    class Offline:
+        def __init__(self, *a, **k):
+            raise RuntimeError("LocalEntryNotFoundError: outgoing traffic has been disabled")
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=Offline))
+    installed(monkeypatch, mlx=False, faster=True)
+    r = CliRunner().invoke(
+        app, ["transcribe", "--work", str(work_with_audio.path), "--backend", "faster"]
+    )
+    assert r.exit_code == ExitCode.DOWNLOAD_FAILED, r.output
+    assert (
+        "Whisper model small (about 500 MB) could not be downloaded: run once with network access"
+        in r.output
+    )
+    assert "Traceback" not in r.output
+    assert not work_with_audio.file("transcript.json").exists()
+
+
+def test_mlx_model_download_failure_is_exit_3(work_with_audio, monkeypatch):
+    def offline(repo):
+        raise OSError("no network")
+
+    monkeypatch.setitem(
+        sys.modules, "huggingface_hub", types.SimpleNamespace(snapshot_download=offline)
+    )
+    fake_mlx(monkeypatch, MLX_RESULT, {})
+    with pytest.raises(SkipwatchError) as e:
+        MlxWhisperBackend().transcribe(work_with_audio, None)
+    assert e.value.code == ExitCode.DOWNLOAD_FAILED
+    assert e.value.message == (
+        "Whisper model large-v3-turbo (about 1.6 GB) could not be downloaded: "
+        "run once with network access"
+    )
 
 
 def installed(monkeypatch, *, mlx: bool, faster: bool, apple: bool = True):

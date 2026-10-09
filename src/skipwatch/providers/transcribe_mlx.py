@@ -13,6 +13,7 @@ from skipwatch.audio import load_trimmed
 from skipwatch.doctor import extra_command, is_apple_silicon
 from skipwatch.models import IngestBundle, Transcript
 from skipwatch.providers.whisper_common import (
+    download_failed,
     has_media,
     make_segment,
     or_silence,
@@ -51,14 +52,19 @@ class MlxWhisperBackend:
         return extra_command(os.environ.get("CLAUDE_PLUGIN_ROOT"), "mlx")
 
     def transcribe(self, work: WorkDir, model: str | None) -> Transcript:
-        # Lazy: the extra may be absent.
+        # Lazy: the extra may be absent. huggingface_hub comes with mlx-whisper.
         import mlx_whisper  # pyright: ignore[reportMissingImports]
+        from huggingface_hub import snapshot_download  # pyright: ignore[reportMissingImports]
 
         wav = wav_for(work)
         name = model or DEFAULT_MODEL
+        try:  # resolve the weights first, so a failed download is told apart from a bad run
+            local = snapshot_download(repo_for(name))
+        except Exception as exc:  # offline, sandboxed or interrupted download
+            raise download_failed(name) from exc
         samples, offset = load_trimmed(wav)
         result: dict[str, Any] = mlx_whisper.transcribe(  # its stub says dict[str, str | list]
-            samples, path_or_hf_repo=repo_for(name), word_timestamps=True
+            samples, path_or_hf_repo=str(local), word_timestamps=True
         )
         segments = [
             make_segment(
