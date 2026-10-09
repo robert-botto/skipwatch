@@ -23,6 +23,7 @@ from skipwatch.workdir import WorkDir, read_model, write_model
 RECORDED = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "cloud"
 FAKE_KEY = "sk-test-not-real"
 KEY_ENVS = ("OPENAI_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY")
+KEY_BACKENDS = ("openai", "groq", "deepgram")
 
 
 def recorded(name: str) -> dict:
@@ -280,7 +281,7 @@ def test_deepgram_uses_token_auth_and_octet_stream(work, monkeypatch, chunks):
         (FakeResponse(401, {"error": {"message": f"Incorrect API key provided: {FAKE_KEY}"}}),
          ExitCode.MISSING_DEPENDENCY, "rejected the key in OPENAI_API_KEY"),
         (FakeResponse(403, {}), ExitCode.MISSING_DEPENDENCY, "rejected the key in OPENAI_API_KEY"),
-        (FakeResponse(413, {}), ExitCode.DOWNLOAD_FAILED, "413"),
+        (FakeResponse(413, {}), ExitCode.INTERNAL_ERROR, "chunk contract"),
         (FakeResponse(429, {}), ExitCode.DOWNLOAD_FAILED, "429"),
         (FakeResponse(503, text="upstream down"), ExitCode.DOWNLOAD_FAILED, "503"),
         (FakeResponse(400, {"error": {"message": f"bad file for key {FAKE_KEY}"}}),
@@ -337,6 +338,72 @@ def test_success_writes_transcript_without_the_key(work, monkeypatch, chunks):
     for path in work.path.rglob("*"):
         if path.is_file():
             assert FAKE_KEY.encode() not in path.read_bytes(), path
+
+
+def test_word_in_a_blank_segment_joins_the_nearest_kept_segment(work, monkeypatch, chunks):
+    monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
+    chunks([0.0])
+    body = recorded("openai_verbose.json")
+    blank = {"id": 9, "seek": 0, "start": 9.5, "end": 10.0, "text": "  "}
+    body["segments"].append(blank)
+    body["words"].append({"word": "um", "start": 9.6, "end": 9.9})
+    first_blank = {"id": 8, "seek": 0, "start": 0.0, "end": 0.9, "text": " "}
+    body["segments"].insert(0, first_blank)
+    body["words"].insert(0, {"word": "so", "start": 0.2, "end": 0.5})
+    fake_post(monkeypatch, FakeResponse(200, body))
+    t = OpenAIBackend().transcribe(work, None)
+    assert len(t.segments) == 2  # blank segments are dropped
+    assert [w.w for w in t.segments[0].words or []][0] == "so"
+    assert [w.w for w in t.segments[1].words or []][-1] == "um"
+
+
+@pytest.mark.parametrize(
+    ("backend", "env", "name", "body"),
+    [
+        (OpenAIBackend(), "OPENAI_API_KEY", "openai",
+         {"segments": [{"end": 1.0, "text": "no start"}], "words": []}),
+        (GroqBackend(), "GROQ_API_KEY", "groq", {"segments": "not a list"}),
+        (OpenAIBackend(), "OPENAI_API_KEY", "openai",
+         {"segments": [{"start": 0.0, "end": 1.0, "text": "a"}], "words": [{"word": "a"}]}),
+        (DeepgramBackend(), "DEEPGRAM_API_KEY", "deepgram",
+         {"results": {"utterances": [{"transcript": "hi", "end": 1.0}]}}),
+        (DeepgramBackend(), "DEEPGRAM_API_KEY", "deepgram",
+         {"results": ["not", "a", "dict"]}),
+    ],
+)  # fmt: skip
+def test_malformed_200_body_is_exit_3_unreadable(
+    work, monkeypatch, chunks, backend, env, name, body
+):
+    monkeypatch.setenv(env, FAKE_KEY)
+    chunks([0.0])
+    fake_post(monkeypatch, FakeResponse(200, body))
+    with pytest.raises(SkipwatchError) as e:
+        backend.transcribe(work, None)
+    assert e.value.code == ExitCode.DOWNLOAD_FAILED
+    assert f"unreadable response from {name}" in e.value.message
+
+
+@pytest.mark.parametrize("cloud", ["openai", "groq", "deepgram"])
+@pytest.mark.parametrize("args", [(), ("--backend", "auto")])
+def test_r_tr_2_config_backend_never_routes_to_cloud(
+    work, monkeypatch, chunks, sw_home, cloud, args
+):
+    sw_home.mkdir(parents=True, exist_ok=True)
+    (sw_home / "config.toml").write_text(f'[transcribe]\nbackend = "{cloud}"\n', encoding="utf-8")
+    for env in KEY_ENVS:
+        monkeypatch.setenv(env, FAKE_KEY)
+    monkeypatch.setattr(transcribe_module, "is_apple_silicon", lambda: False)
+    registered = transcription_backends()
+    monkeypatch.setattr(
+        transcribe_module,
+        "transcription_backends",
+        lambda: {k: v for k, v in registered.items() if k in ("captions", *KEY_BACKENDS)},
+    )
+    chunks([0.0])
+    fake = fake_post(monkeypatch)
+    r = CliRunner().invoke(app, ["transcribe", "--work", str(work.path), *args])
+    assert r.exit_code == 8, r.output
+    assert fake.calls == [] and not work.file("transcript.json").exists()
 
 
 def test_language_names_become_codes():

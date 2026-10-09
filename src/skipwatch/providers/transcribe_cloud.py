@@ -5,6 +5,9 @@ Keys come only from OPENAI_API_KEY, GROQ_API_KEY and DEEPGRAM_API_KEY and never 
 message, a log line or a file. Audio goes up as 16 kHz mono 32 kbps MP3 in chunks of at most
 50 minutes (OpenAI and Groq cap uploads at 25 MB); every time is offset by its chunk start.
 
+Chunks are sent one after another. If chunk N fails, chunks 1 to N-1 were already billed and
+their results are discarded; the stage fails and a rerun starts over (acceptable for v1).
+
 Request and response shapes, checked 2026-10-09: OpenAI from the openai-python types (the
 API reference page refuses fetchers), Groq from console.groq.com/docs/speech-to-text, Deepgram
 from developers.deepgram.com (listen-pre-recorded reference and pre-recorded-audio guide).
@@ -101,9 +104,11 @@ def _post(name: str, env: str, key: str, send: Callable[[], Any]) -> dict:
     if status in (401, 403):
         raise SkipwatchError(ExitCode.MISSING_DEPENDENCY, f"{name} rejected the key in {env}")
     if status == 413:
+        # chunks are sized to stay under every upload cap, so this is an engine bug
         raise SkipwatchError(
-            ExitCode.DOWNLOAD_FAILED,
-            f"{name} transcription failed: HTTP 413, the audio chunk is over the upload limit",
+            ExitCode.INTERNAL_ERROR,
+            f"{name} transcription failed: HTTP 413, an audio chunk broke the chunk contract "
+            f"({CHUNK_S} s at {MP3_KBPS} kbps should fit the upload limit); this is a skipwatch bug",
         )
     if status == 429:
         raise SkipwatchError(
@@ -186,7 +191,13 @@ class _CloudBackend:
         language: str | None = None
         for chunk, offset in audio_chunks(work):
             body = self._request(chunk, chosen, key)
-            parsed, lang = self._parse(body)
+            try:
+                parsed, lang = self._parse(body)
+            except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
+                raise SkipwatchError(
+                    ExitCode.DOWNLOAD_FAILED,
+                    f"{self.name} transcription failed: unreadable response from {self.name}",
+                ) from exc
             segments.extend(_shift(parsed, offset))
             language = language or lang
         origin: TranscriptOrigin = self.name  # type: ignore[assignment]
@@ -220,21 +231,34 @@ class _WhisperApiBackend(_CloudBackend):
             )
 
     def _parse(self, body: dict) -> tuple[list[Segment], str | None]:
-        raw_segments = sorted(body.get("segments") or [], key=lambda s: float(s["start"]))
-        starts = [float(s["start"]) for s in raw_segments]
-        words: list[list[Word]] = [[] for _ in raw_segments]
-        for w in body.get("words") or []:
-            if not raw_segments:
-                break
-            # the segment whose span holds the word start; a word in a gap joins the one before
-            index = max(bisect.bisect_right(starts, float(w["start"])) - 1, 0)
-            words[index].append(Word(w=str(w["word"]).strip(), s=w["start"], e=w["end"]))
+        kept = sorted(
+            (s for s in body.get("segments") or [] if str(s["text"]).strip()),
+            key=lambda s: float(s["start"]),
+        )
+        words: list[list[Word]] = [[] for _ in kept]
+        if kept:
+            for w in body.get("words") or []:
+                index = _nearest(kept, float(w["start"]))
+                words[index].append(Word(w=str(w["word"]).strip(), s=w["start"], e=w["end"]))
         segments = [
             Segment(start=s["start"], end=s["end"], text=str(s["text"]).strip(), words=ws or None)
-            for s, ws in zip(raw_segments, words, strict=True)
-            if str(s["text"]).strip()
+            for s, ws in zip(kept, words, strict=True)
         ]
         return segments, language_code(body.get("language"))
+
+
+def _nearest(segments: list[dict], at: float) -> int:
+    """The segment whose span holds `at`; in a gap, the closer neighbour (ties go before).
+
+    Runs after blank segments are dropped, so a word Whisper put in a blank one is kept.
+    """
+    starts = [float(s["start"]) for s in segments]
+    index = max(bisect.bisect_right(starts, at) - 1, 0)
+    if at <= float(segments[index]["end"]) or index + 1 == len(segments):
+        return index
+    before = at - float(segments[index]["end"])
+    after = starts[index + 1] - at
+    return index + 1 if after < before else index
 
 
 class OpenAIBackend(_WhisperApiBackend):
