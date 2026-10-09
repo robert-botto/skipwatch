@@ -99,14 +99,14 @@ def free_route(monkeypatch):
     def install(info, media=None, captions_error=None):
         monkeypatch.setattr(cf, "extract", lambda url, opts: info)
 
-        def captions(info_, work, opts, track):
+        def captions(info_, work, opts, track, failed=None):
             seen["captions"].append(track)
             if captions_error:
                 raise cf.FreeRouteError("captions", captions_error)
             lang, kind = track
             return f"captions/x.{lang}.json3", lang, kind
 
-        def download(info_, work, opts):
+        def download(info_, work, opts, failed=None):
             seen["download"] += 1
             return media or MediaInfo(
                 path="media/video.mp4", width=1280, height=720, has_audio=True
@@ -190,7 +190,7 @@ def test_audio_only_source_is_kind_audio(tmp_path, free_route):
 def test_download_failure_carries_the_partial_bundle(tmp_path, monkeypatch, free_route):
     free_route(recorded("manual-captions"))
 
-    def fail(info, work, opts):
+    def fail(info, work, opts, failed=None):
         raise cf.FreeRouteError(
             "download", "ERROR: unable to download video data: HTTP Error 403: Forbidden"
         )

@@ -162,7 +162,7 @@ def _captions(
         return context
     started = time.monotonic()
     try:
-        got = content_free.download_captions(info, work, opts, track)
+        got = content_free.download_captions(info, work, opts, track, calls)
     except FreeRouteError as exc:
         calls.append(content_free.call_log("yt-dlp.captions", False, started, exc.first_line))
         return context  # Whisper can still transcribe; a caption failure never ends ingest
@@ -206,7 +206,7 @@ def build_video_bundle(
     )
     started = time.monotonic()
     try:
-        media = content_free.download(info, work, opts)
+        media = content_free.download(info, work, opts, calls)
     except FreeRouteError as exc:
         calls.append(content_free.call_log("yt-dlp.download", False, started, exc.first_line))
         _raise_mapped(
