@@ -67,8 +67,13 @@ def make_local_work(tmp_path: Path, video: Path, duration: float | None = None) 
 CODE_LINE = "result = compute_total(items, tax=0.0825)"  # 41 chars, about one editor line
 
 
-def editor_frame(lines: int, extra_chars: int = 0, size=(1280, 720)) -> Image.Image:
-    """A dark code editor showing `lines` full lines, then `extra_chars` of the next one."""
+def editor_frame(
+    lines: int, extra_chars: int = 0, size=(1280, 720), cursor: bool = False
+) -> Image.Image:
+    """A dark code editor showing `lines` full lines, then `extra_chars` of the next one.
+
+    `cursor` draws a 12x26 block where the next character would go.
+    """
     img = Image.new("RGB", size, (30, 30, 36))
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default(size=26)
@@ -76,21 +81,38 @@ def editor_frame(lines: int, extra_chars: int = 0, size=(1280, 720)) -> Image.Im
     for k in range(lines + 1):
         text = CODE_LINE if k < lines else CODE_LINE[:extra_chars]
         draw.text((40, 60 + k * 44), text, fill=(220, 220, 220), font=font)
+    if cursor:
+        x = 40 + draw.textlength(CODE_LINE[:extra_chars], font=font)
+        y = 60 + lines * 44
+        draw.rectangle((x, y, x + 12, y + 26), fill=(220, 220, 220))
     return img
+
+
+def _stills_to_video(stills: list[Image.Image], path: Path) -> Path:
+    """One still per second, encoded at 10 fps."""
+    folder = path.parent / f"{path.stem}-stills"
+    folder.mkdir()
+    for n, still in enumerate(stills):
+        still.save(folder / f"img-{n:04d}.png")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-nostdin", "-framerate", "1", "-i", "img-%04d.png",
+         "-r", "10", "-pix_fmt", "yuv420p", str(path.resolve())],
+        check=True, cwd=folder,
+    )  # fmt: skip
+    return path
+
+
+def make_blinking_cursor_video(path: Path) -> Path:
+    """20 s: empty editor 0-2 s; a prompt line from 2 s and a second line from 12 s, with a
+    cursor block toggling every second, so mpdecimate keeps every 1 s frame."""
+    stills = []
+    for second in range(20):
+        lines = 0 if second < 2 else 1 if second < 12 else 2
+        stills.append(editor_frame(lines, cursor=lines > 0 and second % 2 == 1))
+    return _stills_to_video(stills, path)
 
 
 def make_typed_code_video(path: Path, lines: int = 10, seconds_per_line: int = 2) -> Path:
     """A new 40-char line appears every `seconds_per_line` s; Pillow frames joined by ffmpeg."""
-    stills = path.parent / f"{path.stem}-stills"
-    stills.mkdir()
-    n = 0
-    for k in range(lines):
-        for _ in range(seconds_per_line):
-            editor_frame(k + 1).save(stills / f"img-{n:04d}.png")
-            n += 1
-    subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-nostdin", "-framerate", "1", "-i", "img-%04d.png",
-         "-r", "10", "-pix_fmt", "yuv420p", str(path.resolve())],
-        check=True, cwd=stills,
-    )  # fmt: skip
-    return path
+    stills = [editor_frame(k + 1) for k in range(lines) for _ in range(seconds_per_line)]
+    return _stills_to_video(stills, path)

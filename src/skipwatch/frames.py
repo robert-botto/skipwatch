@@ -2,9 +2,11 @@
 
 Scene frames come from one ffmpeg run at 1 fps through mpdecimate, so a still screen yields
 one frame at the moment it appeared and then nothing until it changes. Dedup keeps the last
-frame of each run of near-duplicates (finished code, not half-typed), and also keeps any frame
-that stayed on screen for HELD_SECONDS or more: that frame is the appearance of held text, and
-the last frame of its run can be far later (Review Focus 3).
+frame of each run of near-duplicates (finished code, not half-typed), and also the first frame
+of any run lasting HELD_SECONDS or more: that frame is the appearance of held text, and the
+last frame of its run can be far later (Review Focus 3). Run length is measured from the
+run's first to last frame, so it holds both when mpdecimate dropped the still frames and when
+a blinking cursor kept every 1 s frame.
 
 Two frames are duplicates when under DUP_FRACTION of their pixels changed by more than
 PIXEL_DELTA on a 320x180 grayscale thumbnail. A 64-bit dHash cannot see a new line of code
@@ -96,20 +98,20 @@ def dedup_runs(cands: list[Candidate]) -> list[Candidate]:
     """Collapse runs of near-duplicate scene frames; cue frames pass through untouched.
 
     A run is consecutive scene frames each a duplicate of the previous one (under DUP_FRACTION
-    changed). Each run keeps its last frame, plus any frame held on screen for HELD_SECONDS or
-    more (the gap to the next scene frame, since mpdecimate already dropped the identical frames
-    in between).
+    changed). Each run keeps its last frame, and its first frame too when the run lasts
+    HELD_SECONDS or more (first to last frame).
     """
     ordered = sorted(cands, key=lambda c: c.t)
     scenes = [c for c in ordered if c.reason != "cue"]
     changed = _changed_flags(scenes)
     keep: set[int] = set()
-    for i, cand in enumerate(scenes):
-        nxt = scenes[i + 1] if i + 1 < len(scenes) else None
-        if nxt is None or changed[i]:
-            keep.add(i)  # last of its run
-        elif nxt.t - cand.t >= HELD_SECONDS:
-            keep.add(i)  # held on screen: the appearance of static text
+    run_start = 0
+    for i in range(len(scenes)):
+        if i + 1 == len(scenes) or changed[i]:  # i ends a run
+            keep.add(i)
+            if scenes[i].t - scenes[run_start].t >= HELD_SECONDS:
+                keep.add(run_start)  # held on screen: the appearance of static text
+            run_start = i + 1
     kept_ids = {id(scenes[i]) for i in keep}
     return [c for c in ordered if c.reason == "cue" or id(c) in kept_ids]
 
@@ -152,8 +154,10 @@ def select(cands: list[Candidate], n: int, max_frames: int | None = None) -> lis
     """Cue frames first, then scene frames evenly spread to fill the budget n.
 
     Cue frames are always kept (spec 3.4): they bypass the per-minute budget n and are capped
-    only by max_frames (an even subset when there are more). Scene frames fill whatever of n
-    the cues left. The result never exceeds max_frames, which defaults to n (R-FR-2).
+    only by max_frames. Scene frames fill whatever of n the cues left, but never fewer than a
+    floor of ceil(n / 3) so common cue words cannot crowd them all out. When the cues alone
+    exceed max_frames they are cut to an even subset that leaves room for the floor. The
+    result never exceeds max_frames, which defaults to n (R-FR-2).
     """
     cap = n if max_frames is None else max_frames
     by_id: dict[str, Candidate] = {}
@@ -162,8 +166,10 @@ def select(cands: list[Candidate], n: int, max_frames: int | None = None) -> lis
     unique = list(by_id.values())
     cues = [c for c in unique if c.reason == "cue"]
     others = [c for c in unique if c.reason != "cue"]
-    kept_cues = _even_subset(cues, cap)
-    scenes = _even_subset(others, min(n, cap) - len(kept_cues))
+    floor = min(math.ceil(n / 3), len(others), cap)
+    kept_cues = _even_subset(cues, cap - floor) if len(cues) > cap else cues
+    room = cap - len(kept_cues)
+    scenes = _even_subset(others, max(0, min(room, max(n - len(kept_cues), floor))))
     return sorted(kept_cues + scenes, key=lambda c: c.t)
 
 

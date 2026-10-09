@@ -28,6 +28,7 @@ from skipwatch.models import FramesFile, IngestBundle, MediaInfo, Segment, Trans
 from skipwatch.workdir import WorkDir, read_model, write_model
 from tests.unit._media import (
     editor_frame,
+    make_blinking_cursor_video,
     make_held_video,
     make_local_work,
     make_typed_code_video,
@@ -63,16 +64,22 @@ def test_cue_frames_survive_dedup():
     assert 1.5 in [k.t for k in kept]
 
 
-def test_dedup_keeps_a_held_frame_inside_a_run():
-    # mpdecimate dropped 6..14, so the 5 s frame stayed on screen for 10 s (held text).
+def test_dedup_long_run_keeps_its_first_and_last_frame():
+    # One run of duplicates lasting 17 s: its first frame is the appearance (Review Focus 3).
     run = [C(float(t)) for t in (0, 1, 2, 3, 4, 5, 15, 16, 17)]
-    kept = [k.t for k in dedup_runs(run)]
-    assert kept == [5.0, 17.0]
+    assert [k.t for k in dedup_runs(run)] == [0.0, 17.0]
 
 
-def test_dedup_held_threshold_is_exclusive_below():
-    run = [C(0.0), C(HELD_SECONDS - 1), C(HELD_SECONDS)]
-    assert [k.t for k in dedup_runs(run)] == [HELD_SECONDS]
+def test_dedup_held_threshold_is_run_duration():
+    assert [k.t for k in dedup_runs([C(0.0), C(HELD_SECONDS - 1)])] == [HELD_SECONDS - 1]
+    assert [k.t for k in dedup_runs([C(0.0), C(HELD_SECONDS)])] == [0.0, HELD_SECONDS]
+
+
+def test_dedup_blinking_cursor_runs_keep_appearance():
+    # Every 1 s frame survives mpdecimate (cursor blink), so no gap reaches HELD_SECONDS.
+    levels = [0, 0] + [100] * 10 + [200] * 8
+    kept = [k.t for k in dedup_runs([C(float(t), level=v) for t, v in enumerate(levels)])]
+    assert kept == [1.0, 2.0, 11.0, 12.0, 19.0]
 
 
 def test_r_fr_2_never_exceeds_max_on_90_minutes():
@@ -110,9 +117,27 @@ def test_cue_frames_bypass_the_per_minute_budget():
     scenes = [C(float(t), level=(t % 2) * 255) for t in range(60)]
     cues = [C(t + 0.5, "cue") for t in (9, 10, 24, 25, 39, 40)]
     chosen = select(scenes + cues, 3, max_frames=60)
-    assert sorted(c.t for c in chosen) == sorted(c.t for c in cues)
+    assert {c.t for c in cues} <= {c.t for c in chosen}
+    assert [c.reason for c in chosen].count("scene") == 1  # the floor: ceil(3 / 3)
     two = select(scenes + cues[:2], 3, max_frames=60)
     assert [c.reason for c in two].count("cue") == 2 and len(two) == 3
+
+
+def test_scene_floor_keeps_scenes_when_cues_are_common():
+    scenes = [C(float(t), level=(t % 2) * 255) for t in range(600)]  # 10 minutes
+    cues = [C(t * 15 + 0.5, "cue") for t in range(40)]
+    n = budget(600, 3, 60)
+    chosen = select(scenes + cues, n, max_frames=60)
+    reasons = [c.reason for c in chosen]
+    assert (reasons.count("cue"), reasons.count("scene")) == (40, 10)
+
+
+def test_scene_floor_when_cues_exceed_max():
+    scenes = [C(float(t), level=(t % 2) * 255) for t in range(600)]
+    cues = [C(t * 5 + 0.5, "cue") for t in range(100)]
+    chosen = select(scenes + cues, 30, max_frames=60)
+    reasons = [c.reason for c in chosen]
+    assert len(chosen) == 60 and (reasons.count("cue"), reasons.count("scene")) == (50, 10)
 
 
 def test_cue_frames_are_capped_by_max_only():
@@ -245,6 +270,22 @@ def test_cue_frame_lands_after_text_appears(tmp_path):
     assert len(cands) <= 3, [c.t for c in cands]  # one per on-screen change, not 2 per second
 
 
+def test_cursor_blink_is_under_the_duplicate_threshold():
+    on, off = thumbnail(editor_frame(1, cursor=True)), thumbnail(editor_frame(1))
+    assert 0 < changed_fraction(on, off) < DUP_FRACTION
+
+
+@needs_ffmpeg
+def test_blinking_cursor_keeps_each_line_near_its_appearance(tmp_path):
+    video = make_blinking_cursor_video(tmp_path / "blink.mp4")
+    ffmpeg, _ = ffmpeg_paths(allow_fetch=False)
+    sampled = sample_scene(ffmpeg, video, tmp_path / "out")
+    assert len(sampled) >= 18  # the blink defeats mpdecimate, as in the reviewer's case
+    kept = [c.t for c in dedup_runs(sampled)]
+    assert {2.0, 11.0, 12.0, 19.0} <= set(kept), kept
+    assert not [t for t in kept if 3.0 <= t <= 10.0], kept
+
+
 @needs_ffmpeg
 def test_typed_code_keeps_every_line_state(tmp_path):
     video = make_typed_code_video(tmp_path / "code.mp4", lines=10)
@@ -299,8 +340,8 @@ def test_frames_command_cues_windows_and_json(tmp_path, sw_home):
     assert cues and all(6.0 <= f.t <= 11.0 for f in cues)  # 2 s before to 3 s after
     assert "paste the key" in cues[0].transcript_window
     assert out.sampling.cue_terms and out.sampling.per_minute == 3
-    # budget(20 s, 3/min) is 1: cue frames bypass it, and no scene frame is added on top
-    assert len(cues) > 1 and len(out.frames) == len(cues)
+    # budget(20 s, 3/min) is 1: cue frames bypass it, plus a floor of one scene frame
+    assert len(cues) > 1 and len(out.frames) == len(cues) + 1
     assert all((w / f.path).is_file() for f in out.frames)
 
 
@@ -410,7 +451,7 @@ def test_r_fr_1_fixture_cues_kept_within_1s_after_appearance(tmp_path, sw_home):
     r = CliRunner().invoke(app, ["frames", "--work", str(w)])
     assert r.exit_code == 0, r.output
     frames = read_model(w / "frames.json", FramesFile).frames
-    assert len(frames) <= 60
+    assert len(frames) <= 60 and len([f for f in frames if f.reason == "cue"]) >= 4
     for appear in (10.0, 25.0, 40.0, 50.0):
         before = thumbnail(_frame_at(video, appear - 1.5, tmp_path / f"before-{appear}.jpg"))
         hits = [
