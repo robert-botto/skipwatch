@@ -524,13 +524,70 @@ def test_engine_only_stages_can_skip_transcribe(run_mod, tmp_path):
     assert result.ok and "frames=5" in result.line
 
 
+def _write_media(work: Path) -> None:
+    (work / "media").mkdir(parents=True, exist_ok=True)
+    (work / "media" / "video.mp4").write_bytes(b"x")
+    (work / "frames").mkdir(exist_ok=True)
+    (work / "frames" / "f000001.jpg").write_bytes(b"x")
+
+
+def _media_left(home: Path) -> list[Path]:
+    return sorted(p for p in home.glob("work/*/*") if p.name in {"media", "frames"})
+
+
+@pytest.mark.parametrize("keep", [False, True])
+def test_run_video_deletes_media_and_frames_unless_kept(run_mod, tmp_path, keep):
+    entry = _entry(needs_cookies=False)
+    fake, _ = _fake_run_writes(run_mod, tmp_path, entry, _report(), SKILL_ILLEGIBLE_OUTSIDE)
+
+    def fake_with_media(cmd, *, env, timeout, **kwargs):
+        result = fake(cmd, env=env, timeout=timeout, **kwargs)
+        _write_media(Path(env["SKIPWATCH_HOME"]) / "work" / "g4-20261009-120000")
+        return result
+
+    result = run_mod.run_video(
+        entry, tmp_path, Path("/repo"), runner=fake_with_media, base_env={}, keep_media=keep
+    )
+    home = tmp_path / "G4" / "home"
+    assert result.ok  # judged before the cleanup
+    assert (len(_media_left(home)) == 2) is keep
+    assert list(home.glob("work/*/check-report.json"))  # judging inputs stay
+
+
+def test_run_video_cleans_up_after_a_failed_run_too(run_mod, tmp_path):
+    def fake(cmd, *, env, timeout, **kwargs):
+        _write_media(Path(env["SKIPWATCH_HOME"]) / "work" / "g4-x")
+        return subprocess.CompletedProcess(cmd, 1, "", "boom")
+
+    result = run_mod.run_video(_entry(), tmp_path, Path("/repo"), runner=fake, base_env={})
+    assert not result.ok and _media_left(tmp_path / "G4" / "home") == []
+
+
+@pytest.mark.parametrize("fail_stage", [None, "plan"])
+@pytest.mark.parametrize("keep", [False, True])
+def test_engine_only_deletes_media_and_frames_unless_kept(run_mod, tmp_path, keep, fail_stage):
+    calls = []
+    inner = _engine_fake(calls, fail_stage=fail_stage)
+
+    def fake(cmd, *, env, timeout, **kwargs):
+        if cmd[1] == "ingest":
+            _write_media(Path(cmd[cmd.index("--work") + 1]))
+        return inner(cmd, env=env, timeout=timeout, **kwargs)
+
+    result = run_mod.run_engine_only(_entry(), tmp_path, runner=fake, base_env={}, keep_media=keep)
+    assert result.ok is (fail_stage is None)
+    if fail_stage is None:
+        assert "frames=5" in result.line  # counts read before the cleanup
+    assert (len(_media_left(tmp_path / "G4" / "home")) == 2) is keep
+
+
 def test_main_only_selection_and_exit(run_mod, tmp_path, capsys, monkeypatch):
     golden = {"videos": [_entry(id="G1", needs_cookies=False), _entry(id="G2")]}
     path = tmp_path / "golden.json"
     path.write_text(json.dumps(golden))
     seen = []
 
-    def fake_run_video(entry, out, plugin_dir, runner, base_env):
+    def fake_run_video(entry, out, plugin_dir, runner, base_env, keep_media):
         seen.append(entry["id"])
         return run_mod.VideoResult(entry["id"], entry["id"] == "G1", f"{entry['id']} X")
 

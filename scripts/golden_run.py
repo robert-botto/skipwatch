@@ -6,7 +6,8 @@ Usage:
 
 The full run calls `claude -p` once per video (paid, run by hand). Each video gets its own
 SKIPWATCH_HOME under <out>/<id>/home. Judging reads that home's newest check-report.json and
-staged SKILL.md, installed or not (M2-M4 issue 16). `--engine-only` runs just the stages that
+staged SKILL.md, installed or not (M2-M4 issue 16). Downloaded media and frames are
+deleted after each video unless `--keep-media` is given. `--engine-only` runs just the stages that
 need no Claude (probe, ingest, transcribe, frames, plan) on the free provider and judges
 nothing; `--stages` picks a subset.
 """
@@ -149,12 +150,35 @@ def _newest(paths: list[Path]) -> Path | None:
     return max(paths, key=lambda p: p.stat().st_mtime) if paths else None
 
 
+def remove_media(home: Path) -> None:
+    """Delete fetched video and extracted frames under home/work/*; judging inputs stay."""
+    for folder in [*home.glob("work/*/media"), *home.glob("work/*/frames")]:
+        if folder.is_dir():
+            shutil.rmtree(folder)
+
+
 def run_video(
     entry: dict[str, Any],
     out: Path,
     plugin_dir: Path,
     runner: Runner = subprocess.run,
     base_env: Mapping[str, str] | None = None,
+    keep_media: bool = False,
+) -> VideoResult:
+    """One full Claude run, judged; media and frames are deleted afterwards unless kept."""
+    try:
+        return _run_video(entry, out, plugin_dir, runner, base_env)
+    finally:
+        if not keep_media:
+            remove_media(out / entry["id"] / "home")
+
+
+def _run_video(
+    entry: dict[str, Any],
+    out: Path,
+    plugin_dir: Path,
+    runner: Runner,
+    base_env: Mapping[str, str] | None,
 ) -> VideoResult:
     base = dict(os.environ if base_env is None else base_env)
     home = out / entry["id"] / "home"
@@ -218,12 +242,28 @@ def run_engine_only(
     runner: Runner = subprocess.run,
     base_env: Mapping[str, str] | None = None,
     stages: list[str] | None = None,
+    keep_media: bool = False,
 ) -> VideoResult:
     """probe, ingest, transcribe, frames, plan in an isolated home on the free provider.
 
     No Claude, no cookies, no judging. `stages` runs a subset in order (for example
     probe, ingest and frames for a video no transcription backend can handle yet).
+    Media and frames are deleted afterwards unless kept.
     """
+    try:
+        return _run_engine_only(entry, out, runner, base_env, stages)
+    finally:
+        if not keep_media:
+            remove_media(out / entry["id"] / "home")
+
+
+def _run_engine_only(
+    entry: dict[str, Any],
+    out: Path,
+    runner: Runner,
+    base_env: Mapping[str, str] | None,
+    stages: list[str] | None,
+) -> VideoResult:
     base = dict(os.environ if base_env is None else base_env)
     vid = entry["id"]
     home = out / vid / "home"
@@ -278,6 +318,11 @@ def main(argv: list[str] | None = None) -> int:
         "--engine-only", action="store_true", help="run probe to plan only (no Claude)"
     )
     parser.add_argument(
+        "--keep-media",
+        action="store_true",
+        help="keep downloaded media and frames under <out>/<id>/home/work (default: delete)",
+    )
+    parser.add_argument(
         "--stages", help="with --engine-only: comma-separated subset, for example probe,ingest"
     )
     args = parser.parse_args(argv)
@@ -289,9 +334,16 @@ def main(argv: list[str] | None = None) -> int:
             stages = args.stages.split(",") if args.stages else None
             if stages and set(stages) - set(ENGINE_STAGES):
                 raise SystemExit(f"--stages takes {','.join(ENGINE_STAGES)}")
-            result = run_engine_only(entry, out, stages=stages)
+            result = run_engine_only(entry, out, stages=stages, keep_media=args.keep_media)
         else:
-            result = run_video(entry, out, args.plugin_dir.resolve(), subprocess.run, None)
+            result = run_video(
+                entry,
+                out,
+                args.plugin_dir.resolve(),
+                subprocess.run,
+                None,
+                keep_media=args.keep_media,
+            )
         all_ok = all_ok and result.ok
         print(result.line, flush=True)
     return 0 if all_ok else 1
