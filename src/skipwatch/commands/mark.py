@@ -2,6 +2,8 @@
 
 Engine stages mark themselves through run_stage; these four have no engine command, so the
 orchestrator marks them here and stages.json carries their timings for resume (R-WORK-1).
+install is marked here too: its command takes a staging folder, not --work, so it cannot
+mark itself, and resume needs install done to see a finished run.
 
 merge-notes also lives here, as the read stage's other helper: when a reader skipped some
 frames, only those frames are read again, into notes/batch-NN.retry.json, and this folds
@@ -27,6 +29,7 @@ class ClaudeStage(StrEnum):
     distill = "distill"
     critique = "critique"
     review = "review"
+    install = "install"
 
 
 class MarkStatus(StrEnum):

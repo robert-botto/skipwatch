@@ -1064,3 +1064,10 @@ def test_review_running_marked_when_the_screen_is_printed():
     assert "as you print the review screen" in text
     stage8 = read(REFS / "run-protocol.md").split("## Stage 8: review", 1)[1]
     assert not stage8.lstrip().startswith("<ENGINE> mark")
+
+
+def test_install_is_marked_done_after_it_succeeds():
+    text = flat(REFS / "run-protocol.md")
+    install_done = '<ENGINE> mark --work "<W>" --stage install --status done'
+    assert _before(text, '<ENGINE> install "<W>/staging/<name>"', install_done)
+    assert _before(text, install_done, "Then print two lines")

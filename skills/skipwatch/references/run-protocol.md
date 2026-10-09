@@ -435,8 +435,10 @@ since the review: show the screen again with the collision. Exit 1 with "staging
 since check": re-run check once, then install; any other install exit 1 stops with its
 message.
 
-On success, first mark review done, so the finished run is not offered for resume:
+On success, first mark install and then review done, so the finished run is not offered
+for resume (the install command takes no `--work`, so it cannot mark itself):
 
+    <ENGINE> mark --work "<W>" --stage install --status done 2>>"<W>/logs/mark.log"
     <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
 
 Then print two lines:

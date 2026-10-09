@@ -58,11 +58,19 @@ def mark_main(monkeypatch, w, stage, status):
 def test_mark_refuses_engine_stages_and_bad_status(tmp_path, monkeypatch):
     # engine stages mark themselves; a hand mark could hide a stage that never ran
     w = work(tmp_path)
-    for stage in ("ingest", "frames", "check", "install"):
+    for stage in ("ingest", "frames", "check"):
         assert mark_main(monkeypatch, w, stage, "done") == ExitCode.USAGE, stage
         assert state(w, stage)["status"] == "pending"
     assert mark_main(monkeypatch, w, "read", "pending") == ExitCode.USAGE
     assert mark_main(monkeypatch, w, "read", "done") == 0
+
+
+def test_mark_install_done(tmp_path):
+    # the install command takes a staging folder, not --work, so it cannot mark itself;
+    # resume needs install done to see a finished run
+    w = work(tmp_path)
+    assert mark(w, "install", "done").exit_code == 0
+    assert state(w, "install")["status"] == "done"
 
 
 def test_mark_needs_an_existing_work_folder(tmp_path):
