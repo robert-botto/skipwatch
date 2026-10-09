@@ -10,10 +10,18 @@ from datetime import UTC, datetime
 from typing import Any, NamedTuple, NoReturn
 from urllib.parse import urlsplit
 
+from skipwatch import media
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.detect import Detected
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import IngestBundle, IngestContext, ProviderCall, Route, SourceInfo
+from skipwatch.models import (
+    IngestBundle,
+    IngestContext,
+    MediaInfo,
+    ProviderCall,
+    Route,
+    SourceInfo,
+)
 from skipwatch.providers import content_free
 from skipwatch.providers.content_free import CaptionKind, FreeRouteError, has_video
 from skipwatch.workdir import WorkDir
@@ -215,6 +223,15 @@ def _captions(
     )
 
 
+def _media_duration(work: WorkDir, downloaded: MediaInfo) -> float | None:
+    try:
+        probed = media.probe(work.path / downloaded.path)
+    except SkipwatchError:
+        return None
+    duration = probed.get("format", {}).get("duration")
+    return float(duration) if duration else None
+
+
 def build_video_bundle(
     detected: Detected, work: WorkDir, opts: IngestOptions, platform: str
 ) -> IngestBundle:
@@ -241,16 +258,19 @@ def build_video_bundle(
     )
     started = time.monotonic()
     try:
-        media = content_free.download(info, work, opts, calls)
+        downloaded = content_free.download(info, work, opts, calls)
     except FreeRouteError as exc:
         calls.append(content_free.call_log("yt-dlp.download", False, started, exc.first_line))
         _raise_mapped(
             exc, detected, platform, opts, partial.model_copy(update={"provider_calls": calls})
         )
     calls.append(content_free.call_log("yt-dlp.download", True, started))
+    if source.duration_s is None:  # Instagram logged out: read it from the file instead
+        source = source.model_copy(update={"duration_s": _media_duration(work, downloaded)})
     return partial.model_copy(
         update={
-            "media": media,
+            "source": source,
+            "media": downloaded,
             "provider_calls": calls,
             "route": Route(context="free", media="free"),
         }

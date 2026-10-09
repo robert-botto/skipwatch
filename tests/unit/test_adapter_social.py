@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from skipwatch import media
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.registry import adapter_for
 from skipwatch.adapters.ytdlp_common import author_name_of, author_of
@@ -135,9 +136,34 @@ def test_instagram_null_duration_still_picks_720(tmp_path, free_route):
     assert info["duration"] is None
     spec = cf.select_format(info)
     assert short_side(info, spec) == 720 and spec.endswith("+dash-18630246724054910a")
-    free_route(info)
+
+
+def test_null_duration_is_backfilled_from_the_downloaded_media(tmp_path, monkeypatch, free_route):
+    """Instagram's null duration comes from ffprobe on the download, so silence detection,
+    the review screen and resume see a length."""
+    probed: list[Path] = []
+
+    def fake_probe(path):
+        probed.append(path)
+        return {"format": {"duration": "29.071"}, "streams": []}
+
+    monkeypatch.setattr(media, "probe", fake_probe)
+    free_route(recorded("instagram/g4-gh-secure"))
     bundle = build("instagram", "https://www.instagram.com/reel/Dd-rJlkE_Z5/", tmp_path / "w")
-    assert bundle.source.duration_s is None
+    assert bundle.source.duration_s == 29.071
+    assert probed == [tmp_path / "w" / "media" / "video.mp4"]
+
+
+def test_known_duration_is_not_probed_again(tmp_path, monkeypatch, free_route):
+    def no_probe(path):
+        raise AssertionError("duration was known; no ffprobe needed")
+
+    monkeypatch.setattr(media, "probe", no_probe)
+    free_route(recorded("tiktok/g3-copilot-cli"))
+    bundle = build(
+        "tiktok", "https://www.tiktok.com/@github/video/7624273546776153377", tmp_path / "w"
+    )
+    assert bundle.source.duration_s == 35
 
 
 @pytest.mark.parametrize(("platform", "fixture", "url"), [r[:3] for r in SOCIAL], ids=IDS)
