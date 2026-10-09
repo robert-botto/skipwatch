@@ -136,3 +136,22 @@ def test_recorded_youtube_formats_pick_the_smallest_720p_and_smallest_audio():
 def test_recorded_vertical_fixture_picks_720x1280():
     info = json.loads((REC / "vertical-short.info.json").read_text())
     assert select_format(info) == "b+251"
+
+
+def test_audio_matching_the_video_language_beats_a_smaller_dub():
+    info = json.loads((REC / "dubbed-audio.info.json").read_text())
+    assert select_format(info) == "398+139"  # 139 is the English original, 139-es a smaller dub
+
+
+def test_audio_marked_original_wins_when_the_language_is_unknown():
+    info = json.loads((REC / "dubbed-audio.info.json").read_text())
+    info["language"] = None
+    assert select_format(info).endswith("+139")
+
+
+def test_without_language_hints_the_smallest_audio_wins():
+    audio = [
+        {"format_id": "big", "vcodec": "none", "acodec": "opus", "filesize": 9, "language": "de"},
+        {"format_id": "small", "vcodec": "none", "acodec": "opus", "filesize": 1, "language": "fr"},
+    ]
+    assert select_format({"duration": 1, "language": None, "formats": audio}) == "small"

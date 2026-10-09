@@ -184,6 +184,27 @@ def _pick_video(videos: list[dict[str, Any]], cap: int, duration: float | None) 
     return min(videos, key=lambda f: (_short_side(f) or 0, _size(f, duration)))
 
 
+def _primary_lang(value: Any) -> str | None:
+    return str(value).split("-")[0].casefold() if value else None
+
+
+def _pick_audio(
+    audios: list[dict[str, Any]], language: str | None, duration: float | None
+) -> dict[str, Any] | None:
+    """The smallest audio in the video's own language (or marked original), so a multi-audio
+    video never gets a dubbed track; the smallest of all when nothing says which is original."""
+    if not audios:
+        return None
+    lang = _primary_lang(language)
+    original = [
+        f
+        for f in audios
+        if (lang and _primary_lang(f.get("language")) == lang)
+        or "original" in str(f.get("format_note") or "").casefold()
+    ]
+    return min(original or audios, key=lambda f: _size(f, duration))
+
+
 def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
     """A yt-dlp format spec: the smallest rendition whose short side is in [720, cap]."""
     duration = info.get("duration")
@@ -191,7 +212,7 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
     videos = [f for f in formats if not _is_none(f.get("vcodec")) and _short_side(f)]
     audios = [f for f in formats if _is_none(f.get("vcodec")) and not _is_none(f.get("acodec"))]
     audios = [f for f in audios if f.get("acodec") is not None]
-    best_audio = min(audios, key=lambda f: _size(f, duration)) if audios else None
+    best_audio = _pick_audio(audios, info.get("language"), duration)
     if videos:
         video = _pick_video(videos, max_short_side, duration)
         progressive = not _is_none(video.get("acodec")) and video.get("acodec") is not None

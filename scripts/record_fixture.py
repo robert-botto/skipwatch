@@ -49,7 +49,7 @@ TOP_KEYS = (
 )  # fmt: skip
 FORMAT_KEYS = (
     "format_id", "ext", "width", "height", "filesize", "filesize_approx", "tbr", "vcodec",
-    "acodec", "url",
+    "acodec", "url", "language", "format_note",
 )  # fmt: skip
 IPV4_RE = re.compile(r"(?<![0-9A-Za-z.])\d{1,3}(?:\.\d{1,3}){3}(?![0-9.])")
 EM_DASH = "\u2014"
