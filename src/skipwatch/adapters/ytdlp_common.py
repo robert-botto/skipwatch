@@ -109,7 +109,7 @@ def _posted_at(info: dict[str, Any]) -> str | None:
     return None
 
 
-def _author(info: dict[str, Any]) -> str | None:
+def author_of(info: dict[str, Any]) -> str | None:
     handle = info.get("uploader_id")
     if handle:
         return handle if str(handle).startswith("@") else f"@{handle}"
@@ -184,7 +184,7 @@ def build_video_bundle(
         platform=platform,
         url=detected.value,
         canonical_url=info.get("webpage_url") or detected.value,
-        author=_author(info),
+        author=author_of(info),
         author_name=info.get("uploader") or info.get("channel"),
         title=info.get("title"),
         posted_at=_posted_at(info),
