@@ -812,3 +812,30 @@ def test_referenced_frames_copied_into_staging_before_check():
         "into `<W>/staging/<name>/assets/frames/`" in text
     )
     assert "at most 8 (3.4)" in text
+
+
+# ---- doctor eval hardening (the M1 acceptance doctor case was flaky) ----
+
+
+def test_doctor_tier_grader_matches_tier_anywhere():
+    grader = ROOT / "evals/doctor/graders/tier-line.md"
+    meta = fm(grader)
+    assert meta["type"] == "regex" and meta["target"] == "last_message"
+    assert meta["match"] == "contains"
+    pattern = body(grader).strip()
+    assert pattern == r"\bTier [0-3]c?\b"
+    # the final message varies: the tier may sit mid-sentence, in a table or after a heading
+    for msg in ("You are on Tier 0 (uv only).", "| Tier 1c | ok |", "## Report: **Tier 3**"):
+        assert re.search(pattern, msg, flags=re.M if "m" in meta.get("flags", "") else 0), msg
+    for msg in ("No tier here", "Tiered pricing", "Tier 9", "Tier 1x"):
+        assert not re.search(pattern, msg), msg
+
+
+def test_doctor_report_printed_first_in_a_code_block():
+    text = flat(SKILL / "SKILL.md")
+    assert "print its report first, unchanged, inside a code block, before any commentary" in text
+
+
+def test_doctor_case_judges_three_samples():
+    meta = fm(ROOT / "evals/doctor/prompt.md")
+    assert meta["runs"] == 3  # release runs judge 3 samples against the 0.8 threshold
