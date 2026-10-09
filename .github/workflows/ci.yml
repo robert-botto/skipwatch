@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**"]
+  pull_request:
+    paths-ignore: ["docs/**"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      # macOS bills 10x and Windows 2x on a private repo, so only ubuntu
+      # covers both Python versions.
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.11" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run python scripts/export_schemas.py --check
+      - run: uv run python scripts/check_versions.py
+      - run: uv run pytest -m "not pipeline" --cov --cov-report=term --cov-fail-under=85
+
+  plugin-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      - run: claude plugin validate --strict .
+      - run: claude plugin validate --strict .claude-plugin/plugin.json
