@@ -374,8 +374,9 @@ def _entry(**over):
 
 
 def test_claude_command_shape_and_cookie_rule(run_mod, tmp_path):
-    cmd = run_mod.claude_command(_entry(), tmp_path / "out", Path("/repo"), cookies=None)
-    assert cmd[:4] == ["claude", "-p", "--plugin-dir", "/repo"]
+    repo = Path("/repo")
+    cmd = run_mod.claude_command(_entry(), tmp_path / "out", repo, cookies=None)
+    assert cmd[:4] == ["claude", "-p", "--plugin-dir", str(repo)]
     assert cmd[cmd.index("--allowedTools") + 1] == "Bash,Read,Write,Agent"
     prompt = cmd[-1]
     assert prompt.startswith("/skipwatch:skipwatch https://example.test/reel/1 --yes --to ")
