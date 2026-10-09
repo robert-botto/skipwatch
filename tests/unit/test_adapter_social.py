@@ -61,6 +61,17 @@ def short_side(info: dict, spec: str) -> int:
     return min(video["width"], video["height"])
 
 
+@pytest.fixture(autouse=True)
+def stub_probe(monkeypatch):
+    """The duration backfill runs ffprobe on the download. Faked downloads have no file, and
+    locating ffprobe without a system ffmpeg fetches static-ffmpeg (blocked in unit tests)."""
+
+    def fake_probe(path):
+        return {"format": {"duration": "29.071"}, "streams": []}
+
+    monkeypatch.setattr(media, "probe", fake_probe)
+
+
 @pytest.fixture
 def free_route(monkeypatch):
     """Replace content_free's network calls; returns what they were asked."""
