@@ -185,3 +185,41 @@ def test_netrc_and_proxy_env_never_reach_a_linked_host(server, loopback, monkeyp
         lowered = {k.lower() for k in headers}
         assert "authorization" not in lowered and "cookie" not in lowered
         assert "proxy-authorization" not in lowered
+
+
+# ---- wall-clock limits: a server dribbling bytes cannot hold a run ----
+
+
+def test_slow_server_is_cut_off_at_the_link_deadline(server, loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    monkeypatch.setattr(links, "LINK_DEADLINE_S", 1.0)
+    answers["slow.test"] = ["127.0.0.1"]
+    server.dribble_s = 0.5  # one byte every half second; each read beats the socket timeout
+    server.routes["/slow"] = (200, {"Content-Type": "text/plain"}, b"x" * 40)
+    port = server.server_address[1]
+    calls: list[ProviderCall] = []
+    started = time.monotonic()
+    assert links.fetch_link(f"http://slow.test:{port}/slow", calls) is None
+    assert time.monotonic() - started < 3
+    assert calls[0].error and "deadline" in calls[0].error
+
+
+def test_post_budget_spans_every_link_and_head(server, loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    monkeypatch.setattr(links, "LINK_DEADLINE_S", 1.0)
+    monkeypatch.setattr(links, "POST_BUDGET_S", 1.5)
+    server.dribble_s = 0.5
+    port = server.server_address[1]
+    for n in range(4):
+        answers[f"s{n}.test"] = ["127.0.0.1"]
+        server.routes[f"/{n}"] = (200, {"Content-Type": "text/plain"}, b"x" * 40)
+    text = " ".join(f"http://s{n}.test:{port}/{n}" for n in range(4))
+    calls: list[ProviderCall] = []
+    started = time.monotonic()
+    assert links.fetch_all(text, calls) == []
+    assert time.monotonic() - started < 3.5
+    assert len(calls) == 4 and not any(c.ok for c in calls)
+    assert "budget" in (calls[-1].error or "")
+    assert len(server.hits) <= 2

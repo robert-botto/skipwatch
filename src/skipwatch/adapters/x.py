@@ -54,11 +54,11 @@ def _host(url: str) -> str:
         return ""
 
 
-def _expand(urls: list[str], calls: list[ProviderCall]) -> list[str]:
+def _expand(urls: list[str], calls: list[ProviderCall], budget: links.Budget) -> list[str]:
     """Short links resolved (unresolvable ones dropped); everything else as it is."""
     expanded = []
     for url in urls:
-        target = links.resolve(url, calls) if _host(url) in SHORT_LINK_HOSTS else url
+        target = links.resolve(url, calls, budget) if _host(url) in SHORT_LINK_HOSTS else url
         if target:
             expanded.append(target)
     return expanded
@@ -115,7 +115,8 @@ class XAdapter:
         bundle = build_video_bundle(detected, work, opts, "x")
         calls = list(bundle.provider_calls)
         own = post_id(bundle.source.canonical_url) or post_id(detected.value)
-        urls = _expand(links.extract_urls(bundle.context.post_text or ""), calls)
+        budget = links.Budget()  # short-link HEADs and page fetches share one post budget
+        urls = _expand(links.extract_urls(bundle.context.post_text or ""), calls, budget)
         statuses = [post_id(u) for u in urls]
         has_own_media = own is not None and own in statuses
         others = [s for s in statuses if s is not None and s != own]
@@ -123,7 +124,9 @@ class XAdapter:
         source = bundle.source
         if own is not None:
             source = source.model_copy(update={"canonical_url": canonical(own)})
-        context = bundle.context.model_copy(update={"links": links.fetch_urls(pages, calls)})
+        context = bundle.context.model_copy(
+            update={"links": links.fetch_urls(pages, calls, budget)}
+        )
         bundle = bundle.model_copy(
             update={"source": source, "context": context, "provider_calls": calls}
         )

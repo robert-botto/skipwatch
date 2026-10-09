@@ -20,10 +20,15 @@ class FakeResponse:
             self.headers["Location"] = location
         self._body = body
         self.closed = False
+        self.raw = self
+        self._at = 0
+        self.reads: list[int] = []
 
-    def iter_content(self, chunk_size=1):
-        for i in range(0, len(self._body), chunk_size):
-            yield self._body[i : i + chunk_size]
+    def read1(self, amt, decode_content=None):
+        chunk = self._body[self._at : self._at + amt]
+        self._at += len(chunk)
+        self.reads.append(len(chunk))
+        return chunk
 
     def close(self):
         self.closed = True
@@ -189,19 +194,10 @@ def test_body_read_stops_at_two_megabytes(net):
     net["pages"]["https://e.example.com/huge.txt"] = FakeResponse(
         body=body, content_type="text/plain"
     )
-    reads = []
     page = net["pages"]["https://e.example.com/huge.txt"]
-    original = page.iter_content
-
-    def counting(chunk_size=1):
-        for chunk in original(chunk_size):
-            reads.append(len(chunk))
-            yield chunk
-
-    page.iter_content = counting
     got = links.fetch_link("https://e.example.com/huge.txt")
     assert got is not None and len(got.text) == 20_000
-    assert sum(reads) <= 2_000_000 + 65_536
+    assert sum(page.reads) <= 2_000_000 + 65_536
     assert page.closed
 
 

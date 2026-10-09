@@ -28,13 +28,15 @@ def pages(monkeypatch):
     seen: dict = {"link": [], "all": []}
 
     def install(page: LinkContext | None, linked: list[LinkContext] | None = None):
-        def fetch_link(url, calls=None):
+        def fetch_link(url, calls=None, budget=None):
+            seen.setdefault("budgets", []).append(budget)
             seen["link"].append(url)
             if calls is not None:
                 calls.append(ProviderCall(provider="free", op="link.get", ok=page is not None))
             return page
 
-        def fetch_all(text_, calls):
+        def fetch_all(text_, calls, budget=None):
+            seen.setdefault("budgets", []).append(budget)
             seen["all"].append(text_)
             return linked or []
 
@@ -148,3 +150,10 @@ def test_x_text_post_with_provider_free_never_asks_providers(tmp_path, monkeypat
     with pytest.raises(SkipwatchError):
         build(X_TEXT_POST, tmp_path / "w", platform="x", opts=IngestOptions(provider="free"))
     assert provider.asked == []
+
+
+def test_text_page_and_its_links_share_one_post_budget(tmp_path, pages):
+    seen = pages(LinkContext(url=PAGE, title="How I ship", text=words(250)))
+    build(PAGE, tmp_path / "w")
+    budgets = seen["budgets"]
+    assert len(budgets) == 2 and budgets[0] is not None and budgets[0] is budgets[1]

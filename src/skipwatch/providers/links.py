@@ -28,7 +28,9 @@ MAX_LINKS = 5
 MAX_CHARS = 20_000
 MAX_BYTES = 2_000_000
 MAX_REDIRECTS = 3
-TIMEOUT_S = 10
+TIMEOUT_S = 10  # per socket operation
+LINK_DEADLINE_S = 15.0  # wall clock per link, redirects and body included
+POST_BUDGET_S = 40.0  # wall clock for every fetch and HEAD one post makes
 CHUNK = 65_536
 REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
 HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
@@ -43,6 +45,29 @@ _GIST = re.compile(r"^/([\w.-]+)/([0-9a-f]+)/?$", re.IGNORECASE)
 
 class Refused(Exception):
     """A link SkipWatch will not fetch, or a fetch that produced no usable text."""
+
+
+class Budget:
+    """The wall-clock budget one post's link traffic shares (fetches and short-link HEADs)."""
+
+    def __init__(self, seconds: float | None = None):
+        self.deadline = time.monotonic() + (POST_BUDGET_S if seconds is None else seconds)
+
+
+def _deadline(budget: Budget | None) -> float:
+    deadline = time.monotonic() + LINK_DEADLINE_S
+    if budget is not None:
+        if budget.deadline <= time.monotonic():
+            raise Refused("post link budget spent")
+        deadline = min(deadline, budget.deadline)
+    return deadline
+
+
+def _timeout(deadline: float) -> float:
+    left = deadline - time.monotonic()
+    if left <= 0:
+        raise Refused(f"over the {LINK_DEADLINE_S:g} s link deadline")
+    return min(TIMEOUT_S, left)
 
 
 # ---- finding links ----
@@ -202,12 +227,12 @@ def _close(response: requests.Response) -> None:
 # ---- fetching ----
 
 
-def _get(url: str) -> requests.Response:
+def _get(url: str, deadline: float) -> requests.Response:
     """GET with redirects followed by hand; every hop is re-checked and pinned; at most 3."""
     current = url
     for _ in range(MAX_REDIRECTS + 1):
         address = _check(current)
-        response = _send("GET", current, address, TIMEOUT_S)
+        response = _send("GET", current, address, _timeout(deadline))
         location = response.headers.get("Location")
         if response.status_code not in REDIRECT_CODES or not location:
             return response
@@ -221,18 +246,22 @@ def _charset(content_type: str) -> str:
     return match.group(1) if match else "utf-8"
 
 
-def _read(response: requests.Response) -> bytes:
+def _read(response: requests.Response, deadline: float) -> bytes:
+    """At most 2 MB, and never past the deadline: read1 returns whatever has arrived, so a
+    server sending one byte at a time is cut off on time."""
     body = bytearray()
-    for chunk in response.iter_content(chunk_size=CHUNK):
-        body.extend(chunk)
-        if len(body) >= MAX_BYTES:
+    while len(body) < MAX_BYTES:
+        _timeout(deadline)
+        chunk = response.raw.read1(CHUNK, decode_content=True)
+        if not chunk:
             break
+        body.extend(chunk)
     return bytes(body[:MAX_BYTES])
 
 
-def _fetch(url: str) -> LinkContext:
+def _fetch(url: str, deadline: float) -> LinkContext:
     try:
-        response = _get(fetch_url(url))
+        response = _get(fetch_url(url), deadline)
     except requests.RequestException as exc:
         raise Refused(type(exc).__name__) from exc
     try:
@@ -243,7 +272,7 @@ def _fetch(url: str) -> LinkContext:
         if mime not in HTML_TYPES and mime not in TEXT_TYPES:
             raise Refused(f"skipped content type {mime or '(none)'}")
         try:
-            body = _read(response)
+            body = _read(response, deadline)
         except requests.RequestException as exc:
             raise Refused(type(exc).__name__) from exc
     finally:
@@ -271,11 +300,14 @@ def _log(calls: list[ProviderCall] | None, op: str, url: str, started: float, er
     )
 
 
-def fetch_link(url: str, calls: list[ProviderCall] | None = None) -> LinkContext | None:
-    """The page's text, or None when it is refused, unreachable or not text. Never raises."""
+def fetch_link(
+    url: str, calls: list[ProviderCall] | None = None, budget: Budget | None = None
+) -> LinkContext | None:
+    """The page's text, or None when it is refused, unreachable, slow or not text. Never
+    raises. At most 15 s, and never past the post's budget when one is given."""
     started = time.monotonic()
     try:
-        got = _fetch(url)
+        got = _fetch(url, _deadline(budget))
     except Refused as exc:
         _log(calls, "link.get", url, started, str(exc))
         return None
@@ -286,14 +318,20 @@ def fetch_link(url: str, calls: list[ProviderCall] | None = None) -> LinkContext
     return got
 
 
-def fetch_urls(urls: list[str], calls: list[ProviderCall]) -> list[LinkContext]:
-    """Fetch at most 5 URLs, one ProviderCall each; failures are logged and left out."""
-    fetched = (fetch_link(url, calls) for url in urls[:MAX_LINKS])
+def fetch_urls(
+    urls: list[str], calls: list[ProviderCall], budget: Budget | None = None
+) -> list[LinkContext]:
+    """Fetch at most 5 URLs, one ProviderCall each, within one post budget (40 s unless the
+    caller shares its own); failures are logged and left out."""
+    budget = budget or Budget()
+    fetched = (fetch_link(url, calls, budget) for url in urls[:MAX_LINKS])
     return [link for link in fetched if link is not None]
 
 
-def fetch_all(text: str, calls: list[ProviderCall]) -> list[LinkContext]:
-    return fetch_urls(extract_urls(text), calls)
+def fetch_all(
+    text: str, calls: list[ProviderCall], budget: Budget | None = None
+) -> list[LinkContext]:
+    return fetch_urls(extract_urls(text), calls, budget)
 
 
 def with_post_links(bundle: IngestBundle) -> IngestBundle:
@@ -304,11 +342,14 @@ def with_post_links(bundle: IngestBundle) -> IngestBundle:
     return bundle.model_copy(update={"context": context, "provider_calls": calls})
 
 
-def resolve(url: str, calls: list[ProviderCall] | None = None) -> str | None:
+def resolve(
+    url: str, calls: list[ProviderCall] | None = None, budget: Budget | None = None
+) -> str | None:
     """Where a short link (t.co) points: one HEAD, no cookies, the Location not followed."""
     started = time.monotonic()
     try:
-        response = _send("HEAD", url, _check(url), TIMEOUT_S)
+        timeout = _timeout(_deadline(budget))
+        response = _send("HEAD", url, _check(url), timeout)
         _close(response)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))

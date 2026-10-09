@@ -65,14 +65,16 @@ def free_route(monkeypatch):
             seen["download"] += 1
             return MediaInfo(path="media/video.mp4", width=1280, height=720, has_audio=True)
 
-        def resolve(url, calls=None):
+        def resolve(url, calls=None, budget=None):
             seen["resolve"].append(url)
+            seen.setdefault("budgets", []).append(budget)
             if calls is not None:
                 calls.append(ProviderCall(provider="free", op="link.resolve", ok=True))
             return T_CO.get(url)
 
-        def fetch_urls(urls, calls):
+        def fetch_urls(urls, calls, budget=None):
             seen["fetch"].append(list(urls))
+            seen.setdefault("budgets", []).append(budget)
             got = [(fetched or {}).get(u) for u in urls]
             return [link for link in got if link is not None]
 
@@ -254,3 +256,12 @@ def test_x_linked_post_author_uses_the_x_fields(tmp_path, free_route):
     free_route({LINKING_URL: reply, LINKED_URL: linked})
     bundle = build(LINKING_URL, tmp_path / "w")
     assert bundle.source.author is None and bundle.source.author_name == "Someone Else"
+
+
+def test_x_short_links_and_pages_share_one_post_budget(tmp_path, free_route):
+    info = recorded("g2-deep-partials")
+    info["description"] += " https://docs.example.com/guide"
+    seen = free_route({G2_URL: info})
+    build(G2_URL, tmp_path / "w")
+    budgets = seen["budgets"]
+    assert len(budgets) == 2 and budgets[0] is not None and budgets[0] is budgets[1]

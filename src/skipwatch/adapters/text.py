@@ -36,14 +36,17 @@ class TextAdapter:
             return _x_text(detected, work, opts)
         url = detected.value
         calls: list[ProviderCall] = []
-        page = links.fetch_link(url, calls)
+        budget = links.Budget()  # the page and its links share one post budget
+        page = links.fetch_link(url, calls, budget)
         if page is None or len(page.text.split()) < MIN_WORDS:
             raise SkipwatchError(
                 ExitCode.NO_CONTENT, f"no video and under {MIN_WORDS} words of text at {url}"
             )
         return IngestBundle(
             source=SourceInfo(kind="text", platform=detected.platform, url=url, title=page.title),
-            context=IngestContext(post_text=page.text, links=links.fetch_all(page.text, calls)),
+            context=IngestContext(
+                post_text=page.text, links=links.fetch_all(page.text, calls, budget)
+            ),
             media=None,
             provider_calls=calls,
             route=Route(context="free", media=None),

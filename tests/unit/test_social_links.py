@@ -30,7 +30,7 @@ REPO = "https://github.com/o/r"
 def fakes(monkeypatch):
     fetched: list[str] = []
 
-    def fetch_link(url, calls=None):
+    def fetch_link(url, calls=None, budget=None):
         fetched.append(url)
         if calls is not None:
             calls.append(ProviderCall(provider="free", op="link.get", ok=True, endpoint="x"))
