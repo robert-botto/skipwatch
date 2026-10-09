@@ -34,6 +34,7 @@ from skipwatch.models import Frame, FramesFile, IngestBundle, Sampling, Transcri
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
 
 HELD_SECONDS = 3.0
+COVERAGE_WINDOW_S = 90.0
 DUP_FRACTION = 0.001
 PIXEL_DELTA = 32
 THUMB_SIZE = (320, 180)
@@ -150,27 +151,89 @@ def _even_subset(items: list[Candidate], k: int) -> list[Candidate]:
     return [items[round(i * step)] for i in range(k)]
 
 
-def select(cands: list[Candidate], n: int, max_frames: int | None = None) -> list[Candidate]:
-    """Cue frames first, then scene frames evenly spread to fill the budget n.
+def _windows(cands: list[Candidate], count: int, duration: float) -> list[list[Candidate]]:
+    """Split time-sorted candidates into `count` equal time windows over [0, duration]."""
+    width = duration / count
+    out: list[list[Candidate]] = [[] for _ in range(count)]
+    for cand in cands:
+        out[min(count - 1, int(cand.t // width))].append(cand)
+    return out
 
-    Cue frames are always kept (spec 3.4): they bypass the per-minute budget n and are capped
-    only by max_frames. Scene frames fill whatever of n the cues left, but never fewer than a
-    floor of ceil(n / 3) so common cue words cannot crowd them all out. When the cues alone
-    exceed max_frames they are cut to an even subset that leaves room for the floor. The
-    result never exceeds max_frames, which defaults to n (R-FR-2).
+
+def _most_different(cands: list[Candidate], ref: Image.Image) -> Candidate:
+    return max(cands, key=lambda c: changed_fraction(ref, _thumb(c)))
+
+
+def _distinct_cues(cues: list[Candidate], k: int, duration: float) -> list[Candidate]:
+    """k cue frames spread over time: one per equal time slot, the one that differs most from
+    the previous pick (a new slide or new text, not the same screen again), then an even top-up
+    from the rest when some slots hold no cue."""
+    if k >= len(cues):
+        return list(cues)
+    if k <= 0:
+        return []
+    picks: list[Candidate] = []
+    previous = None
+    for slot in _windows(cues, k, duration):
+        if not slot:
+            continue
+        best = slot[0] if previous is None else _most_different(slot, previous)
+        picks.append(best)
+        previous = _thumb(best)
+    chosen = {id(c) for c in picks}
+    rest = [c for c in cues if id(c) not in chosen]
+    return sorted(picks + _even_subset(rest, k - len(picks)), key=lambda c: c.t)
+
+
+def select(
+    cands: list[Candidate], n: int, max_frames: int | None = None, duration: float | None = None
+) -> list[Candidate]:
+    """Pick at most max_frames frames (R-FR-2): coverage first, then cues, then scenes.
+
+    - Cue frames bypass the per-minute budget n (spec 3.4), but fill at most half of
+      max_frames while scene frames can use the other half: common words ("run", "type") in a
+      long talk must not crowd out the slides. Over that share they are cut to a temporal
+      subset that prefers frames differing most from the previous pick.
+    - Temporal coverage: the video is split into equal windows (one per COVERAGE_WINDOW_S,
+      at most max_frames / 2), and every window with a candidate keeps one frame, a scene
+      frame when it has one, else a cue frame.
+    - Scene frames then fill what n leaves after the cues, never fewer than a floor of
+      ceil(n / 3) in total, evenly spread.
+    max_frames defaults to n; duration defaults to the last candidate's time.
     """
     cap = n if max_frames is None else max_frames
     by_id: dict[str, Candidate] = {}
     for cand in sorted(cands, key=lambda c: (c.t, c.reason != "cue")):
         by_id.setdefault(frame_id(cand.t), cand)  # one frame per id; a cue wins a tie
     unique = list(by_id.values())
+    if not unique or cap <= 0:
+        return []
+    span = max(duration or 0.0, unique[-1].t + 1e-6)
     cues = [c for c in unique if c.reason == "cue"]
     others = [c for c in unique if c.reason != "cue"]
-    floor = min(math.ceil(n / 3), len(others), cap)
-    kept_cues = _even_subset(cues, cap - floor) if len(cues) > cap else cues
-    room = cap - len(kept_cues)
-    scenes = _even_subset(others, max(0, min(room, max(n - len(kept_cues), floor))))
-    return sorted(kept_cues + scenes, key=lambda c: c.t)
+
+    cue_limit = max(cap // 2, cap - len(others))
+    kept_cues = _distinct_cues(cues, cue_limit, span)
+    kept_ids = {id(c) for c in kept_cues}
+
+    n_windows = max(1, min(math.ceil(span / COVERAGE_WINDOW_S), cap // 2))
+    coverage: list[Candidate] = []
+    for window in _windows(unique, n_windows, span):
+        scenes_here = [c for c in window if c.reason != "cue"]
+        if scenes_here:
+            coverage.append(scenes_here[len(scenes_here) // 2])
+        elif window and not any(id(c) in kept_ids for c in window):
+            coverage.append(window[len(window) // 2])  # a cue frame the share cap had cut
+    coverage = coverage[: max(0, cap - len(kept_cues))]
+    taken = kept_ids | {id(c) for c in coverage}
+
+    floor = min(math.ceil(n / 3), len(others))
+    covered_scenes = sum(1 for c in coverage if c.reason != "cue")
+    room = cap - len(kept_cues) - len(coverage)
+    want = max(n - len(kept_cues), floor) - covered_scenes
+    rest = [c for c in others if id(c) not in taken]
+    extra = _even_subset(rest, max(0, min(room, want)))
+    return sorted(kept_cues + coverage + extra, key=lambda c: c.t)
 
 
 def _run_ffmpeg(cmd: list[str], cwd: Path, video: Path) -> str:
@@ -321,7 +384,10 @@ def run_frames(
                     if frame_id(c.t) not in cue_ids
                 ]
                 chosen = select(
-                    dedup_runs(scenes + cues), budget(duration, pm, sampling.max), sampling.max
+                    dedup_runs(scenes + cues),
+                    budget(duration, pm, sampling.max),
+                    sampling.max,
+                    duration,
                 )
                 for cand in chosen:
                     fid = frame_id(cand.t)

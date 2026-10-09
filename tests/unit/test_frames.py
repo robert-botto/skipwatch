@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import subprocess
 from pathlib import Path
@@ -129,7 +130,8 @@ def test_scene_floor_keeps_scenes_when_cues_are_common():
     n = budget(600, 3, 60)
     chosen = select(scenes + cues, n, max_frames=60)
     reasons = [c.reason for c in chosen]
-    assert (reasons.count("cue"), reasons.count("scene")) == (40, 10)
+    # 40 cues exceed half of max, so they are cut to 30; scenes keep the floor of 10
+    assert (reasons.count("cue"), reasons.count("scene")) == (30, 10)
 
 
 def test_scene_floor_when_cues_exceed_max():
@@ -137,7 +139,53 @@ def test_scene_floor_when_cues_exceed_max():
     cues = [C(t * 5 + 0.5, "cue") for t in range(100)]
     chosen = select(scenes + cues, 30, max_frames=60)
     reasons = [c.reason for c in chosen]
-    assert len(chosen) == 60 and (reasons.count("cue"), reasons.count("scene")) == (50, 10)
+    assert (reasons.count("cue"), reasons.count("scene")) == (30, 10)
+
+
+G5_DURATION = 2183.0  # golden G5: a 36-minute slide talk where cue words are common speech
+
+
+def g5_like_candidates():
+    """Slides change every 25 s; cue frames are sparse early and dense in minutes 10 to 25."""
+    scenes = [C(float(t), level=(i % 2) * 255) for i, t in enumerate(range(0, 2183, 25))]
+    cue_times = [40.0, 220.0] + [300.0 + 30 * i for i in range(10)]
+    cue_times += [600.0 + 6 * i for i in range(150)] + [1500.0 + 45 * i for i in range(15)]
+    return scenes + [C(t + 0.5, "cue") for t in cue_times]
+
+
+def per_window(chosen, width=300.0, duration=G5_DURATION):
+    counts = [0] * math.ceil(duration / width)
+    for c in chosen:
+        counts[int(c.t // width)] += 1
+    return counts
+
+
+def test_g5_like_talk_covers_every_five_minutes_and_caps_cue_share():
+    n = budget(G5_DURATION, 3, 60)
+    chosen = select(dedup_runs(g5_like_candidates()), n, max_frames=60, duration=G5_DURATION)
+    counts = per_window(chosen)
+    assert len(chosen) <= 60
+    assert min(counts) >= 2 and min(counts[:-1]) >= 4, counts  # the last window is 83 s
+    cues = [c for c in chosen if c.reason == "cue"]
+    assert len(cues) <= len(chosen) / 2, (len(cues), len(chosen))
+
+
+def test_coverage_window_without_scenes_keeps_a_cue():
+    # Minutes 4 to 6 hold no scene frame and one lone cue among 200 dense ones.
+    ts = list(range(0, 200)) + list(range(400, 600))
+    scenes = [C(float(t), level=(t % 2) * 255) for t in ts]
+    cues = [C(t + 0.5, "cue") for t in range(0, 200, 2)] + [C(300.5, "cue")]
+    cues += [C(t + 0.5, "cue") for t in range(400, 600, 2)]
+    chosen = select(scenes + cues, 10, max_frames=10, duration=600.0)
+    assert any(c.t == 300.5 for c in chosen), [c.t for c in chosen]
+    assert len(chosen) <= 10
+
+
+def test_cue_share_cap_prefers_the_cue_that_shows_something_new():
+    scenes = [C(float(t), level=100) for t in (1, 30, 80, 95)]
+    cues = [C(10.5, "cue", level=0), C(60.5, "cue", level=0), C(70.5, "cue", level=255)]
+    chosen = select(scenes + cues, 4, max_frames=4, duration=100.0)
+    assert [c.t for c in chosen if c.reason == "cue"] == [10.5, 70.5]
 
 
 def test_cue_frames_are_capped_by_max_only():
