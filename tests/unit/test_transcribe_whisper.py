@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from skipwatch.cli import app
 from skipwatch.doctor import extra_command
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo, Transcript
+from skipwatch.models import IngestBundle, IngestContext, MediaInfo, Route, SourceInfo, Transcript
 from skipwatch.providers import transcribe_faster, transcribe_mlx
 from skipwatch.providers.registry import transcription_backends
 from skipwatch.providers.transcribe_faster import FasterWhisperBackend
@@ -343,3 +343,43 @@ def test_mlx_off_apple_silicon_points_at_faster(monkeypatch):
     installed(monkeypatch, mlx=False, faster=False, apple=False)
     hint = MlxWhisperBackend().missing_hint()
     assert "Apple Silicon" in hint and "--backend faster" in hint
+
+
+def mute_work(tmp_path, captions: bool = False) -> WorkDir:
+    """A video whose ingest found no audio track."""
+    w = WorkDir(tmp_path / "mute")
+    w.ensure()
+    ctx = IngestContext()
+    if captions:
+        (w.path / "captions").mkdir()
+        (w.path / "captions" / "clip.en.vtt").write_text(
+            "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\ntext on screen only\n", encoding="utf-8"
+        )
+        ctx = IngestContext(captions_available=True, captions_path="captions/clip.en.vtt")
+    write_model(
+        w.file("ingest.json"),
+        bundle().model_copy(
+            update={"media": MediaInfo(path="media/clip.mp4", has_audio=False), "context": ctx}
+        ),
+    )
+    return w
+
+
+@pytest.mark.parametrize("requested", ["auto", "mlx", "faster", "openai"])
+def test_no_audio_track_is_exit_7_before_any_backend_is_chosen(tmp_path, monkeypatch, requested):
+    installed(monkeypatch, mlx=True, faster=True)  # Whisper is there: no install advice
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # and no key is needed to say so
+    w = mute_work(tmp_path)
+    r = CliRunner().invoke(app, ["transcribe", "--work", str(w.path), "--backend", requested])
+    assert r.exit_code == ExitCode.NO_CONTENT, r.output
+    assert "the video has no audio track" in r.output
+    assert "install" not in r.output and "OPENAI_API_KEY" not in r.output
+    assert not w.file("transcript.json").exists()
+
+
+def test_captions_still_win_without_an_audio_track(tmp_path, monkeypatch):
+    installed(monkeypatch, mlx=True, faster=True)
+    w = mute_work(tmp_path, captions=True)
+    r = CliRunner().invoke(app, ["transcribe", "--work", str(w.path)])
+    assert r.exit_code == 0, r.output
+    assert read_model(w.file("transcript.json"), Transcript).origin == "captions"
