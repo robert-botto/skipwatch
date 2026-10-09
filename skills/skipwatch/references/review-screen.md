@@ -50,9 +50,16 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
-  `undated` unless the file carries them.
+  `undated` unless the file carries them. A URL source shows its title, its author handle
+  and its post date.
 - **Provider calls:** `W/calls.json`. Empty means `none (free route)`; otherwise list each
-  as `<provider> <op> ($<cost>)` with the total.
+  as `<provider> <op> ($<cost>)` with the total. When `W/ingest.json` has `from_cache`
+  true, the metadata came from the 7-day run cache (R-TR-3): append
+  `; cached from <date>` (the date from the ingest log's cache line, else
+  `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
+  Cached calls are not billed again. A transcript reused from the cache adds
+  `; transcript cached (<origin>)`. Audio the user sent to a cloud provider adds
+  `<provider> transcription (billed to your <ENV VAR> key)`.
 - **Draft:** `W/staging/<name>/`.
 - **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 

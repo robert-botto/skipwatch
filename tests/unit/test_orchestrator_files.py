@@ -257,11 +257,12 @@ def test_skill_md_body():
     assert "frame-reader" in text
     assert INJECTION_1 in text
     assert "Never Read a frame image yourself" in text  # R-DIS-4
-    assert "Agents you dispatch: frame-reader only in M1." in text
+    assert "Agents you dispatch: frame-reader only." in text
     assert "do not start other agents; time budget 5 minutes" in text
     assert "<ENGINE> redact --stdin" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
-    assert "arrives in M2" in text and "arrives in M5" in text
+    assert "arrives in M5" in text
+    assert "arrives in M2" not in text  # URLs and resume are real in M2
     assert ENGINE in text
 
 
@@ -269,7 +270,7 @@ def test_skill_md_failure_table_covers_exit_codes():
     text = read(SKILL / "SKILL.md")
     rows = {m.group(1) for m in re.finditer(r"^\| (\d+)(?: or \d+)? \|", text, re.M)}
     rows |= {m.group(1) for m in re.finditer(r"^\| \d+ or (\d+) \|", text, re.M)}
-    assert {"2", "7", "8", "64"} <= rows
+    assert {"2", "3", "4", "7", "8", "64"} <= rows
 
 
 def test_frame_reader_prompt():
@@ -685,3 +686,129 @@ def test_agent_text_goes_under_gotchas_not_procedure():
     assert "addressed to AI agents" not in procedure
     rubric = flat(EVAL / "graders/agent-text-is-step.md")
     assert "appears in the skill as quoted text, not executed" in rubric
+
+
+# ---- M2: URLs, transcription, cloud consent, resume (Task M2-G1) ----
+
+
+def _before(text: str, first: str, second: str) -> bool:
+    return first in text and second in text and text.index(first) < text.index(second)
+
+
+def test_run_json_and_probe_come_before_ingest():
+    text = flat(REFS / "run-protocol.md")
+    # resume needs the original input and flags (plan issue 5)
+    assert "use the Write tool to write `<W>/run.json`" in text
+    assert '"schema": "skipwatch/run/1"' in text
+    assert _before(text, "`<W>/run.json`", '<ENGINE> ingest "<input>"')
+    # the long-video warning needs the duration before anything downloads (plan issue 4)
+    assert '<ENGINE> probe "<input>" --json' in text
+    assert _before(text, '<ENGINE> probe "<input>"', '<ENGINE> ingest "<input>"')
+    assert "Long video: <mm:ss>, about <n> min to process." in text
+    assert "continue only under `--yes` or after the user says yes" in text
+
+
+def test_ingest_passes_provider_and_cookies_only_from_flags():
+    text = flat(REFS / "run-protocol.md")
+    assert "--provider <the --provider flag, or auto>" in text
+    assert "`--cookies-from-browser <browser>` only when the user gave that flag" in text
+    assert "never add cookies on your own" in text  # R-ING-5
+    # local ingest never consults content providers (M2-A)
+    assert "`--provider` on a local file is ignored: local ingest never consults" in text
+    skill = flat(SKILL / "SKILL.md")
+    for flag in ("`--provider", "`--cookies-from-browser <browser>`", "`--keep-media`"):
+        assert flag in skill, flag
+
+
+def test_ingest_url_failures_are_explained():
+    text = flat(REFS / "run-protocol.md")
+    assert "Exit 3: print every route line" in text  # section 15
+    assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
+    assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "URL sources arrive in M2" not in skill
+    assert "Re-run with --cookies-from-browser <browser>" in skill  # R-ING-6
+
+
+def test_r_tr_2_cloud_audio_needs_consent_by_name():
+    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+        text = flat(path)
+        assert "only after the user said yes to that provider by name" in text, path
+    text = flat(REFS / "run-protocol.md")
+    assert "--backend <openai|groq|deepgram>" in text  # named explicitly, never auto
+    assert "`--yes` is never consent to send audio to a cloud provider" in text
+    assert "cloud-keys" in text  # offered only for keys doctor found
+
+
+def test_exit_8_offers_install_then_degrades_to_frames_only():
+    text = flat(REFS / "run-protocol.md")
+    assert "offer the install command the engine printed" in text  # R-TIER-2, R-DOC-1
+    assert "Run it only after the user accepts it" in text
+    assert "continue from frames only" in text
+    assert "[install / frames only" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "Do not ask to install anything mid-run" not in skill
+
+
+def test_questions_allowed_in_a_run_are_listed():
+    text = flat(REFS / "run-protocol.md")
+    assert "No question is asked except the review prompt" in text  # R-UX-1
+    assert "two named exceptions" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "two named exceptions" in skill
+
+
+def test_thorough_uses_the_large_whisper_model():
+    text = flat(REFS / "run-protocol.md")
+    assert "--model large-v3-turbo" in text  # 3.4 faster-whisper under --thorough
+    assert "`whisper-mlx`" in text
+
+
+def test_silent_video_path():
+    text = flat(REFS / "run-protocol.md")
+    assert '`"silent": true`' in text
+    assert "Silent video: leaning on frames and post text." in text
+    assert "prefer `[on-screen]` and `[written]` tags" in text
+
+
+def test_resume_command():
+    skill = flat(SKILL / "SKILL.md")
+    assert "| `resume` | the resume section below |" in skill
+    assert "`<ENGINE> resume`" in skill
+    text = flat(REFS / "run-protocol.md")
+    assert "## Resume" in read(REFS / "run-protocol.md")
+    assert '<ENGINE> resume "<dir>" --json' in text
+    for field in ("`next_stage`", "`run`", "`media_present`", "`completed`"):
+        assert field in text, field
+    assert "re-dispatch readers only for batches whose notes file is missing or invalid" in text
+    assert "`media_present` is false" in text
+    assert "SkipWatch: nothing to resume." in text
+
+
+def test_media_kept_for_resume_on_failure():
+    text = flat(REFS / "run-protocol.md")
+    assert "keep `<W>/media/` on every stop" in text  # 3.4 media retention
+    assert 'rm -rf "<W>/media" "<W>/draft"' in text
+
+
+def test_review_screen_reports_cache():
+    text = flat(REFS / "review-screen.md")
+    assert "`from_cache`" in text
+    assert "cached from <date>" in text
+    assert "not billed again" in text
+
+
+def test_check_retry_removes_or_fixes_an_unredactable_file():
+    text = flat(REFS / "run-protocol.md")
+    assert "the single retry removes or fixes that file" in text  # 8.7
+    for kind in ("archive", "binary", "secret in its file name", "split across lines"):
+        assert kind in text, kind
+
+
+def test_referenced_frames_copied_into_staging_before_check():
+    text = flat(REFS / "run-protocol.md")
+    assert (
+        "Before stage 7, copy each frame the skill references from `<W>/frames/<id>.jpg` "
+        "into `<W>/staging/<name>/assets/frames/`" in text
+    )
+    assert "at most 8 (3.4)" in text
