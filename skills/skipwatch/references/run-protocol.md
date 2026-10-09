@@ -268,10 +268,24 @@ Exit 0: all valid. Exit 1: one line per bad batch (`batch 2: missing notes/batch
 `batch 3: frames missing f000310`). Exit 7: `batches.json` is missing; re-run stage 3's
 plan step.
 
-A missing or malformed file gets re-dispatched once, with the same prompt. A second
-failure marks those frames unread: record
-`frames <first id> to <last id> unread (reader failed twice)` and continue. The review
-screen says so (section 15).
+Each bad batch is re-dispatched once, in the way its line calls for:
+
+- `frames missing <ids>` and nothing else: the notes file is good apart from those
+  frames, so dispatch one reader for just those frame ids, with the same prompt shape
+  listing only them and with the output path changed to the retry file: `notes_path`
+  with `.json` replaced by `.retry.json`, for example `notes/batch-02.retry.json`. Then
+  fold it in and validate again:
+
+      <ENGINE> merge-notes --work "<W>" --batch <id> 2>>"<W>/logs/validate-notes.log"; echo "rc=$?"
+
+  and run validate-notes again. Never re-dispatch the whole batch for a few missing
+  frames: the reader would read its other frames twice.
+- anything else (`missing`, `invalid`, a wrong batch id, `unexpected` frames):
+  re-dispatch the whole batch once with the same prompt.
+
+A second failure (the retry fails validation, or `merge-notes` exits 7 because the
+retry file is missing or invalid) marks the frames still missing as unread: record
+`<frame ids> (reader failed twice)` and continue. The review screen says so (section 15).
 
 ## Stage 5: outline
 

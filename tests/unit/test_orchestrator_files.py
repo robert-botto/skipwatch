@@ -940,3 +940,18 @@ def test_cloud_transcript_rebuilds_like_the_whisper_path():
     assert "remove the `no transcript` entry from Unverified" in review
     assert "outline and draft rebuilt from the new transcript" in review
     assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
+
+
+# ---- G1 golden run fixes ----
+
+
+def test_redispatch_only_the_missing_frames_and_merge():
+    text = flat(REFS / "run-protocol.md")
+    # a reader that skipped one frame of 20 gets those frames read again, not the batch
+    assert "dispatch one reader for just those frame ids" in text
+    assert "`notes/batch-02.retry.json`" in text
+    assert '<ENGINE> merge-notes --work "<W>" --batch <id>' in text
+    assert _before(text, "<ENGINE> merge-notes", "run validate-notes again")
+    assert "Never re-dispatch the whole batch for a few missing frames" in text
+    assert "re-dispatch the whole batch once with the same prompt" in text
+    assert "A missing or malformed file gets re-dispatched once, with the same prompt." not in text
