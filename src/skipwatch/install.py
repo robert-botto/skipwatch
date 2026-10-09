@@ -5,7 +5,9 @@ without --force, and with --force moves the old copy to $SKIPWATCH_HOME/backups/
 anything. It never touches the work folder: media cleanup is the orchestrator's call.
 """
 
+import os
 import shutil
+from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -21,6 +23,7 @@ Scope = Literal["user", "project", "agents"]
 TargetScope = Literal["user", "project", "agents", "dir"]
 
 UNCHECKED = "run skipwatch check first; install refuses unchecked drafts"
+STALE = "staging changed since check; run skipwatch check again"
 
 
 def target_dir(
@@ -36,14 +39,26 @@ def target_dir(
     return home / ".claude" / "skills" / name, "user"
 
 
-def _require_passed_check(work: Path, name: str) -> None:
-    path = work / "check-report.json"
+def _walk(root: Path) -> Iterator[Path]:
+    """root and everything under it, without following symlinks."""
+    yield root
+    for folder, dirs, files in os.walk(root):
+        for entry in (*dirs, *files):
+            yield Path(folder) / entry
+
+
+def _require_passed_check(staging: Path) -> None:
+    """The work folder's check report must pass for this skill and postdate every staged file."""
+    path = staging.parent.parent / "check-report.json"
     try:
         report = read_model(path, CheckReport)
     except (OSError, ValidationError) as exc:
         raise SkipwatchError(ExitCode.CHECK_FAILED, UNCHECKED) from exc
-    if not report.passed or report.skill != name:
+    if not report.passed or report.skill != staging.name:
         raise SkipwatchError(ExitCode.CHECK_FAILED, UNCHECKED)
+    checked_at = path.stat().st_mtime_ns
+    if any(entry.lstat().st_mtime_ns > checked_at for entry in _walk(staging)):
+        raise SkipwatchError(ExitCode.CHECK_FAILED, STALE)
 
 
 def _backup_path(name: str, now: datetime) -> Path:
@@ -83,11 +98,14 @@ def install(
     if not staging.is_dir():
         raise SkipwatchError(ExitCode.USAGE, f"{staging} is not a folder")
     name = staging.name
-    _require_passed_check(staging.parent.parent, name)
+    _require_passed_check(staging)
 
     if to is None and scope is None:
         scope = load_config().install.scope
-    target, resolved = target_dir(scope, to, name, cwd or Path.cwd(), home or Path.home())
+    cwd = cwd or Path.cwd()
+    if to is not None:
+        to = (cwd / to).resolve()
+    target, resolved = target_dir(scope, to, name, cwd, home or Path.home())
 
     backup: Path | None = None
     if target.exists() or target.is_symlink():

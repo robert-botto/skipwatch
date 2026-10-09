@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -291,3 +292,41 @@ def test_install_writes_file_hashes(roots, tmp_path):
     assert manifest.files["SKILL.md"] == f"sha256:{expected}"
     assert "references/source.md" in manifest.files
     assert manifest.checks_passed is True
+
+
+# ---- review fixes ----
+
+
+def _touch_after_report(staging: Path, path: Path) -> None:
+    """Give path an mtime 10 s after the check report (no reliance on clock resolution)."""
+    later = (staging.parent.parent / "check-report.json").stat().st_mtime + 10
+    os.utime(path, (later, later))
+
+
+def test_install_refuses_staging_edited_after_check(roots, tmp_path):
+    staging = make_staging(tmp_path)
+    (staging / "SKILL.md").write_text("edited after check\n", encoding="utf-8")
+    _touch_after_report(staging, staging / "SKILL.md")
+    r = run_cli(str(staging))
+    assert r.exit_code == ExitCode.CHECK_FAILED
+    assert "staging changed since check; run skipwatch check again" in r.stderr
+    assert not (roots[0] / ".claude").exists()
+
+
+def test_install_refuses_file_added_after_check(roots, tmp_path):
+    staging = make_staging(tmp_path)
+    added = staging / "references" / "extra.md"
+    added.write_text("new\n", encoding="utf-8")
+    _touch_after_report(staging, added)
+    with pytest.raises(SkipwatchError) as exc:
+        install(staging, None, None, force=False)
+    assert exc.value.code == ExitCode.CHECK_FAILED
+    assert "staging changed since check" in exc.value.message
+
+
+def test_install_relative_to_gives_absolute_path(roots, finalize, tmp_path):
+    _, cwd = roots
+    result = install(make_staging(tmp_path), None, Path("out"), force=False)
+    assert Path(result.path).is_absolute()
+    assert Path(result.path) == (cwd / "out" / NAME).resolve()
+    assert (cwd / "out" / NAME / "SKILL.md").exists()
