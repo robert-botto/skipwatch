@@ -15,7 +15,9 @@ import re
 import shutil
 import subprocess
 import time
+from collections import OrderedDict
 from collections.abc import Callable
+from http.cookiejar import Cookie
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
@@ -204,6 +206,15 @@ def _size(fmt: dict[str, Any], duration: float | None) -> float:
     return math.inf
 
 
+def _rank(fmt: dict[str, Any], duration: float | None) -> tuple[float, float, int, str]:
+    """Smaller is cheaper. Without a duration or sizes (Instagram) every _size is inf, so the
+    bitrate decides (renditions share one duration), then the short side, then format_id
+    (identical mirrors, as on TikTok); never list order."""
+    tbr = fmt.get("tbr")
+    size = _size(fmt, duration)
+    return size, float(tbr) if tbr else math.inf, _short_side(fmt) or 0, str(fmt["format_id"])
+
+
 def _usable(fmt: dict[str, Any]) -> bool:
     return not fmt.get("has_drm") and fmt.get("format_id") is not None
 
@@ -212,11 +223,11 @@ def _pick_video(videos: list[dict[str, Any]], cap: int, duration: float | None) 
     low = min(MIN_SHORT_SIDE, cap)
     window = [f for f in videos if low <= (_short_side(f) or 0) <= cap]
     if window:
-        return min(window, key=lambda f: _size(f, duration))
+        return min(window, key=lambda f: _rank(f, duration))
     below = [f for f in videos if (_short_side(f) or 0) < low]
     if below:
-        return max(below, key=lambda f: (_short_side(f) or 0, -_size(f, duration)))
-    return min(videos, key=lambda f: (_short_side(f) or 0, _size(f, duration)))
+        return min(below, key=lambda f: (-(_short_side(f) or 0), *_rank(f, duration)))
+    return min(videos, key=lambda f: (_short_side(f) or 0, *_rank(f, duration)))
 
 
 def _primary_lang(value: Any) -> str | None:
@@ -237,7 +248,7 @@ def _pick_audio(
         if (lang and _primary_lang(f.get("language")) == lang)
         or "original" in str(f.get("format_note") or "").casefold()
     ]
-    return min(original or audios, key=lambda f: _size(f, duration))
+    return min(original or audios, key=lambda f: _rank(f, duration))
 
 
 def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
@@ -245,8 +256,8 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
     duration = info.get("duration")
     formats = [f for f in info.get("formats") or [] if _usable(f)]
     videos = [f for f in formats if not _is_none(f.get("vcodec")) and _short_side(f)]
+    # vcodec "none" marks audio-only; X leaves acodec out entirely, which still means audio.
     audios = [f for f in formats if _is_none(f.get("vcodec")) and not _is_none(f.get("acodec"))]
-    audios = [f for f in audios if f.get("acodec") is not None]
     best_audio = _pick_audio(audios, info.get("language"), duration)
     if videos:
         video = _pick_video(videos, max_short_side, duration)
@@ -264,13 +275,47 @@ def select_format(info: dict[str, Any], max_short_side: int = 1080) -> str:
 
 # ---- yt-dlp calls ----
 
+# Session continuity, for every platform (not only X): some sites hand the extract step
+# session cookies (X: guest_id and friends from its guest-token flow) and refuse the media
+# without them, so a fresh YoutubeDL for the download gets 404. The extract step's cookies are
+# kept here, in memory only, keyed by the page URL, and copied into every download's jar.
+# Without --cookies-from-browser they are only the site's own guest session. With it, the jar
+# also holds the user's browser cookies for that site, which the download's YoutubeDL would
+# load from the browser anyway. Either way they stay in memory: never written anywhere, and
+# fetched_with_cookies follows the flag.
+MAX_SESSIONS = 8
+_SESSIONS: OrderedDict[str, list[Cookie]] = OrderedDict()
+
+
+def _session_key(info: dict[str, Any]) -> str | None:
+    return info.get("webpage_url") or info.get("original_url")
+
+
+def _keep_session(info: dict[str, Any], ydl: Any) -> None:
+    key = _session_key(info)
+    jar = getattr(ydl, "cookiejar", None)
+    if key is None or jar is None:
+        return
+    _SESSIONS[key] = list(jar)
+    _SESSIONS.move_to_end(key)
+    while len(_SESSIONS) > MAX_SESSIONS:
+        _SESSIONS.popitem(last=False)
+
+
+def _resume_session(info: dict[str, Any], ydl: Any) -> None:
+    key = _session_key(info)
+    for cookie in _SESSIONS.get(key, []) if key else []:
+        ydl.cookiejar.set_cookie(cookie)
+
 
 def extract(url: str, opts: IngestOptions) -> dict[str, Any]:
     """Metadata only, sanitized to plain JSON types. Never downloads."""
     try:
         with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
             info = ydl.extract_info(url, download=False)
-            return ydl.sanitize_info(info)  # pyright: ignore[reportReturnType]
+            info = ydl.sanitize_info(info)
+            _keep_session(info, ydl)  # pyright: ignore[reportArgumentType]
+            return info  # pyright: ignore[reportReturnType]
     except DownloadError as exc:
         raise FreeRouteError("metadata", str(exc)) from exc
 
@@ -281,28 +326,39 @@ def has_video(info: dict[str, Any]) -> bool:
     return not formats or any(f.get("vcodec") != "none" for f in formats)
 
 
+def _has_audio(info: dict[str, Any]) -> bool:
+    """True when some format names an audio codec, or is audio-only (vcodec "none", as X's
+    HLS audio with no acodec field). A video format that merely leaves acodec out says
+    nothing, so a silent source is not mistaken for one with sound."""
+    return any(
+        f.get("acodec") not in (None, "none")
+        or (_is_none(f.get("vcodec")) and f.get("acodec") is None)
+        for f in info.get("formats") or []
+    )
+
+
 def _existing_download(work: WorkDir, info: dict[str, Any]) -> MediaInfo | None:
     """R-CLI-1: a finished download whose length matches is not fetched again.
 
     Only the final file counts: `video.<ext>`, never yt-dlp's per-format intermediates
     (`video.f398.mp4`, `video.f251.webm`) or partial files, and it must carry a picture when
-    the source has video.
+    the source has video. Without a duration to compare (Instagram), the file must instead carry
+    audio whenever the source has audio, so a half-merged video-only file is fetched again.
     """
     duration = info.get("duration")
-    if not duration:
-        return None
+    needs_audio = not duration and _has_audio(info)
     for path in sorted((work.path / "media").glob("video.*")):
         if path.name.count(".") != 1 or path.suffix in (".part", ".ytdl") or not path.is_file():
             continue
         probed = media.probe(path)
         length = float(probed.get("format", {}).get("duration") or 0)
-        if abs(length - float(duration)) > 1:
+        if duration and abs(length - float(duration)) > 1:
             continue
         try:
             found = media_info(path, probed)
         except SkipwatchError:
             continue
-        if has_video(info) and found.width is None:
+        if (has_video(info) and found.width is None) or (needs_audio and not found.has_audio):
             continue
         return found.model_copy(update={"path": f"media/{path.name}"})
     return None
@@ -325,6 +381,7 @@ def download(
     def attempt() -> dict[str, Any]:
         try:
             with yt_dlp.YoutubeDL(params) as ydl:  # pyright: ignore[reportArgumentType]
+                _resume_session(info, ydl)
                 return ydl.process_ie_result(dict(info), download=True)  # pyright: ignore[reportArgumentType, reportReturnType]
         except DownloadError as exc:
             raise FreeRouteError("download", str(exc)) from exc

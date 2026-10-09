@@ -418,3 +418,158 @@ def test_metadata_never_resolves_playlist_entries(tmp_path, monkeypatch, fake_dl
     assert "extract_flat" not in cf.ydl_params(tmp_path, IngestOptions(), download=True)
     cf.extract("https://www.youtube.com/playlist?list=PL1", IngestOptions())
     assert fake_dl.instances[-1].params["extract_flat"] == "in_playlist"
+
+
+# ---- session continuity: the site's guest cookies from extract reach the download ----
+
+GUEST_VALUE = "v1%3A1700000000000000"
+
+
+def _guest_cookie():
+    from http.cookiejar import Cookie
+
+    return Cookie(
+        0, "guest_id", GUEST_VALUE, None, False, ".x.com", True, True, "/", True, True,
+        None, False, None, None, {},
+    )  # fmt: skip
+
+
+class SessionDL(FakeDL):
+    """extract_info gets a guest cookie from the site, as X's guest-token flow does; the
+    download only works when that cookie is in its own jar."""
+
+    seen_in_download: list[list[str]] = []
+
+    def __init__(self, params):
+        super().__init__(params)
+        from http.cookiejar import CookieJar
+
+        self.cookiejar = CookieJar()
+
+    def extract_info(self, url, download=False):
+        self.cookiejar.set_cookie(_guest_cookie())
+        return dict(FakeDL.info, original_url=url, webpage_url=url)
+
+    def process_ie_result(self, info, download=True):
+        names = [c.name for c in self.cookiejar]
+        SessionDL.seen_in_download.append(names)
+        if "guest_id" not in names:
+            raise cf.yt_dlp.utils.DownloadError("ERROR: unable to download: HTTP Error 404")
+        out = Path(self.params["paths"]["home"]) / "video.mp4"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"x")
+        return dict(info, requested_downloads=[{"filepath": str(out)}])
+
+
+@pytest.fixture
+def session_dl(monkeypatch):
+    FakeDL.instances, FakeDL.error = [], None
+    FakeDL.info = {
+        "id": "media1",
+        "duration": 10,
+        "formats": [
+            {"format_id": "v", "width": 1280, "height": 720, "vcodec": "avc1", "acodec": "none",
+             "filesize": 2},
+            {"format_id": "a", "vcodec": "none", "acodec": None, "filesize": 1},
+        ],
+    }  # fmt: skip
+    SessionDL.seen_in_download = []
+    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", SessionDL)
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    monkeypatch.setattr(cf.media, "ffmpeg_paths", lambda: (Path("/x/ffmpeg"), Path("/x/ffprobe")))
+    monkeypatch.setattr(
+        cf.media,
+        "probe",
+        lambda p: {
+            "format": {"duration": "10"},
+            "streams": [
+                {"codec_type": "video", "width": 1280, "height": 720, "r_frame_rate": "25/1"},
+                {"codec_type": "audio"},
+            ],
+        },
+    )
+    return SessionDL
+
+
+def test_download_carries_the_extract_session_cookies(tmp_path, session_dl):
+    url = "https://x.com/someone/status/1"
+    info = cf.extract(url, IngestOptions())
+    json.dumps(info)  # the info stays plain JSON: no jar rides along in it
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    got = cf.download(info, work, IngestOptions())
+    assert got.path == "media/video.mp4"
+    assert session_dl.seen_in_download == [["guest_id"]]
+    params = session_dl.instances[-1].params
+    assert "cookiefile" not in params and "cookiesfrombrowser" not in params
+
+
+def test_session_cookies_are_never_persisted_and_not_user_cookies(tmp_path, session_dl, sw_home):
+    from typer.testing import CliRunner
+
+    from skipwatch.cli import app
+    from skipwatch.models import IngestBundle
+
+    url = "https://x.com/someone/status/1"
+    work = tmp_path / "w"
+    r = CliRunner().invoke(
+        app, ["ingest", url, "--work", str(work), "--provider", "free", "--json"]
+    )
+    assert r.exit_code == 0, r.output
+    assert IngestBundle.model_validate_json(r.stdout).fetched_with_cookies is False
+    assert session_dl.seen_in_download == [["guest_id"]]
+    for root in (work, sw_home):
+        for path in root.rglob("*"):
+            if path.is_file() and path.suffix != ".mp4":
+                text = path.read_text(encoding="utf-8", errors="replace")
+                assert "guest_id" not in text and GUEST_VALUE not in text, path
+    assert "guest_id" not in r.output
+
+
+G4 = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "instagram"
+G4_SPEC = "dash-18630250069054910v+dash-18630246724054910a"
+
+
+def g4_info() -> dict:
+    info = json.loads((G4 / "g4-gh-secure.info.json").read_text(encoding="utf-8"))
+    assert info["duration"] is None  # Instagram gives no duration
+    return info
+
+
+def test_r_cli_1_without_a_duration_a_merged_file_with_video_and_audio_is_reused(
+    tmp_path, monkeypatch
+):
+    files = {"video.mp4": (31.0, VIDEO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    assert cf.download(g4_info(), work, IngestOptions()).path == "media/video.mp4"
+    assert calls == []
+
+
+def test_r_cli_1_without_a_duration_a_silent_or_partial_file_is_downloaded_again(
+    tmp_path, monkeypatch
+):
+    files = {"video.mp4": (31.0, VIDEO_STREAMS[:1]), "video.f1.mp4": (31.0, VIDEO_STREAMS)}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    cf.download(g4_info(), work, IngestOptions())
+    assert calls == [G4_SPEC]  # no audio in the merged file, and intermediates never count
+
+
+def test_r_cli_1_without_a_duration_a_silent_source_reuses_its_video_only_file(
+    tmp_path, monkeypatch
+):
+    """A silent source (no format with an audio codec, the video's acodec left out) must not
+    be downloaded again on every run just because its file has no audio."""
+    files = {"video.mp4": (31.0, VIDEO_STREAMS[:1])}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    silent = {
+        "duration": None,
+        "formats": [{"format_id": "v", "width": 1280, "height": 720, "vcodec": "avc1"}],
+    }
+    assert cf.download(silent, work, IngestOptions()).path == "media/video.mp4"
+    assert calls == []

@@ -155,3 +155,77 @@ def test_without_language_hints_the_smallest_audio_wins():
         {"format_id": "small", "vcodec": "none", "acodec": "opus", "filesize": 1, "language": "fr"},
     ]
     assert select_format({"duration": 1, "language": None, "formats": audio}) == "small"
+
+
+def test_audio_with_a_missing_codec_field_still_counts_as_audio():
+    """X lists its HLS audio as vcodec "none" with no acodec at all: still audio. A format whose
+    acodec is the string "none" (and vcodec "none") carries nothing and stays out."""
+    info = json.loads((REC.parent / "x" / "g2-deep-partials.info.json").read_text())
+    assert select_format(info) == "hls-324+hls-audio-32000-Audio"
+    empty = {"format_id": "e", "vcodec": "none", "acodec": "none", "filesize": 1}
+    assert select_format({"duration": 10, "formats": [f("v", 1280, 720, 5e6), empty]}) == "v"
+
+
+PINNED = {
+    "facebook/govsg-haze": "1638798497622583v+910880914159004a",
+    "generic/archive-org": "2",
+    "generic/wikimedia-commons": "4",
+    "instagram/g4-gh-secure": "dash-18630250069054910v+dash-18630246724054910a",
+    "tiktok/g3-copilot-cli": "bytevc1_720p_215988-0",
+    "x/g2-deep-partials": "hls-324+hls-audio-32000-Audio",
+    "x/link-to-video-post": "hls-295+hls-audio-32000-Audio",
+    "youtube/auto-only-nonenglish": "247+139",
+    "youtube/dubbed-audio": "398+139",
+    "youtube/manual-captions": "398+139",
+    "youtube/vertical-short": "b+251",
+}
+
+
+@pytest.mark.parametrize(("name", "spec"), sorted(PINNED.items()))
+def test_recorded_fixture_format_choice_is_pinned(name, spec):
+    """Every recorded platform fixture keeps its choice when the format rules change."""
+    info = json.loads((REC.parent / f"{name}.info.json").read_text())
+    assert select_format(info) == spec
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_without_duration_or_sizes_the_lowest_bitrate_wins_in_any_order(reverse):
+    """Instagram gives no duration and no sizes: every rendition shares one duration, so bitrate
+    ranks them. List order must not decide (reversed, G4 used to pick the 1080 rendition)."""
+    info = json.loads((REC.parent / "instagram" / "g4-gh-secure.info.json").read_text())
+    if reverse:
+        info["formats"] = info["formats"][::-1]
+    assert select_format(info) == "dash-18630250069054910v+dash-18630246724054910a"
+
+
+def test_without_duration_or_bitrate_the_lower_rendition_wins():
+    formats = [f("hi", 1080, 1920, None), f("lo", 720, 1280, None)]
+    assert select_format({"duration": None, "formats": formats}) == "lo"
+    formats = [dict(f("hi", 1080, 1920, None), filesize_approx=9e6), f("lo", 720, 1280, None)]
+    formats[1]["filesize_approx"] = 5e6
+    assert select_format({"duration": None, "formats": formats[::-1]}) == "lo"
+    assert select_format({"duration": None, "formats": formats}) == "lo"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_identical_mirror_formats_pick_the_same_one_in_any_order(reverse):
+    """TikTok lists the same rendition from several mirrors: format_id breaks the tie."""
+    formats = [
+        f("mirror-b", 720, 1280, None, a="aac", tbr=500),
+        f("mirror-a", 720, 1280, None, a="aac", tbr=500),
+    ]
+    if reverse:
+        formats = formats[::-1]
+    assert select_format({"duration": None, "formats": formats}) == "mirror-a"
+
+
+@pytest.mark.parametrize("name", sorted(PINNED))
+def test_recorded_fixture_choice_survives_any_format_order(name):
+    """From review-m3b/pin.py: the choice never depends on the order yt-dlp lists formats."""
+    import random
+
+    info = json.loads((REC.parent / f"{name}.info.json").read_text())
+    for seed in range(20):
+        shuffled = json.loads(json.dumps(info))
+        random.Random(seed).shuffle(shuffled["formats"])
+        assert select_format(shuffled) == PINNED[name], seed

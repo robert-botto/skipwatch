@@ -9,12 +9,13 @@ from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.ytdlp_common import build_video_bundle
 from skipwatch.detect import Detected
 from skipwatch.models import IngestBundle
+from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
 
 
 class FacebookAdapter:
     def build(self, detected: Detected, work: WorkDir, opts: IngestOptions) -> IngestBundle:
-        return build_video_bundle(detected, work, opts, "facebook")
+        return links.with_post_links(build_video_bundle(detected, work, opts, "facebook"))
 
 
 PLATFORMS = ("facebook",)

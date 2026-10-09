@@ -32,6 +32,7 @@ PLATFORM_NAMES = {
     "tiktok": "TikTok",
     "instagram": "Instagram",
     "facebook": "Facebook",
+    "x": "X",
 }
 
 
@@ -49,6 +50,7 @@ AUTHOR_FIELDS: dict[str, AuthorFields] = {
     "tiktok": AuthorFields("uploader", "channel"),  # uploader_id is numeric
     "instagram": AuthorFields("channel", "uploader"),  # uploader_id is numeric
     "facebook": AuthorFields("uploader", None, at=False),  # the page name, shown once
+    "x": AuthorFields("uploader_id", "uploader"),  # never the display name as a handle
 }
 
 
