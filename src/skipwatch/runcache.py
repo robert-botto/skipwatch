@@ -2,7 +2,10 @@
 
 `$SKIPWATCH_HOME/cache/<key>/` holds the cached files and `entry.json` (CacheEntry). The key
 is `sha256(canonical_url or url)[:16]`, or `sha256("<abs path>|<size>|<mtime_ns>")[:16]` for a
-local file. Media is never cached: frames need it, so a cached ingest still downloads.
+local file. A run whose media or context was fetched with browser cookies uses a separate key
+(`|cookies` appended), so private content never reaches a cookieless run (and an entry flagged
+`fetched_with_cookies` is refused there anyway). Media is never cached: frames need it, so a
+cached ingest still downloads.
 
 An entry is fresh for 7 days from its first store; later stores add files but never extend
 that. A stale or corrupt entry is a miss, and the next store replaces it whole. The cache is
@@ -12,6 +15,8 @@ best effort: a file that will not read is a miss, a store that fails is one stde
 import hashlib
 import os
 import shutil
+import tempfile
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypeVar
@@ -21,7 +26,7 @@ from pydantic import BaseModel, ValidationError
 from skipwatch.config import skipwatch_home
 from skipwatch.models import CacheEntry, IngestBundle, SourceInfo, Transcript
 from skipwatch.output import progress
-from skipwatch.workdir import read_model, write_model
+from skipwatch.workdir import read_model
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -51,7 +56,7 @@ def _aware(when: datetime) -> datetime:
     return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
-def cache_key(source: SourceInfo) -> str | None:
+def cache_key(source: SourceInfo, cookies: bool = False) -> str | None:
     """None when the source has no stable identity (no URL, or a local file that is gone)."""
     url = source.canonical_url or source.url
     if url:
@@ -65,6 +70,8 @@ def cache_key(source: SourceInfo) -> str | None:
         raw = f"{path}|{st.st_size}|{st.st_mtime_ns}"
     else:
         return None
+    if cookies:
+        raw += "|cookies"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
@@ -90,10 +97,16 @@ def lookup(home: Path, key: str, name: str, now: datetime) -> Path | None:
     return path if path.is_file() else None
 
 
-def age_hours(home: Path, key: str, now: datetime) -> int:
-    entry = read_model(_folder(home, key) / ENTRY, CacheEntry)
-    age = _aware(now) - _aware(datetime.fromisoformat(entry.created_at))
-    return int(age.total_seconds() // 3600)
+def _replace(folder: Path, name: str, write: Callable[[Path], object]) -> None:
+    """Write through a unique temp file in the folder, then os.replace (safe with two runs)."""
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{name}.", suffix=".tmp")
+    os.close(fd)
+    try:
+        write(Path(tmp))
+        os.replace(tmp, folder / name)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def store(home: Path, key: str, source: str, files: dict[str, Path], now: datetime) -> CacheEntry:
@@ -107,9 +120,7 @@ def store(home: Path, key: str, source: str, files: dict[str, Path], now: dateti
             shutil.rmtree(folder)
     folder.mkdir(parents=True, exist_ok=True)
     for name, src in files.items():
-        tmp = folder / f"{name}.tmp"
-        shutil.copyfile(src, tmp)
-        os.replace(tmp, folder / name)
+        _replace(folder, name, lambda tmp, src=src: shutil.copyfile(src, tmp))
     kept = entry.files if entry else []
     new = CacheEntry(
         key=key,
@@ -117,50 +128,69 @@ def store(home: Path, key: str, source: str, files: dict[str, Path], now: dateti
         created_at=entry.created_at if entry else _iso(now),
         files=sorted({*kept, *files}),
     )
-    write_model(folder / ENTRY, new)
+    text = new.model_dump_json(by_alias=True, indent=2) + "\n"
+    _replace(folder, ENTRY, lambda tmp: tmp.write_text(text, encoding="utf-8"))
     return new
 
 
-def _read_cached(key: str | None, name: str, cls: type[M]) -> M | None:
+def _read_cached(key: str | None, name: str, cls: type[M]) -> tuple[M, int] | None:
+    """(model, entry age in whole hours) for a fresh entry holding a valid `name`."""
     if key is None:
         return None
-    path = lookup(skipwatch_home(), key, name, utcnow())
-    if path is None:
+    now = utcnow()
+    folder = _folder(skipwatch_home(), key)
+    entry = _fresh_entry(folder, now)
+    if entry is None or name not in entry.files:
         return None
     try:
-        return read_model(path, cls)
-    except (OSError, ValidationError):
+        model = read_model(folder / name, cls)
+    except (OSError, ValidationError):  # removed or rewritten by another run: a miss
         return None
+    age = _aware(now) - _aware(datetime.fromisoformat(entry.created_at))
+    return model, int(age.total_seconds() // 3600)
 
 
-def remember(source: SourceInfo, name: str, path: Path) -> None:
-    """Store one written work file for this source; never fails the stage."""
-    key = cache_key(source)
+def _remember(key: str | None, source: SourceInfo, name: str, path: Path) -> None:
     if key is None:
         return
+    label = source.canonical_url or source.url or source.path or ""
     try:
-        store(
-            skipwatch_home(),
-            key,
-            source.canonical_url or source.url or source.path or "",
-            {name: path},
-            utcnow(),
-        )
+        store(skipwatch_home(), key, label, {name: path}, utcnow())
     except OSError as exc:
         progress(f"Cache: could not store {name}: {exc.strerror or exc}")
 
 
-def cached_ingest(fresh: IngestBundle, providers: list[str]) -> IngestBundle | None:
+def remember_ingest(bundle: IngestBundle, path: Path, cookies: bool) -> None:
+    """Store a freshly built ingest.json; never one served from the cache or with a failed
+    provider call (the next run should ask that provider again). Never fails the stage."""
+    if bundle.from_cache or not all(c.ok for c in bundle.provider_calls):
+        return
+    cookies = cookies or bundle.fetched_with_cookies
+    _remember(cache_key(bundle.source, cookies), bundle.source, "ingest.json", path)
+
+
+def remember_transcript(bundle: IngestBundle, path: Path) -> None:
+    key = cache_key(bundle.source, bundle.fetched_with_cookies)
+    _remember(key, bundle.source, "transcript.json", path)
+
+
+def cached_ingest(fresh: IngestBundle, providers: list[str], cookies: bool) -> IngestBundle | None:
     """The fresh bundle with cached context, source, hint and provider calls, or None.
 
-    Only a hit when every provider enabled now was used for the cached bundle, so turning a
-    provider on within 7 days still asks it. Captions stay this run's: they live in this work
-    folder.
+    A hit needs an ok call from every provider enabled now, so a provider switched on (or one
+    that failed) within 7 days is still asked. Captions stay this run's: they live in this
+    work folder. A cookie-fetched entry is never served to a cookieless run.
     """
     if not providers:
         return None
-    cached = _read_cached(cache_key(fresh.source), "ingest.json", IngestBundle)
-    if cached is None or not set(providers) <= {c.provider for c in cached.provider_calls}:
+    cookies = cookies or fresh.fetched_with_cookies
+    found = _read_cached(cache_key(fresh.source, cookies), "ingest.json", IngestBundle)
+    if found is None:
+        return None
+    cached = found[0]
+    if cached.fetched_with_cookies and not cookies:
+        return None
+    if not set(providers) <= {c.provider for c in cached.provider_calls if c.ok}:
         return None
     captions = {
         field: getattr(fresh.context, field)
@@ -173,21 +203,23 @@ def cached_ingest(fresh: IngestBundle, providers: list[str]) -> IngestBundle | N
             "transcript_hint": cached.transcript_hint,
             "provider_calls": cached.provider_calls,
             "route": fresh.route.model_copy(update={"context": cached.route.context}),
+            "fetched_with_cookies": fresh.fetched_with_cookies or cached.fetched_with_cookies,
             "from_cache": True,
         }
     )
 
 
 def cached_transcript(
-    source: SourceInfo, backend: str, model: str | None
+    bundle: IngestBundle, backend: str, model: str | None
 ) -> tuple[Transcript, int] | None:
     """(transcript, age in hours) when a fresh one matches the backend (any under auto)."""
-    key = cache_key(source)
-    transcript = _read_cached(key, "transcript.json", Transcript)
-    if key is None or transcript is None:
+    key = cache_key(bundle.source, bundle.fetched_with_cookies)
+    found = _read_cached(key, "transcript.json", Transcript)
+    if found is None:
         return None
+    transcript = found[0]
     if backend != "auto" and BACKEND_ORIGINS.get(backend) != transcript.origin:
         return None
     if model is not None and transcript.model != model:
         return None
-    return transcript, age_hours(skipwatch_home(), key, utcnow())
+    return found

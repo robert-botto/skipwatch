@@ -18,11 +18,16 @@ _STAMP_RE = re.compile(r"-(\d{8}-\d{6})$")
 
 
 def _stages(work: Path) -> StagesFile:
+    """Exit 2 when there is no stages.json; exit 7 when it is there but will not read (6)."""
+    path = work / "stages.json"
+    if not path.is_file():
+        raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"{work} is not a SkipWatch work folder")
     try:
-        return read_model(work / "stages.json", StagesFile)
+        return read_model(path, StagesFile)
     except (OSError, ValidationError) as exc:
+        detail = exc.strerror if isinstance(exc, OSError) else f"{exc.error_count()} error(s)"
         raise SkipwatchError(
-            ExitCode.UNSUPPORTED_SOURCE, f"{work} is not a SkipWatch work folder"
+            ExitCode.NO_CONTENT, f"stages.json is unreadable: {path}: {detail or exc}"
         ) from exc
 
 

@@ -202,22 +202,23 @@ class CountingAdapter:
 
     def build(self, detected, work, opts):
         self.downloads += 1
-        return url_bundle(detected.value)
+        cookies = opts.cookies_from_browser is not None
+        return url_bundle(detected.value).model_copy(update={"fetched_with_cookies": cookies})
 
 
 class CountingProvider:
     name = "treg"
 
-    def __init__(self):
-        self.enriched = 0
+    def __init__(self, ok=True, post_text="from provider"):
+        self.enriched, self.ok, self.post_text = 0, ok, post_text
 
     def available(self):
         return True
 
     def enrich(self, bundle, work, opts):
         self.enriched += 1
-        call = ProviderCall(provider="treg", op="thread", ok=True, cost_usd=0.01)
-        ctx = bundle.context.model_copy(update={"post_text": "from provider", "thread": ["t1"]})
+        call = ProviderCall(provider="treg", op="thread", ok=self.ok, cost_usd=0.01)
+        ctx = bundle.context.model_copy(update={"post_text": self.post_text, "thread": ["t1"]})
         return bundle.model_copy(update={"context": ctx, "provider_calls": [call]})
 
     def fetch_media(self, bundle, work, opts):
@@ -244,7 +245,7 @@ def test_ingest_cache_skips_enrichment_but_not_media(sw_home, tmp_path, monkeypa
     assert second.provider_calls == first.provider_calls
     on_disk = read_model(tmp_path / "w2" / "ingest.json", IngestBundle)
     assert on_disk.from_cache is True and on_disk.media == first.media
-    calls = json.loads((tmp_path / "w2" / "calls.json").read_text())["calls"]
+    calls = json.loads((tmp_path / "w1" / "calls.json").read_text())["calls"]
     assert calls[0]["provider"] == "treg"
 
 
@@ -302,3 +303,130 @@ def test_tests_never_touch_the_real_home():
 
     assert skipwatch_home() != Path.home() / ".skipwatch"
     assert not skipwatch_home().is_relative_to(Path.home() / ".skipwatch")
+
+
+# ---- review fixes ----
+def ingest_runs(tmp_path, monkeypatch, provider, *opts_list):
+    adapter = CountingAdapter()
+    monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
+    monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
+    cfg = load_config(tmp_path / "none.toml")
+    return [
+        run_ingest(URL, WorkDir(tmp_path / f"w{i}"), opts, cfg=cfg)
+        for i, opts in enumerate(opts_list)
+    ]
+
+
+COOKIES = IngestOptions(cookies_from_browser="firefox")
+
+
+def test_cookie_fetched_ingest_never_reaches_a_cookieless_run(
+    sw_home, tmp_path, monkeypatch, clock
+):
+    provider = CountingProvider(post_text="PRIVATE")
+    first, second = ingest_runs(tmp_path, monkeypatch, provider, COOKIES, IngestOptions())
+    assert first.fetched_with_cookies is True
+    assert second.from_cache is False and provider.enriched == 2
+    assert second.fetched_with_cookies is False
+
+
+def test_cookieless_and_cookie_runs_never_share_an_entry(sw_home, tmp_path, monkeypatch, clock):
+    provider = CountingProvider()
+    _, second = ingest_runs(tmp_path, monkeypatch, provider, IngestOptions(), COOKIES)
+    assert second.from_cache is False and provider.enriched == 2
+    assert len(list((sw_home / "cache").iterdir())) == 2
+
+
+def test_cookie_runs_reuse_their_own_entry_and_keep_the_flag(sw_home, tmp_path, monkeypatch, clock):
+    provider = CountingProvider()
+    _, second = ingest_runs(tmp_path, monkeypatch, provider, COOKIES, COOKIES)
+    assert second.from_cache is True and provider.enriched == 1
+    assert second.fetched_with_cookies is True
+
+
+def test_cached_entry_with_cookies_is_a_miss_even_under_the_plain_key(
+    sw_home, tmp_path, monkeypatch, clock
+):
+    # belt and braces: an entry flagged fetched_with_cookies is never served without cookies
+    bundle = url_bundle().model_copy(
+        update={
+            "fetched_with_cookies": True,
+            "provider_calls": [ProviderCall(provider="treg", op="thread", ok=True)],
+        }
+    )
+    src = tmp_path / "ingest.json"
+    write_model(src, bundle)
+    store(sw_home, str(cache_key(bundle.source)), URL, {"ingest.json": src}, T0)
+    assert runcache.cached_ingest(url_bundle(), ["treg"], cookies=False) is None
+    store(sw_home, str(cache_key(bundle.source, cookies=True)), URL, {"ingest.json": src}, T0)
+    hit = runcache.cached_ingest(url_bundle(), ["treg"], cookies=True)
+    assert hit is not None and hit.fetched_with_cookies is True
+
+
+def test_transcript_of_cookie_fetched_media_is_not_shared(sw_home, tmp_path, monkeypatch, clock):
+    faster = CountingBackend("faster", "faster-whisper", 2)
+    use_backends(monkeypatch, faster)
+    private = url_bundle().model_copy(update={"fetched_with_cookies": True})
+    run_transcribe(work_with_ingest(tmp_path, "w1", private), "auto", None)
+    run_transcribe(work_with_ingest(tmp_path, "w2"), "auto", None)
+    assert faster.calls == 2
+    run_transcribe(work_with_ingest(tmp_path, "w3", private), "auto", None)
+    assert faster.calls == 2
+
+
+def test_failed_provider_call_is_neither_stored_nor_a_hit(sw_home, tmp_path, monkeypatch, clock):
+    provider = CountingProvider(ok=False)
+    _, second = ingest_runs(tmp_path, monkeypatch, provider, IngestOptions(), IngestOptions())
+    assert second.from_cache is False and provider.enriched == 2
+    assert not (sw_home / "cache").exists() or not any(
+        "ingest.json" in p.name for p in (sw_home / "cache").rglob("*")
+    )
+    # an entry stored by someone else with only a failed call is still a miss
+    bundle = url_bundle().model_copy(
+        update={"provider_calls": [ProviderCall(provider="treg", op="thread", ok=False)]}
+    )
+    src = tmp_path / "ingest.json"
+    write_model(src, bundle)
+    store(sw_home, str(cache_key(bundle.source)), URL, {"ingest.json": src}, T0)
+    assert runcache.cached_ingest(url_bundle(), ["treg"], cookies=False) is None
+
+
+def test_cache_hit_writes_an_empty_calls_json(sw_home, tmp_path, monkeypatch, clock):
+    provider = CountingProvider()
+    first, second = ingest_runs(tmp_path, monkeypatch, provider, IngestOptions(), IngestOptions())
+    calls = json.loads((tmp_path / "w0" / "calls.json").read_text())["calls"]
+    assert len(calls) == 1 and calls[0]["cost_usd"] == 0.01
+    assert second.from_cache is True
+    assert json.loads((tmp_path / "w1" / "calls.json").read_text())["calls"] == []
+    assert second.provider_calls == first.provider_calls  # the bundle keeps its history
+
+
+def test_store_survives_a_leftover_temp_name(tmp_path):
+    src = tmp_path / "a.json"
+    src.write_text("old")
+    store(tmp_path, "k" * 16, URL, {"ingest.json": src}, T0)
+    folder = tmp_path / "cache" / ("k" * 16)
+    (folder / "ingest.json.tmp").mkdir()  # another process mid-write, or one that died
+    (folder / "entry.json.tmp").mkdir()
+    src.write_text("A")
+    store(tmp_path, "k" * 16, URL, {"ingest.json": src}, T0)
+    hit = lookup(tmp_path, "k" * 16, "ingest.json", T0)
+    assert hit is not None and hit.read_text() == "A"
+
+
+def test_entry_removed_mid_lookup_is_not_a_crash(sw_home, tmp_path, monkeypatch, clock):
+    import shutil
+
+    faster = CountingBackend("faster", "faster-whisper", 2)
+    use_backends(monkeypatch, faster)
+    run_transcribe(work_with_ingest(tmp_path, "w1"), "auto", None)
+    real = runcache._read_cached
+
+    def then_clear(*args, **kwargs):
+        result = real(*args, **kwargs)
+        shutil.rmtree(sw_home / "cache")  # `cache --clear` from another shell
+        return result
+
+    monkeypatch.setattr(runcache, "_read_cached", then_clear)
+    t = run_transcribe(work_with_ingest(tmp_path, "w2"), "auto", None)
+    assert t.origin == "faster-whisper" and faster.calls == 1

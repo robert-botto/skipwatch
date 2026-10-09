@@ -126,10 +126,21 @@ def test_non_work_folder_raises_exit_2(tmp_path):
             resume_info(target)
         assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
         assert "not a SkipWatch work folder" in e.value.message
-    (tmp_path / "stages.json").write_text("{}")  # present but not a stages file
+    (tmp_path / "empty").mkdir()  # a folder with no stages.json
+    with pytest.raises(SkipwatchError) as e:
+        resume_info(tmp_path / "empty")
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+
+
+@pytest.mark.parametrize("content", ["{}", "{not json", '{"schema": "skipwatch/stages/1"}'])
+def test_invalid_stages_json_is_exit_7(tmp_path, content):
+    (tmp_path / "stages.json").write_text(content)
     with pytest.raises(SkipwatchError) as e:
         resume_info(tmp_path)
-    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert e.value.code == ExitCode.NO_CONTENT
+    assert e.value.message.startswith("stages.json is unreadable: ")
+    r = resume(str(tmp_path), "--json")
+    assert r.exit_code == 7 and r.stdout == ""
 
 
 def test_resume_json_validates_and_exit_codes(sw_home, tmp_path):

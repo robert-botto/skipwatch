@@ -70,7 +70,7 @@ def _media_fallback(
     )
 
 
-CacheLookup = Callable[[IngestBundle, list[ContentProvider]], IngestBundle | None]
+CacheLookup = Callable[[IngestBundle, list[ContentProvider], IngestOptions], IngestBundle | None]
 
 
 def _build(
@@ -98,7 +98,7 @@ def _build(
         bundle = _media_fallback(detected, work, opts, providers, exc)
     # R-TR-3: a fresh cached ingest replaces enrichment (treg is never billed twice); media
     # above was still fetched, frames need it.
-    hit = cached(bundle, providers) if cached is not None else None
+    hit = cached(bundle, providers, opts) if cached is not None else None
     if hit is not None:
         return hit
     for provider in providers:
@@ -124,12 +124,17 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
             path=src.path,
         ),
     )
-    write_model(work.file("calls.json"), CallsFile(calls=bundle.provider_calls))
+    # a cache hit made no calls this run: calls.json stays empty so cost is never counted twice
+    calls = [] if bundle.from_cache else bundle.provider_calls
+    write_model(work.file("calls.json"), CallsFile(calls=calls))
     write_model(work.file("ingest.json"), bundle)
 
 
-def _cache_lookup(bundle: IngestBundle, providers: list[ContentProvider]) -> IngestBundle | None:
-    return runcache.cached_ingest(bundle, [p.name for p in providers])
+def _cache_lookup(
+    bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
+) -> IngestBundle | None:
+    cookies = opts.cookies_from_browser is not None
+    return runcache.cached_ingest(bundle, [p.name for p in providers], cookies)
 
 
 def run_ingest(
@@ -145,8 +150,8 @@ def run_ingest(
     def body() -> IngestBundle:
         bundle = _build(detected, work, opts, cfg or load_config(), _cache_lookup)
         _write(work, bundle)
-        if not bundle.from_cache:
-            runcache.remember(bundle.source, "ingest.json", work.file("ingest.json"))
+        cookies = opts.cookies_from_browser is not None
+        runcache.remember_ingest(bundle, work.file("ingest.json"), cookies)
         return bundle
 
     return run_stage(work, "ingest", body)
