@@ -99,10 +99,17 @@ def test_g2_has_context_minimums(golden):
 
 def test_urls_have_no_share_tracking_parameters(golden):
     for video in golden["videos"]:
-        parsed = urlparse(video["url"])
-        assert parsed.scheme == "https", video["id"]
-        assert not (set(parse_qs(parsed.query)) & TRACKING), video["id"]
-        assert "?si=" not in video["url"] and "&si=" not in video["url"], video["id"]
+        for url in filter(None, (video["url"], video.get("fallback_url"))):
+            parsed = urlparse(url)
+            assert parsed.scheme == "https", video["id"]
+            assert not (set(parse_qs(parsed.query)) & TRACKING), video["id"]
+            assert "?si=" not in url and "&si=" not in url, video["id"]
+
+
+def test_g4_has_a_distinct_same_platform_fallback(golden):
+    g4 = golden["videos"][3]
+    assert g4["fallback_url"] != g4["url"]
+    assert urlparse(g4["fallback_url"]).netloc == urlparse(g4["url"]).netloc
 
 
 def test_golden_file_has_no_em_dash():

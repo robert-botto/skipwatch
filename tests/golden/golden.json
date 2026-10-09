@@ -13,7 +13,10 @@
       "why": "jq tutorial from DevOps Toolbox (136k subscribers, uploaded 2025-10-10) with manual English captions; its worked example (a team JSON file, select by salary, raw output, del of keys) runs offline with jq alone.",
       "needs_cookies": false,
       "expected": {
-        "steps": [6, 20],
+        "steps": [
+          6,
+          20
+        ],
         "inferred_ratio_max": 0.2,
         "gaps_max": 1,
         "safety_flags_max": 0,
@@ -26,21 +29,28 @@
     },
     {
       "id": "G2",
-      "url": "https://x.com/claudeai/status/2010805682434666759",
+      "url": "https://x.com/mattpocockuk/status/1505892984658743300",
       "platform": "x",
-      "title": "Introducing Cowork: Claude Code for the rest of your work.",
-      "author": "@claudeai",
-      "duration_s": 69,
+      "title": "TypeScript Tip #11: Deep partials",
+      "author": "@mattpocockuk",
+      "duration_s": 114,
       "captions": "none",
-      "why": "Official @claudeai post (1.88M followers, 2026-01-12) with a native 1:09 screen-recorded walkthrough of Cowork prompts and UI; logged out it shows a five-post author thread with three links (claude.com/download, a waitlist form, the blog post).",
+      "why": "Native 1:54 screen recording from Matt Pocock (368k followers, 2022-03-21) that writes a DeepPartial type and uses it to mock an entity in a test file; reproducible for free with TypeScript (npx tsc). Logged out, X shows two author self-thread posts (previous tip and next tip, each quoting a status link) and no author reply to another account, so replies_min is 0.",
       "needs_cookies": false,
       "expected": {
-        "steps": [3, 15],
+        "steps": [
+          3,
+          15
+        ],
         "inferred_ratio_max": 0.3,
         "gaps_max": 2,
         "safety_flags_max": 0,
         "illegible_in_quotes_max": 0,
-        "context": {"thread_min": 4, "replies_min": 0, "links_min": 2}
+        "context": {
+          "thread_min": 2,
+          "replies_min": 0,
+          "links_min": 1
+        }
       }
     },
     {
@@ -54,7 +64,10 @@
       "why": "Official GitHub TikTok (2026-04-02, 11k views), a 35 s setup tutorial for Copilot CLI with terminal commands on screen.",
       "needs_cookies": false,
       "expected": {
-        "steps": [3, 15],
+        "steps": [
+          3,
+          15
+        ],
         "inferred_ratio_max": 0.3,
         "gaps_max": 2,
         "safety_flags_max": 0,
@@ -69,15 +82,19 @@
       "author": "@github",
       "duration_s": null,
       "captions": "none",
-      "why": "Official GitHub reel (2026-10-02) showing one command (gh-secure) to add security hygiene to a repository; metadata and 720p/1080p formats load without cookies, but logged-out Instagram omits the duration and only lists the 12 newest reels, so no reel older than 3 months could be reached.",
+      "why": "Official GitHub reel (2026-10-02) showing one command (gh-secure) to add security hygiene to a repository; metadata and 720p/1080p formats load without cookies, but logged-out Instagram omits the duration and only lists the 12 newest reels, so no reel older than 3 months could be reached. Stability risk: replace with fallback_url (GitHub reel, 2026-09-27, a Dependabot review automation walkthrough, also fetches without cookies) if it disappears.",
       "needs_cookies": false,
       "expected": {
-        "steps": [3, 15],
+        "steps": [
+          3,
+          15
+        ],
         "inferred_ratio_max": 0.3,
         "gaps_max": 2,
         "safety_flags_max": 0,
         "illegible_in_quotes_max": 0
-      }
+      },
+      "fallback_url": "https://www.instagram.com/reel/Ddyhh2zjUgk/"
     },
     {
       "id": "G5",
@@ -90,7 +107,10 @@
       "why": "Strange Loop 2023 talk (88k subscribers, 2023-10-04, the conference has ended so the channel is archival) with slides throughout and English auto captions.",
       "needs_cookies": false,
       "expected": {
-        "steps": [8, 40],
+        "steps": [
+          8,
+          40
+        ],
         "inferred_ratio_max": 0.3,
         "gaps_max": 3,
         "safety_flags_max": 0,

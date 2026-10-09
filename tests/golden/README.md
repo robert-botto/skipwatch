@@ -58,7 +58,7 @@ redistributed. Rights stay with the creators.
 | Id | Creator | Title | Licence (platform) |
 |---|---|---|---|
 | G1 | DevOps Toolbox (`@devopstoolbox`), YouTube | You've been parsing JSON Wrong (2025-10-10) | Standard YouTube licence |
-| G2 | Claude (`@claudeai`), X | Introducing Cowork: Claude Code for the rest of your work (2026-01-12) | X terms of service |
+| G2 | Matt Pocock (`@mattpocockuk`), X | TypeScript Tip #11: Deep partials (2022-03-21) | X terms of service |
 | G3 | GitHub (`@github`), TikTok | Get GitHub Copilot directly in your terminal (2026-04-02) | TikTok terms of service |
 | G4 | GitHub (`@github`), Instagram | Just one command can help you stop leaking secrets (2026-10-02) | Instagram terms of use |
 | G5 | Strange Loop Conference (`@StrangeLoopConf`), YouTube | Lessons from building GitHub code search, Luke Francl (2023-10-04) | Standard YouTube licence |
@@ -66,10 +66,13 @@ redistributed. Rights stay with the creators.
 ## Known compromises (2026-10-09)
 
 - G4 is only a week old: logged-out Instagram lists only an account's 12 newest reels, so no
-  reel older than 3 months was reachable without logging in. Logged out, its metadata and
-  720p and 1080p formats load, but the duration is missing. Replace it with an older reel
-  when one can be found logged out.
-- G2's `replies_min` is 0: logged out, X shows the author's five-post thread and its links
-  but no author reply to another account.
-- G2 shows a product (Cowork) that needs a paid plan, so the S3 fresh-session check stops at
-  that step, as the tester rules in spec 8.9 allow.
+  reel older than 3 months was reachable without logging in (accepted by the orchestrator).
+  This is a stability risk: the reel may be edited, archived or removed. If it stops
+  resolving, swap in its `fallback_url` (another GitHub reel, a Dependabot review automation
+  walkthrough, 2026-09-27, which also fetches without cookies) and keep the id G4. Logged
+  out, the metadata and the 720p and 1080p formats load, but the duration is missing.
+- G2 replaced the first pick (the @claudeai Cowork launch post), whose workflow needs a paid
+  plan, so S3 could never complete. The TypeScript tip is reproducible for free with
+  `npx tsc`. Its `replies_min` is 0: logged out, X shows two author self-thread posts
+  (previous tip, next tip, each quoting a status link) but no author reply to another
+  account.
