@@ -23,6 +23,17 @@
 
 ---
 
+## Orchestrator decisions after the M3 spike (2026-10-09, binding)
+
+Source: `docs/spikes/2026-10-m3-spike.md` and `skills/skipwatch/references/platforms.md` (merged in PR #28).
+
+1. **X post id.** yt-dlp's `info["id"]` for X is the media id, not the post id. The X adapter takes the post id from `webpage_url` (`/status/<id>`) and builds `canonical_url = https://x.com/i/status/<post id>` from it. Test with the recorded G2 fixture.
+2. **Text post that links a video post.** yt-dlp returns the linked post's video with no error. The X adapter accepts that media, but compares the returned post id with the requested one. When they differ: `source.author`, `source.url` and `source.title` describe the LINKED post (the video's creator gets the credit), the requested post's text goes into `context.thread` with its own URL, and `context.links` records the linked post. The review screen says "video came from a linked post: <url>". A post with no media and no link card stays kind `text` (exit 7 on the free route when it has no usable text, per issue 8).
+3. **Instagram text.** `anyapi.instagram.post.detail` returns no caption. Instagram post text comes from the free route (yt-dlp `description`). M4-A uses treg for Instagram only as a media fallback and for the transcript cross-check, never for post text.
+4. **Facebook media.** `anyapi.facebook.post.detail` returns no media URL. Facebook media comes from the free route only. M4-A never offers treg as a Facebook download fallback, and `platforms.md` says so.
+5. **treg call id.** It is printed only on stderr (`treg: charged $X · call id <hex>`). `content_treg.py` parses it from stderr for `treg review`.
+6. **TikTok formats.** 720p and 1080p are h265 only. ffmpeg decodes h265, so no change, but M3-C's tests include an h265 format fixture to prove the format rule still picks the smallest at or above 720p.
+
 ## Spec issues found (M2-M4)
 
 Each is a genuine gap or contradiction. The plan applies the proposed resolution; the orchestrator confirms or overrules before builders start. None changes the spec text.
