@@ -1,8 +1,8 @@
 import os
 import re
 import shutil
-import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -311,9 +311,25 @@ def test_local_fixture_case_yaml():
     assert "other shell commands" in note  # why the grant is not scoped to the wrapper
 
 
+def git_index_mode(rel: str) -> str:
+    """The file mode git ships (e.g. 100755), the same on every OS; Windows has no exec bit."""
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("git not available")
+    r = subprocess.run([git, "ls-files", "-s", "--", rel], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        pytest.skip("not a git checkout")
+    return r.stdout.split(" ", 1)[0]
+
+
+def test_shipped_scripts_are_executable_in_git():
+    for rel in ("evals/local-fixture/scaffold.sh", "scripts/skipwatch"):
+        assert git_index_mode(rel) == "100755", rel
+    assert git_index_mode("scripts/check_versions.py") == "100644"  # the check can fail
+
+
 def test_local_fixture_scaffold_copies_fixture(tmp_path):
     script = EVAL / "scaffold.sh"
-    assert script.stat().st_mode & stat.S_IXUSR
     text = read(script)
     assert (
         "tests/fixtures/tutorial-60s.mp4" in text and "tests/fixtures/tutorial-60s.en.vtt" in text
@@ -325,6 +341,8 @@ def test_local_fixture_scaffold_copies_fixture(tmp_path):
     shutil.copy(script, fake / "evals/local-fixture/scaffold.sh")
     for name in ("tutorial-60s.mp4", "tutorial-60s.en.vtt"):
         (fake / "tests/fixtures" / name).write_text(name)
+    if sys.platform == "win32":
+        pytest.skip("running the bash scaffold is POSIX-only; content is checked above")
     sandbox = tmp_path / "cwd"
     sandbox.mkdir()
     bash = shutil.which("bash")

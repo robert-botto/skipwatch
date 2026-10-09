@@ -57,10 +57,6 @@ def run(root: Path, *args: str, path: str = SYSTEM_PATH, **env: str):
     )
 
 
-def test_wrapper_is_executable_in_repo():
-    assert WRAPPER.is_file() and os.access(WRAPPER, os.X_OK)
-
-
 def test_fast_path_execs_engine_without_uv(tmp_path):
     root = make_plugin(tmp_path)
     bin_dir, log = fake_uv(tmp_path)
