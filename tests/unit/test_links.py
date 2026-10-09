@@ -325,3 +325,23 @@ def test_redirect_to_a_confusing_url_is_refused(net, location):
 def test_resolve_refuses_a_confusing_url(net):
     assert links.resolve(CONFUSED[0]) is None
     assert net["requested"] == []
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "::127.0.0.1",  # IPv4-compatible loopback
+        "::a00:5",  # IPv4-compatible 10.0.0.5
+        "64:ff9b::7f00:1",  # NAT64 of 127.0.0.1
+        "64:ff9b::a9fe:a9fe",  # NAT64 of 169.254.169.254
+        "64:ff9b::c0a8:102",  # NAT64 of 192.168.1.2
+        "2002:7f00:1::",  # 6to4 wrapping 127.0.0.1
+    ],
+)
+def test_ipv6_wrapping_a_private_ipv4_is_refused(net, address):
+    assert links.fetch_link(f"http://[{address}]/") is None
+    assert net["requested"] == []
+
+
+def test_nat64_of_a_public_ipv4_is_allowed():
+    assert links._is_public("64:ff9b::5db8:d70e")  # 93.184.215.14

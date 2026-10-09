@@ -114,10 +114,25 @@ def fetch_url(url: str) -> str:
 # ---- the SSRF guard ----
 
 
+NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
+IPV4_COMPATIBLE = ipaddress.IPv6Network("::/96")
+
+
+def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    """The IPv4 address an IPv6 one carries: mapped, compatible (::a.b.c.d), NAT64, 6to4."""
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    if ip in NAT64 or (ip in IPV4_COMPATIBLE and int(ip) > 1):  # :: and ::1 stay IPv6
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    return ip.sixtofour
+
+
 def _is_public(address: str) -> bool:
     ip = ipaddress.ip_address(address.split("%")[0])  # drop an IPv6 zone id
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-        ip = ip.ipv4_mapped
+    if isinstance(ip, ipaddress.IPv6Address):
+        embedded = _embedded_ipv4(ip)
+        if embedded is not None:
+            return _is_public(str(embedded))
     return ip.is_global and not ip.is_multicast
 
 
