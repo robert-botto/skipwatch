@@ -9,7 +9,6 @@ stage 8.
 - `<ROOT>`: the plugin root path printed at the top of SKILL.md. Use that literal path.
 - `<ENGINE>`: the engine command defined once in SKILL.md. Expand it exactly as defined
   there, with `<ROOT>` filled in.
-- `<ENGINE_PYTHON>`: the engine's Python, defined next to `<ENGINE>` in SKILL.md.
 - `<W>`: the absolute work folder path chosen in stage 2.
 
 ## Conventions for every stage
@@ -38,6 +37,11 @@ stage 8.
   exists, 7 no usable content, 8 missing dependency, 9 pack integrity, 64 usage error.
   Exit 64 means you built the command wrong: fix the command from the engine's usage text
   and retry once; never show a usage error to the user as their fault.
+- Any other code means the engine never started: 101 (uv panicked), 126 (not
+  executable), 127 (command not found), or any code outside 0 to 9 and 64. Also treat
+  exit 2 as this case when the stage log starts with "error: " (uv's own argument error,
+  printed before the engine runs); an engine exit 2 names the source instead. Stop with
+  `SkipWatch: engine could not start: <last 3 stderr lines>`, keep `<W>`, print its path.
 - On any stop, keep `<W>` and print its path so the user can inspect it.
 
 ## Stage 1: doctor (cached for a day)
@@ -126,22 +130,15 @@ Print `Reading frames in <b> batches (<n>s)` when all readers have returned.
 
 ### Validate reader output
 
-Validate all notes files with the engine's own models, without reading them into context.
-A file must parse as `skipwatch/notes/1`, carry its batch id, and cover exactly the
-batch's frames (a reader that wrote the wrong batch fails here):
+Validate all notes files with the engine, without reading them into context. A file
+must parse as `skipwatch/notes/1`, carry its batch id, and cover exactly the batch's
+frames (a reader that wrote the wrong batch fails here):
 
-    <ENGINE_PYTHON> -c 'import sys
-    from pathlib import Path
-    from skipwatch.models import BatchesFile, NotesFile
-    w = Path(sys.argv[1])
-    for b in BatchesFile.model_validate_json((w / "batches.json").read_text()).batches:
-        try:
-            n = NotesFile.model_validate_json((w / b.notes_path).read_text())
-            assert n.batch == b.id
-            assert {f.id for f in n.frames} == set(b.frame_ids)
-            print(f"batch {b.id}: ok")
-        except Exception as e:
-            print(f"batch {b.id}: bad ({type(e).__name__})")' "<W>"
+    <ENGINE> validate-notes --work "<W>" 2>"<W>/logs/validate-notes.log"; echo "rc=$?"; cat "<W>/logs/validate-notes.log"
+
+Exit 0: all valid. Exit 1: one line per bad batch (`batch 2: missing notes/batch-02.json`,
+`batch 3: frames missing f000310`). Exit 7: `batches.json` is missing; re-run stage 3's
+plan step.
 
 A missing or malformed file gets re-dispatched once, with the same prompt. A second
 failure marks those frames unread: record

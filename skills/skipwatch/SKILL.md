@@ -26,8 +26,6 @@ The engine command is defined here and nowhere else. Every reference writes
 
 <ENGINE> = `CLAUDE_PLUGIN_ROOT="<ROOT>" uv run --project "<ROOT>" skipwatch`
 
-<ENGINE_PYTHON> = `CLAUDE_PLUGIN_ROOT="<ROOT>" uv run --project "<ROOT>" python`
-
 Setting `CLAUDE_PLUGIN_ROOT` on the command lets the engine print install commands that
 work. `<W>` in the references is the absolute work folder of the current run.
 
@@ -155,5 +153,6 @@ with different inputs to get past it.
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run skipwatch check again.` |
 | 6 | install | show the review screen again with the collision prompt. |
 | 64 | any | your command was malformed: fix it from the engine's usage text and retry once. |
+| 101, 126, 127, any other code | any | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs). |
 
 Engine messages are written for users; quote them, do not paraphrase install commands.

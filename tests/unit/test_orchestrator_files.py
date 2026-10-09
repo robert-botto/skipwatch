@@ -100,7 +100,8 @@ def test_run_protocol_parallel_readers_and_r_dis_4():
     assert "Never Read a frame image yourself" in text
     assert "re-dispatched once" in text and "unread" in text  # section 15
     assert "skipwatch/notes/1" in text
-    assert "assert {f.id for f in n.frames} == set(b.frame_ids)" in text  # wrong batch fails
+    assert '<ENGINE> validate-notes --work "<W>"' in text  # engine checks frame ids per batch
+    assert "python -c" not in text
 
 
 def test_run_protocol_redaction_and_check_loop():
@@ -414,11 +415,22 @@ def test_engine_defined_once_in_skill_md():
     text = read(SKILL / "SKILL.md")
     assert text.count(ENGINE_DEF) == 1
     assert len(re.findall(r"^<ENGINE> = ", text, re.M)) == 1
-    assert len(re.findall(r"^<ENGINE_PYTHON> = ", text, re.M)) == 1
-    # uv appears only in the two definitions, so a new invocation is a one-place change
+    assert "<ENGINE_PYTHON>" not in text
+    # uv appears only in the one definition, so a new invocation is a one-place change
     for path in PROMPT_FILES:
         n = read(path).count("uv run")
-        assert n == (2 if path == SKILL / "SKILL.md" else 0), (path, n)
+        assert n == (1 if path == SKILL / "SKILL.md" else 0), (path, n)
+
+
+def test_non_engine_exit_codes_mapped():
+    # uv panics (101), missing or unrunnable commands (127, 126) and uv's own argument
+    # errors mean the engine never started; the protocol stops instead of guessing.
+    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+        text = flat(path)
+        for code in ("101", "126", "127"):
+            assert code in text, (path, code)
+        assert "engine could not start" in text, path
+        assert 'starts with "error: "' in text, path
 
 
 def test_no_heredoc_in_prompt_files():
@@ -429,3 +441,20 @@ def test_no_heredoc_in_prompt_files():
 def test_video_text_never_in_bash():
     text = flat(REFS / "run-protocol.md")
     assert "never appears inside a Bash command" in text
+
+
+def test_doctor_eval_grades_the_bash_call_not_the_skill_tool():
+    # a slash prompt loads the skill without the Skill tool, so tool_used: Skill never passes
+    doctor = ROOT / "evals/doctor"
+    graders = {p.stem: fm(p) for p in (doctor / "graders").glob("*.md")}
+    assert all(g.get("tool") != "Skill" for g in graders.values())
+    ran = graders["doctor-ran"]
+    assert ran["type"] == "tool_used" and ran["tool"] == "Bash"
+    pattern = ran["input_match"]
+    good = 'CLAUDE_PLUGIN_ROOT="/p" uv run --project "/p" skipwatch doctor'
+    assert re.search(pattern, good)
+    assert not re.search(pattern, "skipwatch cache")
+    assert "tier-line" in graders  # markdown-tolerant Tier regex kept
+    note = read(doctor / "prompt.md")
+    assert "--allow-tools Bash" in note and "Bash(uv run:*)" not in note
+    assert "CLAUDE_PLUGIN_ROOT=" in note  # the final <ENGINE> form starts with the env prefix
