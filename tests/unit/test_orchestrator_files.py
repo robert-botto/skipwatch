@@ -1054,3 +1054,13 @@ def test_review_done_only_after_install_or_cancel():
     review = flat(REFS / "review-screen.md")
     cancel = review.split("**cancel:**", 1)[1].split("- Anything else", 1)[0]
     assert REVIEW_DONE in cancel
+
+
+def test_review_running_marked_when_the_screen_is_printed():
+    # the review stage's timing must not include check (stage 7)
+    text = flat(REFS / "run-protocol.md")
+    running = '<ENGINE> mark --work "<W>" --stage review --status running'
+    assert _before(text, "Print the review screen in the exact format", running)
+    assert "as you print the review screen" in text
+    stage8 = read(REFS / "run-protocol.md").split("## Stage 8: review", 1)[1]
+    assert not stage8.lstrip().startswith("<ENGINE> mark")

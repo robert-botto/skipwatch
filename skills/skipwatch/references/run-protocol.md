@@ -393,11 +393,13 @@ applies redaction again over the whole folder.
 
 ## Stage 8: review
 
-    <ENGINE> mark --work "<W>" --stage review --status running 2>>"<W>/logs/mark.log"
-
 Print the review screen in the exact format from `review-screen.md`. Take counts from
 `<W>/check-report.json`, safety flags from its safety result, confidence from
 `skipwatch.json`, the source from `ingest.json`, provider calls from `<W>/calls.json`.
+Mark review running as you print the review screen, in the same turn, so its timing
+covers the user's decision and not check:
+
+    <ENGINE> mark --work "<W>" --stage review --status running 2>>"<W>/logs/mark.log"
 
 Install target (absolute), for the screen and the collision test:
 - `--to D`: `D/<name>`, with `D` already absolute from stage 2
