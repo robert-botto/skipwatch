@@ -43,8 +43,20 @@ class VideoResult:
     line: str
 
 
+def illegible_total(skill_md: str) -> int:
+    """Every `[illegible at` marker in the body, counted as checks/runner.counts_for does."""
+    _, body, _, _ = _split_frontmatter(skill_md)
+    return body.count("[illegible at")
+
+
 def illegible_in_quotes(skill_md: str) -> int:
-    """`[illegible` markers inside quotes: blockquote lines and closed fenced blocks (S3)."""
+    """`[illegible` markers inside quotes: blockquote lines and closed fenced blocks (S3).
+
+    This reimplements quote detection on purpose: the engine's counts.illegible counts every
+    marker in the body, prose and "Unverified and gaps" included, while S3 only forbids
+    markers inside quoted source text. judge() cross-checks the total against counts.illegible
+    so the two readings of the draft cannot drift apart unnoticed.
+    """
     _, body, _, _ = _split_frontmatter(skill_md)
     lines = body.splitlines()
     fenced = fenced_lines(lines)
@@ -78,6 +90,11 @@ def judge(report: dict[str, Any], skill_md: str, expected: dict[str, Any]) -> li
     if m["inferred"] > expected["inferred_ratio_max"]:
         problems.append(
             f"inferred={m['inferred']:.2f} (want <={expected['inferred_ratio_max']:.2f})"
+        )
+    reported = report.get("counts", {}).get("illegible")
+    if reported is not None and illegible_total(skill_md) != reported:
+        problems.append(
+            f"illegible_total={illegible_total(skill_md)} (report counts.illegible={reported})"
         )
     for key, limit in (
         ("gaps", "gaps_max"),

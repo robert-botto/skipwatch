@@ -313,6 +313,17 @@ def test_judge_flags_illegible_inside_quotes_only(run_mod):
     ]
 
 
+def test_judge_total_illegible_matches_the_engine_count(run_mod):
+    report = _report()
+    report["counts"]["illegible"] = 2  # SKILL_ILLEGIBLE_OUTSIDE has two markers
+    assert run_mod.illegible_total(SKILL_ILLEGIBLE_OUTSIDE) == 2
+    assert run_mod.judge(report, SKILL_ILLEGIBLE_OUTSIDE, EXPECTED) == []
+    report["counts"]["illegible"] = 1  # draft and report disagree: judged the wrong file
+    assert run_mod.judge(report, SKILL_ILLEGIBLE_OUTSIDE, EXPECTED) == [
+        "illegible_total=2 (report counts.illegible=1)"
+    ]
+
+
 def test_judge_ranges(run_mod):
     assert run_mod.judge(_report(steps=6, inferred=1, gaps=1), "", EXPECTED) == []
     assert run_mod.judge(_report(steps=20), "", EXPECTED) == []
