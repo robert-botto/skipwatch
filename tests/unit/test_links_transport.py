@@ -6,6 +6,7 @@ connects. A connection anywhere else raises NetworkBlocked, which the fetch logs
 """
 
 import socket
+import socketserver
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -246,3 +247,65 @@ def test_a_cookie_set_on_a_redirect_is_never_sent_back(server, loopback, monkeyp
     assert links.fetch_link(f"http://docs.test:{port}/readme") is not None
     assert [path for _, path, _ in server.hits] == ["/start", "/readme", "/readme"]
     assert all("Cookie" not in headers for _, _, headers in server.hits)
+
+
+# ---- the deadline covers the connection itself: headers trickled byte by byte ----
+
+
+class TrickleHeaders(socketserver.BaseRequestHandler):
+    """Sends a status line and endless header bytes, one every 0.2 s (review-m3b/slow.py)."""
+
+    def handle(self):
+        sock = self.request
+        sock.recv(4096)
+        try:
+            for byte in b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nX-Pad: " + b"a" * 40:
+                sock.sendall(bytes([byte]))
+                time.sleep(0.2)
+        except OSError:
+            pass
+
+
+@pytest.fixture
+def trickle():
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), TrickleHeaders)
+    srv.daemon_threads = True
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield srv.server_address[1]
+    srv.shutdown()
+    srv.server_close()
+
+
+@pytest.fixture
+def short_deadline(loopback, monkeypatch):
+    answers, _ = loopback
+    trust_loopback(monkeypatch)
+    monkeypatch.setattr(links, "LINK_DEADLINE_S", 1.0)
+    for host in ("hdr.test", "h0.test", "h1.test", "h2.test"):
+        answers[host] = ["127.0.0.1"]
+
+
+def test_header_trickle_is_cut_at_the_link_deadline(trickle, short_deadline):
+    calls: list[ProviderCall] = []
+    started = time.monotonic()
+    assert links.fetch_link(f"http://hdr.test:{trickle}/", calls) is None
+    assert time.monotonic() - started < 2.5
+    assert calls[0].error and "deadline" in calls[0].error
+
+
+def test_resolve_head_with_trickled_headers_is_cut_at_the_deadline(trickle, short_deadline):
+    calls: list[ProviderCall] = []
+    started = time.monotonic()
+    assert links.resolve(f"http://hdr.test:{trickle}/", calls) is None
+    assert time.monotonic() - started < 2.5
+    assert calls[0].error and "deadline" in calls[0].error
+
+
+def test_post_budget_holds_against_three_header_trickles(trickle, short_deadline, monkeypatch):
+    monkeypatch.setattr(links, "POST_BUDGET_S", 1.5)
+    urls = [f"http://h{n}.test:{trickle}/" for n in range(3)]
+    calls: list[ProviderCall] = []
+    started = time.monotonic()
+    assert links.fetch_urls(urls, calls) == []
+    assert time.monotonic() - started < 3
+    assert "budget" in (calls[-1].error or "")

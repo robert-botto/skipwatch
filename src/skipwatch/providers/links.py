@@ -11,9 +11,11 @@ page. HTML becomes text through htmltext; markdown and plain text stay as they a
 else is skipped. Text is capped at 20 000 characters, links at 5 per post.
 """
 
+import contextlib
 import ipaddress
 import re
 import socket
+import threading
 import time
 from urllib.parse import urljoin, urlsplit
 
@@ -67,11 +69,27 @@ def _deadline(budget: Budget | None) -> float:
     return deadline
 
 
+def _deadline_message() -> str:
+    return f"over the {LINK_DEADLINE_S:g} s link deadline"
+
+
 def _timeout(deadline: float) -> float:
     left = deadline - time.monotonic()
     if left <= 0:
-        raise Refused(f"over the {LINK_DEADLINE_S:g} s link deadline")
+        raise Refused(_deadline_message())
     return min(TIMEOUT_S, left)
+
+
+def _failure(exc: Exception, deadline: float | None) -> str:
+    """A failure past the deadline is the watchdog's doing: say so, not "ConnectionError"."""
+    if deadline is not None and time.monotonic() >= deadline - 0.05:  # timer granularity
+        return _deadline_message()
+    return type(exc).__name__
+
+
+def _shut(sock: socket.socket) -> None:
+    with contextlib.suppress(OSError):  # already closed: nothing to cut off
+        sock.shutdown(socket.SHUT_RDWR)
 
 
 # ---- finding links ----
@@ -193,32 +211,47 @@ def _check(url: str) -> str:
 # ---- the pinned transport ----
 
 
-def _pinned(base: type[HTTPConnection], address: str) -> type[HTTPConnection]:
+def _pinned(base: type[HTTPConnection], address: str, deadline: float) -> type[HTTPConnection]:
     """A connection class that opens its socket to `address`, the one SkipWatch vetted, so a
     second DNS answer (rebinding) is never used. The Host header, TLS SNI and certificate
-    check still use the URL's hostname: only the socket's destination changes."""
+    check still use the URL's hostname: only the socket's destination changes.
+
+    Socket timeouts are per read, so a server trickling its TLS handshake or headers a byte at
+    a time would never trip them. A watchdog shuts the socket down at the deadline instead."""
 
     class Pinned(base):
+        _watchdog: threading.Timer | None = None
+
         def _new_conn(self):
             hostname = self._dns_host
             self._dns_host = address
             try:
-                return super()._new_conn()
+                sock = super()._new_conn()
             finally:
                 self._dns_host = hostname
+            self._watchdog = threading.Timer(max(0.0, deadline - time.monotonic()), _shut, (sock,))
+            self._watchdog.daemon = True
+            self._watchdog.start()
+            return sock
+
+        def close(self):
+            if self._watchdog is not None:
+                self._watchdog.cancel()
+            super().close()
 
     return Pinned
 
 
 class _PinnedAdapter(HTTPAdapter):
-    def __init__(self, address: str):
-        self.address = address  # read by init_poolmanager, which HTTPAdapter.__init__ calls
+    def __init__(self, address: str, deadline: float):
+        self.address = address  # both read by init_poolmanager, which __init__ calls
+        self.deadline = deadline
         super().__init__(max_retries=0)
 
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
         super().init_poolmanager(connections, maxsize, block=block, **pool_kwargs)
-        http = _pinned(HTTPConnection, self.address)
-        https = _pinned(HTTPSConnection, self.address)
+        http = _pinned(HTTPConnection, self.address, self.deadline)
+        https = _pinned(HTTPSConnection, self.address, self.deadline)
         self.poolmanager.pool_classes_by_scheme = {
             "http": type("PinnedHTTPPool", (HTTPConnectionPool,), {"ConnectionCls": http}),
             "https": type("PinnedHTTPSPool", (HTTPSConnectionPool,), {"ConnectionCls": https}),
@@ -240,9 +273,11 @@ def _session() -> requests.Session:
     return _SESSION
 
 
-def _send(method: str, url: str, address: str, timeout: float) -> requests.Response:
-    """One request to `url` over a socket to `address`; redirects are never followed here."""
-    adapter = _PinnedAdapter(address)
+def _send(method: str, url: str, address: str, deadline: float) -> requests.Response:
+    """One request to `url` over a socket to `address`, cut off at `deadline` however slowly
+    the server answers; redirects are never followed here."""
+    timeout = _timeout(deadline)
+    adapter = _PinnedAdapter(address, deadline)
     try:
         prepared = _session().prepare_request(requests.Request(method, url))
         # proxies={} also suits yt-dlp's select_proxy, which replaces requests' on import
@@ -267,7 +302,7 @@ def _get(url: str, deadline: float) -> requests.Response:
     current = url
     for _ in range(MAX_REDIRECTS + 1):
         address = _check(current)
-        response = _send("GET", current, address, _timeout(deadline))
+        response = _send("GET", current, address, deadline)
         location = response.headers.get("Location")
         if response.status_code not in REDIRECT_CODES or not location:
             return response
@@ -298,7 +333,7 @@ def _fetch(url: str, deadline: float) -> LinkContext:
     try:
         response = _get(fetch_url(url), deadline)
     except requests.RequestException as exc:
-        raise Refused(type(exc).__name__) from exc
+        raise Refused(_failure(exc, deadline)) from exc
     try:
         if response.status_code != 200:
             raise Refused(f"HTTP {response.status_code}")
@@ -309,7 +344,7 @@ def _fetch(url: str, deadline: float) -> LinkContext:
         try:
             body = _read(response, deadline)
         except requests.RequestException as exc:
-            raise Refused(type(exc).__name__) from exc
+            raise Refused(_failure(exc, deadline)) from exc
     finally:
         _close(response)
     try:
@@ -341,13 +376,15 @@ def fetch_link(
     """The page's text, or None when it is refused, unreachable, slow or not text. Never
     raises. At most 15 s, and never past the post's budget when one is given."""
     started = time.monotonic()
+    deadline = None
     try:
-        got = _fetch(url, _deadline(budget))
+        deadline = _deadline(budget)
+        got = _fetch(url, deadline)
     except Refused as exc:
         _log(calls, "link.get", url, started, str(exc))
         return None
     except Exception as exc:  # best-effort context: no link failure ever ends ingest
-        _log(calls, "link.get", url, started, type(exc).__name__)
+        _log(calls, "link.get", url, started, _failure(exc, deadline))
         return None
     _log(calls, "link.get", url, started, None)
     return got
@@ -382,15 +419,16 @@ def resolve(
 ) -> str | None:
     """Where a short link (t.co) points: one HEAD, no cookies, the Location not followed."""
     started = time.monotonic()
+    deadline = None
     try:
-        timeout = _timeout(_deadline(budget))
-        response = _send("HEAD", url, _check(url), timeout)
+        deadline = _deadline(budget)
+        response = _send("HEAD", url, _check(url), deadline)
         _close(response)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))
         return None
     except Exception as exc:  # best-effort, as fetch_link
-        _log(calls, "link.resolve", url, started, type(exc).__name__)
+        _log(calls, "link.resolve", url, started, _failure(exc, deadline))
         return None
     location = response.headers.get("Location")
     if response.status_code not in REDIRECT_CODES or not location:

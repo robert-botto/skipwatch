@@ -2,6 +2,7 @@
 
 import ipaddress
 import socket
+import time
 
 import pytest
 
@@ -47,9 +48,9 @@ def net(monkeypatch):
         family = socket.AF_INET6 if ":" in address else socket.AF_INET
         return [(family, socket.SOCK_STREAM, 6, "", (address, port or 0))]
 
-    def send(method, url, address, timeout):
+    def send(method, url, address, deadline):
         state["requested"].append(url)
-        state["kwargs"].append({"method": method, "address": address, "timeout": timeout})
+        state["kwargs"].append({"method": method, "address": address, "deadline": deadline})
         page = state["pages"].get(url)
         return page if page is not None else FakeResponse(404, b"", "text/html")
 
@@ -149,10 +150,13 @@ def test_relative_redirect_is_resolved_against_the_current_url(net):
     assert got is not None and got.url == "https://b.example.com/old" and "moved" in got.text
 
 
-def test_requests_go_to_the_vetted_address_with_a_timeout(net):
+def test_requests_go_to_the_vetted_address_within_the_link_deadline(net):
     net["pages"]["https://c.example.com/"] = FakeResponse(body=html("<p>hi</p>"))
+    started = time.monotonic()
     links.fetch_link("https://c.example.com/")
-    assert net["kwargs"] == [{"method": "GET", "address": PUBLIC_IP, "timeout": 10}]
+    [sent] = net["kwargs"]
+    assert sent["method"] == "GET" and sent["address"] == PUBLIC_IP
+    assert started < sent["deadline"] <= time.monotonic() + links.LINK_DEADLINE_S
 
 
 def test_github_repo_url_fetches_readme(net):
