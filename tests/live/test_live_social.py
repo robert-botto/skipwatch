@@ -73,6 +73,7 @@ def test_live_social_probe_ingest_frames(tmp_path, sw_home, platform, url_of):
         assert bundle.source.platform == platform and bundle.source.kind == "video"
         assert bundle.source.author and bundle.context.post_text
         assert bundle.media is not None and bundle.media.width and bundle.media.height
+        assert bundle.media.has_audio  # transcribe exits 7 on a silent download
         assert 720 <= min(bundle.media.width, bundle.media.height) <= 1080
         assert (work / bundle.media.path).is_file()
         assert bundle.fetched_with_cookies is False
