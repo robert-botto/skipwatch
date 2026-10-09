@@ -140,6 +140,18 @@ def _is_public(address: str) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
+# Every label a number (decimal, octal or hex): an IPv4 literal in some resolver's eyes.
+_NUMERIC_HOST = re.compile(r"^(?:0x[0-9a-f]*|\d+)(?:\.(?:0x[0-9a-f]*|\d+))*\.?$", re.IGNORECASE)
+
+
+def _is_dotted_quad(host: str) -> bool:
+    try:
+        ipaddress.IPv4Address(host)  # four decimal parts, no leading zeros
+    except ValueError:
+        return False
+    return True
+
+
 def _check(url: str) -> str:
     """The address to connect to, or Refused unless url is http(s) on a host whose every
     address is public.
@@ -161,6 +173,9 @@ def _check(url: str) -> str:
     host = (parts.host or "").strip("[]")
     if not host:
         raise Refused("refused: no host")
+    if _NUMERIC_HOST.match(host) and not _is_dotted_quad(host):
+        # 0177.0.0.1, 2130706433, 0x7f000001, 127.1: resolvers read these differently
+        raise Refused(f"refused: ambiguous numeric host {host}")
     try:
         infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
     except (OSError, UnicodeError) as exc:

@@ -345,3 +345,33 @@ def test_ipv6_wrapping_a_private_ipv4_is_refused(net, address):
 
 def test_nat64_of_a_public_ipv4_is_allowed():
     assert links._is_public("64:ff9b::5db8:d70e")  # 93.184.215.14
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "0177.0.0.1",  # octal to glibc (127.0.0.1), decimal 177.0.0.1 to macOS
+        "2130706433",  # 127.0.0.1 as one integer
+        "0x7f000001",
+        "0x7f.0.0.1",
+        "127.1",  # short form
+        "010.0.0.1",
+    ],
+)
+def test_ambiguous_numeric_hosts_are_refused_before_resolving(net, monkeypatch, host):
+    """Resolvers disagree on these forms, so the address checked might not be the address
+    another parser means. From review-m3b/ssrf.py: 0177.0.0.1 was allowed on macOS."""
+    asked = []
+
+    def getaddrinfo(name, *args, **kwargs):
+        asked.append(name)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (PUBLIC_IP, 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", getaddrinfo)
+    assert links.fetch_link(f"http://{host}/") is None
+    assert net["requested"] == [] and asked == []
+
+
+def test_a_numeric_looking_domain_name_is_still_a_name(net):
+    net["pages"]["https://123.example.com/"] = FakeResponse(body=b"<p>ok</p>")
+    assert links.fetch_link("https://123.example.com/") is not None
