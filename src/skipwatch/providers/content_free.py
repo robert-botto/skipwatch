@@ -327,8 +327,14 @@ def has_video(info: dict[str, Any]) -> bool:
 
 
 def _has_audio(info: dict[str, Any]) -> bool:
-    """True unless every format says it has no audio codec (an acodec field left out counts)."""
-    return any(f.get("acodec") != "none" for f in info.get("formats") or [])
+    """True when some format names an audio codec, or is audio-only (vcodec "none", as X's
+    HLS audio with no acodec field). A video format that merely leaves acodec out says
+    nothing, so a silent source is not mistaken for one with sound."""
+    return any(
+        f.get("acodec") not in (None, "none")
+        or (_is_none(f.get("vcodec")) and f.get("acodec") is None)
+        for f in info.get("formats") or []
+    )
 
 
 def _existing_download(work: WorkDir, info: dict[str, Any]) -> MediaInfo | None:

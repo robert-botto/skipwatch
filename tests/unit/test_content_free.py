@@ -556,3 +556,20 @@ def test_r_cli_1_without_a_duration_a_silent_or_partial_file_is_downloaded_again
     downloader(monkeypatch, calls := [])
     cf.download(g4_info(), work, IngestOptions())
     assert calls == [G4_SPEC]  # no audio in the merged file, and intermediates never count
+
+
+def test_r_cli_1_without_a_duration_a_silent_source_reuses_its_video_only_file(
+    tmp_path, monkeypatch
+):
+    """A silent source (no format with an audio codec, the video's acodec left out) must not
+    be downloaded again on every run just because its file has no audio."""
+    files = {"video.mp4": (31.0, VIDEO_STREAMS[:1])}
+    work = media_dir(tmp_path, files)
+    fake_probe(monkeypatch, files)
+    downloader(monkeypatch, calls := [])
+    silent = {
+        "duration": None,
+        "formats": [{"format_id": "v", "width": 1280, "height": 720, "vcodec": "avc1"}],
+    }
+    assert cf.download(silent, work, IngestOptions()).path == "media/video.mp4"
+    assert calls == []
