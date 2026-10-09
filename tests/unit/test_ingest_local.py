@@ -179,10 +179,21 @@ def test_unreadable_media_is_exit_2(tmp_path):
     assert r.exit_code == 2 and "Traceback" not in r.output
 
 
-def test_url_in_m1_is_exit_2(tmp_path):
+@pytest.fixture
+def no_network_adapters(monkeypatch):
+    """URL platforms get adapters in M2/M3; these tests must never reach the network."""
+    from skipwatch import ingest as ingest_module
+    from skipwatch.adapters.registry import adapter_for
+
+    monkeypatch.setattr(
+        ingest_module, "adapter_for", lambda p: adapter_for(p) if p == "local" else None
+    )
+
+
+def test_url_without_network_adapter_is_exit_2(tmp_path, no_network_adapters):
     r = ingest("https://youtu.be/x", "--work", str(tmp_path / "w"))
     assert r.exit_code == 2
-    assert "M2" in r.stderr
+    assert "no adapter for youtube" in r.stderr
 
 
 def test_unsupported_file_is_exit_2_and_detect_failed(tmp_path):
@@ -194,12 +205,12 @@ def test_unsupported_file_is_exit_2_and_detect_failed(tmp_path):
     assert json.loads((work / "stages.json").read_text())["stages"]["detect"]["status"] == "failed"
 
 
-def test_ingest_accepts_contract_flags(tmp_path):
+def test_ingest_accepts_contract_flags(tmp_path, no_network_adapters):
     r = ingest(
         "https://youtu.be/x", "--work", str(tmp_path / "w"), "--provider", "free",
         "--max-height", "720", "--cookies-from-browser", "firefox",
     )  # fmt: skip
-    assert r.exit_code == 2  # flags parsed; the URL itself is M2
+    assert r.exit_code == 2  # flags parsed; no adapter for the URL here
 
 
 def test_ingest_unknown_provider_is_usage_exit_64(tmp_path, monkeypatch, capsys):

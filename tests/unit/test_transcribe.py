@@ -3,6 +3,7 @@ import json
 import pytest
 from typer.testing import CliRunner
 
+from skipwatch import transcribe as transcribe_module
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, IngestContext, Route, Segment, SourceInfo, Transcript
@@ -107,7 +108,8 @@ def test_mark_silence_falls_back_to_last_segment_end():
     assert mark_silence(t.model_copy(update={"segments": []}), None).silent is True
 
 
-def test_no_captions_no_whisper_is_exit_8_with_command(tmp_path):
+def test_no_captions_no_whisper_is_exit_8_with_command(tmp_path, monkeypatch):
+    monkeypatch.setattr(transcribe_module, "is_apple_silicon", lambda: False)
     w = work_with(tmp_path, None)
     r = transcribe(w)
     assert r.exit_code == 8 and "--extra whisper" in r.stderr
@@ -127,11 +129,40 @@ def test_captions_with_no_cues_is_exit_7(tmp_path):
     assert not w.file("transcript.json").exists()
 
 
+class _KeylessCloud:
+    name, cloud, auto_rank = "openai", True, None
+
+    def available(self, bundle):
+        return False
+
+    def missing_hint(self):
+        return "set OPENAI_API_KEY"
+
+
+def test_cloud_backend_without_key_is_exit_8(tmp_path, monkeypatch):
+    registered = transcribe_module.transcription_backends()
+    monkeypatch.setattr(
+        transcribe_module,
+        "transcription_backends",
+        lambda: {**registered, "openai": _KeylessCloud()},
+    )
+    w = work_with(tmp_path, SPOKEN)
+    r = transcribe(w, "--backend", "openai")
+    assert r.exit_code == 8 and "OPENAI_API_KEY" in r.stderr
+    assert not w.file("transcript.json").exists()
+
+
 @pytest.mark.parametrize("backend", ["openai", "groq", "deepgram", "mlx", "faster"])
-def test_other_backends_not_available_in_m1(tmp_path, backend):
+def test_unregistered_backend_named_explicitly_is_exit_8(tmp_path, monkeypatch, backend):
+    registered = transcribe_module.transcription_backends()
+    monkeypatch.setattr(
+        transcribe_module,
+        "transcription_backends",
+        lambda: {k: v for k, v in registered.items() if k != backend},
+    )
     w = work_with(tmp_path, SPOKEN)
     r = transcribe(w, "--backend", backend)
-    assert r.exit_code == 8 and "M2" in r.stderr
+    assert r.exit_code == 8 and backend in r.stderr
     assert not w.file("transcript.json").exists()
 
 
@@ -152,8 +183,8 @@ def test_select_backend_cloud_never_under_auto(tmp_path):
 def test_captions_backend_available_reflects_bundle(tmp_path):
     with_caps = read_model(work_with(tmp_path / "a", SPOKEN).file("ingest.json"), IngestBundle)
     without = read_model(work_with(tmp_path / "b", None).file("ingest.json"), IngestBundle)
-    assert CaptionsBackend(with_caps).available() is True
-    assert CaptionsBackend(without).available() is False
+    assert CaptionsBackend().available(with_caps) is True
+    assert CaptionsBackend().available(without) is False
 
 
 def test_missing_ingest_is_exit_7(tmp_path):
@@ -182,3 +213,12 @@ def test_select_backend_unknown_name_is_usage(tmp_path):
     with pytest.raises(SkipwatchError) as e:
         select_backend("whisper-xl", bundle)
     assert e.value.code == ExitCode.USAGE
+
+
+def test_captions_lang_from_ingest_wins_over_file_name(tmp_path):
+    w = work_with(tmp_path, SPOKEN, name="abc.vtt", path=None)
+    bundle = read_model(w.file("ingest.json"), IngestBundle)
+    ctx = bundle.context.model_copy(update={"captions_lang": "pt", "captions_kind": "auto"})
+    write_model(w.file("ingest.json"), bundle.model_copy(update={"context": ctx}))
+    assert transcribe(w).exit_code == 0
+    assert read_model(w.file("transcript.json"), Transcript).language == "pt"

@@ -1,37 +1,54 @@
 """Transcribe stage: pick a backend, write timed transcript.json, flag silence (8.4)."""
 
 import os
+from typing import get_args
 
-from skipwatch.doctor import _extra_command  # one source for install advice (`--inexact`)
+from skipwatch.doctor import extra_command, is_apple_silicon  # one source for install advice
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import IngestBundle, Transcript
+from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
 from skipwatch.providers.base import TranscriptionBackend
-from skipwatch.providers.transcribe_captions import CaptionsBackend
+from skipwatch.providers.registry import transcription_backends
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
 
-LATER_BACKENDS = ("mlx", "faster", "openai", "groq", "deepgram")
+KNOWN_BACKENDS = frozenset(get_args(TranscribeConfig.model_fields["backend"].annotation)) - {"auto"}
 SILENT_WPM = 20
 
 
+def _whisper_hint() -> str:
+    extra = "mlx" if is_apple_silicon() else "whisper"
+    return extra_command(os.environ.get("CLAUDE_PLUGIN_ROOT"), extra)
+
+
 def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
-    captions = CaptionsBackend(bundle)
+    """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    backends = transcription_backends()
     if requested == "auto":
-        if captions.available():
-            return captions
-        command = _extra_command(os.environ.get("CLAUDE_PLUGIN_ROOT"), "whisper")
+        ranked = sorted(
+            (b for b in backends.values() if not b.cloud and b.auto_rank is not None),
+            key=lambda b: (b.auto_rank, b.name),
+        )
+        chosen = next((b for b in ranked if b.available(bundle)), None)
+        if chosen is not None:
+            return chosen
         raise SkipwatchError(
             ExitCode.MISSING_DEPENDENCY,
-            f"no captions and no Whisper backend; install one: {command}",
+            f"no captions and no Whisper backend; install one: {_whisper_hint()}",
         )
+    backend = backends.get(requested)
+    if backend is None:
+        if requested in KNOWN_BACKENDS:
+            raise SkipwatchError(
+                ExitCode.MISSING_DEPENDENCY, f"backend {requested} is not installed in this build"
+            )
+        raise SkipwatchError(ExitCode.USAGE, f"unknown backend {requested}")
+    if backend.available(bundle):
+        return backend
     if requested == "captions":
-        if captions.available():
-            return captions
         raise SkipwatchError(ExitCode.NO_CONTENT, "no captions sidecar was found at ingest")
-    if requested in LATER_BACKENDS:
-        raise SkipwatchError(
-            ExitCode.MISSING_DEPENDENCY, f"the {requested} backend arrives in M2; use captions"
-        )
-    raise SkipwatchError(ExitCode.USAGE, f"unknown backend {requested}")
+    raise SkipwatchError(
+        ExitCode.MISSING_DEPENDENCY,
+        f"backend {requested} is not available: {backend.missing_hint()}",
+    )
 
 
 def _word_count(t: Transcript) -> int:

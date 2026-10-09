@@ -1,26 +1,40 @@
-"""Provider protocols. Only TranscriptionBackend is used in M1; the rest are seams for M2+."""
+"""Provider protocols. Content providers and transcription backends register through
+providers/registry.py; export and index providers are seams for M5+."""
 
 from pathlib import Path
 from typing import Protocol
 
-from skipwatch.models import IngestBundle, Transcript
+from skipwatch.adapters.base import IngestOptions
+from skipwatch.models import IngestBundle, MediaInfo, Transcript
 from skipwatch.workdir import WorkDir
 
 
 class ContentProvider(Protocol):
-    name: str
+    name: str  # "treg"
 
-    def available(self) -> bool: ...
+    def available(self) -> bool:
+        """Installed and logged in; may do one cheap check."""
+        ...
 
-    def fetch(self, url: str, work: WorkDir) -> IngestBundle: ...
+    def enrich(self, bundle: IngestBundle, work: WorkDir, opts: IngestOptions) -> IngestBundle: ...
+
+    def fetch_media(
+        self, bundle: IngestBundle, work: WorkDir, opts: IngestOptions
+    ) -> MediaInfo | None: ...
 
 
 class TranscriptionBackend(Protocol):
-    name: str
+    name: str  # "captions" | "mlx" | "faster" | "openai" | "groq" | "deepgram"
+    cloud: bool  # True only for openai, groq, deepgram
+    auto_rank: int | None  # order under auto: captions 0, mlx 1, faster 2; cloud None
 
-    def available(self) -> bool: ...
+    def available(self, bundle: IngestBundle) -> bool: ...
 
     def transcribe(self, work: WorkDir, model: str | None) -> Transcript: ...
+
+    def missing_hint(self) -> str:
+        """Install command or env var to set, for exit 8."""
+        ...
 
 
 class ExportProvider(Protocol):

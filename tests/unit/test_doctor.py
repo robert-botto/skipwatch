@@ -194,3 +194,29 @@ def test_r_tier_1_broken_static_ffmpeg_still_exits_zero(monkeypatch, sw_home):
     ffmpeg = next(c for c in report.components if c.name == "ffmpeg")
     assert not ffmpeg.found and "broken" in ffmpeg.detail
     assert "--reinstall-package static-ffmpeg" in ffmpeg.detail
+
+
+def test_extra_command_is_public():
+    assert doctor.extra_command("/plug", "whisper") == (
+        'uv sync --inexact --project "/plug" --extra whisper'
+    )
+
+
+def test_old_uv_warns_with_upgrade_command_for_its_install():
+    brew = doctor.build_report(P(uv="0.9.26", uv_homebrew=True), TODAY, "/plug")
+    assert any("uv 0.9.26" in w and "brew upgrade uv" in w for w in brew.warnings)
+    standalone = doctor.build_report(P(uv="0.9.28"), TODAY, "/plug")
+    assert any("uv 0.9.28" in w and "uv self update" in w for w in standalone.warnings)
+    for fine in ("0.9.29", "0.10.0", "1.0.0", None, "dev"):
+        r = doctor.build_report(P(uv=fine), TODAY, "/plug")
+        assert not any(w.startswith("uv ") for w in r.warnings), fine
+
+
+def test_probe_detects_homebrew_uv_from_version_line(monkeypatch):
+    lines = {"uv": "uv 0.9.26 (Homebrew 2026-01-15)"}
+    monkeypatch.setattr(doctor, "_version_output", lambda exe: lines.get(exe))
+    p = doctor.probe_machine()
+    assert p.uv == "0.9.26" and p.uv_homebrew is True
+    lines["uv"] = "uv 0.9.30 (abc123 2026-10-01)"
+    p = doctor.probe_machine()
+    assert p.uv == "0.9.30" and p.uv_homebrew is False

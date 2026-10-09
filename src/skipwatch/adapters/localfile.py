@@ -116,3 +116,7 @@ class LocalFileAdapter:
             media=info,
             route=Route(context="local", media="local"),
         )
+
+
+PLATFORMS = ("local",)
+ADAPTER = LocalFileAdapter()

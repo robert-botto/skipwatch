@@ -30,6 +30,7 @@ from skipwatch.models import DoctorComponent, DoctorMissing, DoctorReport, Tier
 CLOUD_KEYS = ("OPENAI_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY")
 YTDLP_MAX_AGE_DAYS = 60
 NODE_MIN_MAJOR = 22
+UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
 GIT_SOURCE = "git+https://github.com/robert-botto/skipwatch"
 
@@ -67,6 +68,7 @@ class Probe:
     cloud_keys: list[str] = field(default_factory=list)
     treg_on_path: bool = False
     mem0_key: bool = False
+    uv_homebrew: bool = False
 
 
 def _version_output(exe: str) -> str | None:
@@ -113,12 +115,17 @@ def _ytdlp_version() -> str | None:
         return None
 
 
+def is_apple_silicon() -> bool:
+    return sys.platform == "darwin" and platform.machine() == "arm64"
+
+
 def probe_machine() -> Probe:
     """Look at the machine. No network, no installs; subprocess `--version` calls only."""
     ffmpeg, source = _probe_ffmpeg()
     node = _version_output("node")
+    uv_line = _version_output("uv")
     return Probe(
-        uv=_second_token(_version_output("uv")),
+        uv=_second_token(uv_line),
         python=platform.python_version(),
         ffmpeg=ffmpeg,
         ffmpeg_source=source,
@@ -127,10 +134,11 @@ def probe_machine() -> Probe:
         deno=_second_token(_version_output("deno")),
         whisper_mlx=importlib.util.find_spec("mlx_whisper") is not None,
         whisper_faster=importlib.util.find_spec("faster_whisper") is not None,
-        apple_silicon=sys.platform == "darwin" and platform.machine() == "arm64",
+        apple_silicon=is_apple_silicon(),
         cloud_keys=[key for key in CLOUD_KEYS if os.environ.get(key)],
         treg_on_path=shutil.which("treg") is not None,
         mem0_key=bool(os.environ.get("MEM0_API_KEY")),
+        uv_homebrew="Homebrew" in (uv_line or ""),
     )
 
 
@@ -186,7 +194,7 @@ def _sync(root: str, flags: str = "") -> str:
     return f'uv sync --inexact --project "{root}"' + (f" {flags}" if flags else "")
 
 
-def _extra_command(plugin_root: str | None, extra: str) -> str:
+def extra_command(plugin_root: str | None, extra: str) -> str:
     root = _project_root(plugin_root)
     if root:
         return _sync(root, f"--extra {extra}")
@@ -220,7 +228,7 @@ def _missing_for(tier: Tier | None, p: Probe, plugin_root: str | None) -> list[D
             DoctorMissing(
                 name="whisper",
                 unlocks=TIER_REASON["1"],
-                install_command=_extra_command(plugin_root, extra),
+                install_command=extra_command(plugin_root, extra),
             )
         ]
     if tier == "2":
@@ -252,8 +260,25 @@ def _parse_ytdlp_date(version: str) -> date | None:
         return None
 
 
+def _uv_too_old(version: str | None) -> bool:
+    if not version:
+        return False
+    try:
+        parsed = tuple(int(x) for x in version.split(".")[:3])
+    except ValueError:
+        return False
+    return parsed < UV_MIN
+
+
 def _warnings(p: Probe, today: date, plugin_root: str | None) -> list[str]:
     warnings: list[str] = []
+    if _uv_too_old(p.uv):
+        upgrade_uv = "brew upgrade uv" if p.uv_homebrew else "uv self update"
+        minimum = ".".join(str(x) for x in UV_MIN)
+        warnings.append(
+            f"uv {p.uv} is older than {minimum} and can panic in the macOS sandbox; "
+            f"run: {upgrade_uv}"
+        )
     upgrade = ytdlp_upgrade_command(plugin_root)
     if p.ytdlp is None:
         warnings.append(f"yt-dlp is not importable; run: {upgrade}")
