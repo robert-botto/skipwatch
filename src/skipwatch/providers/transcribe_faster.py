@@ -2,7 +2,7 @@
 --thorough. Weights download from Hugging Face on first use (plan issue 12).
 
 It gets a float32 array of the engine's 16 kHz WAV, not a path: faster-whisper 1.2.1 decodes
-paths with `av.open(..., metadata_errors=...)`, a keyword av 18 removed.
+paths with `av.open(..., metadata_errors=...)`, a keyword av 18 removed (19.0.1 fails too).
 Leading silence is trimmed first and added back to every time.
 """
 
