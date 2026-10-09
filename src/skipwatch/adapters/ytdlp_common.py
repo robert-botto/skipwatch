@@ -75,10 +75,16 @@ def _site(platform: str, url: str) -> str:
     return PLATFORM_NAMES.get(platform) or urlsplit(url).hostname or platform
 
 
-def login_error(platform: str, url: str, opts: IngestOptions) -> SkipwatchError:
+def login_error(platform: str, url: str, opts: IngestOptions, reason: str = "") -> SkipwatchError:
     """R-ING-6: exit 4, naming the cookie flag."""
     site = _site(platform, url)
-    if opts.cookies_from_browser:
+    if "not a bot" in reason.casefold():
+        message = (
+            f'{site} stopped this with a bot check ("Sign in to confirm you\'re not a bot"). '
+            "Re-run with --cookies-from-browser <browser> using a browser signed in to "
+            f"{site}, or run from a home connection: VPN and data-centre addresses trigger it."
+        )
+    elif opts.cookies_from_browser:
         message = (
             f"{site} says this needs a login, and the cookies from "
             f"--cookies-from-browser {opts.cookies_from_browser} did not get access. Sign in "
@@ -100,7 +106,7 @@ def _raise_mapped(
     partial: IngestBundle | None = None,
 ) -> NoReturn:
     if exc.code == ExitCode.PRIVATE_CONTENT:
-        raise login_error(platform, detected.value, opts) from exc
+        raise login_error(platform, detected.value, opts, exc.message) from exc
     if exc.code == ExitCode.NO_CONTENT or "unsupported url" in exc.message.casefold():
         raise NoMediaError(detected.value, exc.first_line) from exc
     raise DownloadFailed([f"free.yt-dlp.{exc.op}: {exc.first_line}"], partial) from exc

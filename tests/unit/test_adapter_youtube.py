@@ -304,3 +304,17 @@ def test_metadata_network_failure_is_exit_3_listing_the_route(tmp_path, monkeypa
     assert (
         "free.yt-dlp.metadata: [youtube] x: Unable to download API page: HTTP Error 500" in r.output
     )
+
+
+def test_bot_check_is_named_as_such_with_both_ways_out(tmp_path, monkeypatch, sw_home):
+    fake_ytdlp(
+        monkeypatch,
+        "ERROR: [youtube] x: Sign in to confirm you're not a bot. Use --cookies-from-browser or "
+        "--cookies for the authentication.",
+    )
+    r = CliRunner().invoke(
+        app, ["ingest", "https://www.youtube.com/watch?v=x", "--work", str(tmp_path / "w")]
+    )
+    assert r.exit_code == ExitCode.PRIVATE_CONTENT
+    assert "bot check" in r.output and "--cookies-from-browser" in r.output
+    assert "home connection" in r.output
