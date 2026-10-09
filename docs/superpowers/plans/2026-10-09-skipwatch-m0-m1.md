@@ -1753,7 +1753,8 @@ Note: the action major versions (`checkout@v4`, `setup-uv@v6`, `setup-node@v4`) 
 | 3 | marketplace add + install works | `export CLAUDE_CONFIG_DIR=$(mktemp -d) && claude plugin marketplace add "$PWD" && claude plugin install skipwatch@skipwatch` | `✔ Successfully added marketplace: skipwatch` and `✔ Successfully installed plugin: skipwatch@skipwatch (scope: user)` |
 | 4 | `claude plugin details` lists 1 skill, 3 agents | same shell as 3: `claude plugin details skipwatch` | contains `Skills (1)  skipwatch` and `Agents (3)` (agent names `frame-reader`, `skill-critic`, `skill-tester`) |
 | 5 | `/skipwatch doctor` prints the tier table | `unset CLAUDE_CONFIG_DIR; claude -p --plugin-dir "$PWD" --allowedTools "Bash" "/skipwatch:skipwatch doctor" < /dev/null` (needs the normal logged-in config; `--plugin-dir` loads without installing) | output contains a line starting `Tier ` and the tier rows from 3.3 |
-| 6 | eval doctor and no-trigger (optional at M0, required at M1) | `claude plugin eval . --trust-plugin --allow-tools 'Bash(uv run:*)' --case 'doctor' --case 'no-trigger*' --runs 1 --no-publish --threshold 0.8 --max-cost-usd 2 --json evals/results/m0.json < /dev/null` | exit 0 |
+| 6a | eval doctor (optional at M0, required at M1) | `claude plugin eval . --trust-plugin --allow-tools Bash --case doctor --runs 1 --no-publish --threshold 0.8 --max-cost-usd 1 --json evals/results/m0-doctor.json < /dev/null` (`--case` is not repeatable, the last one wins, so each case set is its own run) | exit 0 |
+| 6b | eval no-trigger (optional at M0, required at M1) | `claude plugin eval . --trust-plugin --case 'no-trigger*' --runs 1 --no-publish --threshold 0.8 --max-cost-usd 1 --json evals/results/m0-no-trigger.json < /dev/null` | exit 0 |
 
 Clean up after 3 and 4: `rm -rf "$CLAUDE_CONFIG_DIR"`.
 
