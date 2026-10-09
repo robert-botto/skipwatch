@@ -322,6 +322,10 @@ Read `<W>/ingest.json`, `<W>/transcript.json` (if it exists) and every notes fil
 - Numbered steps ordered by timestamp, earliest first, each with its timestamp and one provenance tag from
   `distill-rules.md`.
 - Attach every verbatim item from the notes to the step it belongs to, copied exactly.
+- Post context (`context.post_text`, `thread`, `author_replies`, `links`) often holds the
+  exact prompt or command the video only flashes. When `context` and the frames disagree,
+  context wins and the step is tagged `[written]` (R-ING-1); keep the frame's reading in
+  `source.md` as the second source.
 - Write a `GAP:` line wherever the video jumps or a step's evidence is missing.
   Unread frames are not gaps (section 15): never write a `GAP:` line for a frame that is
   only unread; it goes on the review screen's `Unread frames:` line instead.
