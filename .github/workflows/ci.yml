@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths-ignore: ["docs/**"]
   pull_request:
+    # labeled: adding run-whisper to an open PR starts the whisper job without a new push.
+    types: [opened, synchronize, reopened, labeled]
     paths-ignore: ["docs/**"]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -81,7 +84,10 @@ jobs:
   # models are fetched in an earlier step and cached. tests/pipeline/test_whisper_pipeline.py
   # pins the default models: faster-whisper small (about 480 MB) everywhere, and mlx-whisper
   # large-v3-turbo (about 1.6 GB) on Apple Silicon only.
+  # macOS bills 10x and a cold cache downloads about 2 GB, so both legs run only on push to
+  # main, on workflow_dispatch, and on pull requests labelled run-whisper.
   whisper:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-whisper')
     strategy:
       fail-fast: false
       matrix:
