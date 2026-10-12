@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "ExportLogEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "exported_at": {
+          "title": "Exported At",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "provider",
+        "name",
+        "manifest_sha256",
+        "exported_at"
+      ],
+      "title": "ExportLogEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "$SKIPWATCH_HOME/exports.json: re-exporting an unchanged skill is a no-op (issue 9).",
+  "properties": {
+    "entries": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExportLogEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/export-log/1",
+      "default": "skipwatch/export-log/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "ExportLog",
+  "type": "object"
+}

@@ -451,6 +451,21 @@ class InstallsFile(_Tagged):
     installs: list[InstallRecord] = []
 
 
+class ExportLogEntry(_Model):
+    provider: str
+    name: str
+    manifest_sha256: str  # sha256 of the skipwatch.json bytes that were exported
+    ref: str | None = None
+    exported_at: str
+
+
+class ExportLog(_Tagged):
+    """$SKIPWATCH_HOME/exports.json: re-exporting an unchanged skill is a no-op (issue 9)."""
+
+    schema_: Literal["skipwatch/export-log/1"] = _tag("skipwatch/export-log/1")
+    entries: list[ExportLogEntry] = []
+
+
 # ---- command --json outputs ----
 Tier = Literal["none", "0", "1", "1c", "2", "3"]
 
@@ -542,4 +557,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "resume": ResumeResult,
     "cache-entry": CacheEntry,
     "installs": InstallsFile,
+    "export-log": ExportLog,
 }

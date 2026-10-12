@@ -9,6 +9,8 @@ from skipwatch.models import (
     CheckReport,
     Config,
     Counts,
+    ExportLog,
+    ExportLogEntry,
     FramesFile,
     IngestBundle,
     InstallRecord,
@@ -243,6 +245,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "resume",
         "cache-entry",
         "installs",
+        "export-log",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -449,3 +452,18 @@ def test_installs_file_round_trip_and_scope():
         InstallRecord.model_validate({**rec.model_dump(), "scope": "global"})
     with pytest.raises(ValidationError):
         InstallRecord.model_validate({**rec.model_dump(), "origin": "url"})
+
+
+def test_export_log_round_trip():
+    entry = ExportLogEntry(
+        provider="mem0",
+        name="run-x",
+        manifest_sha256="sha256:" + "2" * 64,
+        exported_at="2026-10-09T18:20:00Z",
+    )
+    assert entry.ref is None
+    log = ExportLog(entries=[entry])
+    assert ExportLog.model_validate_json(log.model_dump_json(by_alias=True)) == log
+    assert ExportLog().entries == []
+    with pytest.raises(ValidationError):
+        ExportLogEntry.model_validate({"provider": "mem0", "name": "run-x"})
