@@ -1189,3 +1189,19 @@ def test_slug_rule_is_spelled_out():
     assert "collapse repeated hyphens, trim hyphens from both ends" in text
     assert "cut to 80 characters for a file stem and 40 for a URL" in text
     assert "use `video` if nothing is left" in text
+
+
+# ---- M4: treg provider calls, cost and cross-check (Task M4-C1) ----
+
+
+def test_provider_calls_line_lists_each_call_and_the_total():
+    review = flat(REFS / "review-screen.md")
+    assert "`none (free route)`" in review
+    assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
+    example = "treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012"
+    assert example in review
+    # rows without a call id: a media download costs nothing; a cap refusal never ran
+    assert "`media.get` rows" in review and "`<op> refused (cost cap)`" in review
+    assert "`cost_usd`" in review and "`op`" in review
+    # the total is computed from calls.json, never from the treg balance
+    assert "never from `treg balance`" in review

@@ -64,8 +64,15 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
-- **Provider calls:** `W/calls.json`. Empty means `none (free route)`; otherwise list each
-  as `<provider> <op> ($<cost>)` with the total. When `W/ingest.json` has `from_cache`
+- **Provider calls:** `W/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
+  `ok`, `endpoint`, `call_id` and `review`. No rows means `none (free route)`. Otherwise
+  `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts every row,
+  each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
+  computed from `calls.json`, never from `treg balance`, which you never run or print. For
+  example `treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012)`.
+  Rows without a `call_id` are not billed calls: `media.get` rows are the download of a
+  treg media URL (`$0.0000`), and a row whose `error` is `cost cap` never ran: it shows
+  as `<op> refused (cost cap)` and adds nothing to the total. When `W/ingest.json` has `from_cache`
   true, the metadata came from the 7-day run cache (R-TR-3): append
   `; cached from <date>` (the date from the ingest log's cache line, else
   `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
