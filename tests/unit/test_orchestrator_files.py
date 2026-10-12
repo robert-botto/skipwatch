@@ -208,7 +208,7 @@ def test_run_protocol_frames_exit_7_and_audio_only():
 def test_run_protocol_work_path():
     # G5 golden run: a hand-built path ignored SKIPWATCH_HOME; the engine makes the folder
     text = protocol_flat()
-    assert "<ENGINE> new-work --slug <slug> --json" in text
+    assert '<ENGINE> new-work --from "<input>" --json' in text
     assert "take `<W>` only from its output" in text
     assert "Never build the work path by hand" in text
     assert "/work/<slug>-<yyyymmdd-hhmmss>" not in text
@@ -791,7 +791,7 @@ def test_work_folder_falls_back_inside_the_workspace():
     # eval sandboxes confine writes to the workspace, so $HOME/.skipwatch may be read-only
     text = protocol_flat()
     assert "If `new-work` fails" in text
-    assert '<ENGINE> --home "<P>/.skipwatch" new-work --slug <slug> --json' in text
+    assert '<ENGINE> --home "<P>/.skipwatch" new-work --from "<input>" --json' in text
     # an env prefix never matches a narrowed allow rule; --home is a root option
     assert "SKIPWATCH_HOME=" not in text.replace("SKIPWATCH_HOME=` prefix", "")
     assert 'Pass `--home "<P>/.skipwatch"` to every `<ENGINE>` call' in text
@@ -1541,12 +1541,20 @@ def test_text_resume_continues_from_the_first_missing_late_stage():
     assert "go to stage 5, or" not in resume
 
 
-def test_slug_rule_is_spelled_out():
+def test_engine_derives_the_slug():
+    # new-work --from applies the slug rules; Claude never builds a slug by hand
+    import typer
+
+    from skipwatch.cli import app
+
+    group = typer.main.get_command(app)
+    opts = {o for p in group.commands["new-work"].params for o in p.opts}  # type: ignore[attr-defined]
+    assert {"--from", "--slug"} <= opts
     text = protocol_flat()
-    assert "map every character outside `[a-z0-9-]` to `-`" in text
-    assert "collapse repeated hyphens, trim hyphens from both ends" in text
-    assert "cut to 80 characters for a file stem and 40 for a URL" in text
-    assert "use `video` if nothing is left" in text
+    assert '<ENGINE> new-work --from "<input>" --json' in text
+    assert 'With `--name`, pass `--slug <name>` in place of `--from "<input>"`, never both' in text
+    for rule in ("collapse repeated hyphens", "cut to 80 characters", "use `video` if nothing"):
+        assert rule not in text, rule
 
 
 # ---- M4: treg provider calls, cost and cross-check (Task M4-C1) ----

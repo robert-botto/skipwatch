@@ -83,18 +83,15 @@ Print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
 
 ## Stage 2: work folder and arguments
 
-The slug is `--name` if given. Otherwise start from the file stem, or for a URL from the
-host without `www.` plus the video id or last path segment, then: lowercase it, map every
-character outside `[a-z0-9-]` to `-`, collapse repeated hyphens, trim hyphens from both
-ends, and cut to 80 characters for a file stem and 40 for a URL (trimming a hyphen the cut
-leaves at the end); use `video` if nothing is left. Example:
-`https://www.youtube.com/watch?v=AbC_12` gives `youtube-com-abc-12`. The engine creates
-the work folder under its own home; take `<W>` only from its output:
+The engine derives the folder name from the input and creates the work folder under its
+own home; take `<W>` only from its output:
 
-    <ENGINE> new-work --slug <slug> --json
+    <ENGINE> new-work --from "<input>" --json
 
-`<W>` is the `work` value, copied exactly. Never build the work path by hand and never
-expand `$HOME` yourself. Exit 64: the slug broke the rule; fix it and run again.
+With `--name`, pass `--slug <name>` in place of `--from "<input>"`, never both. `<W>` is the
+`work` value, copied exactly. Never build the work path by hand and never expand `$HOME`
+yourself. Exit 64 with `--slug`: the name breaks the naming rule in `distill-rules.md`;
+say so with the usage line and stop.
 
 Then use the Write tool to write `<W>/logs/.write-probe` with the content `ok`, so a
 sandbox that denies Write there is found now.
