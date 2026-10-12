@@ -594,6 +594,15 @@ def test_work_folder_falls_back_inside_the_workspace():
     assert "work folder moved into the project" in review
 
 
+def test_exit_127_and_78_each_have_one_row():
+    skill = read(SKILL / "SKILL.md")
+    doctor = [line for line in skill.splitlines() if line.startswith("| 127 | doctor |")]
+    assert doctor and "SkipWatch needs uv: https://docs.astral.sh/uv/" in doctor[0]
+    rows = [line for line in skill.splitlines() if re.match(r"\| [\d, ]*\b78\b", line)]
+    assert len(rows) == 1, rows
+    assert "for exit 78 above" not in skill
+
+
 def test_exit_7_has_one_wording_per_stage():
     # SKILL.md defers to the stage's own message, so the two files never disagree
     skill = read(SKILL / "SKILL.md")
