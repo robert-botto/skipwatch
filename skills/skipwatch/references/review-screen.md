@@ -57,7 +57,7 @@ Skill ready for review: <name>
   Unverified: <list or "none">
   Unread frames: <none | frame ids (reason)>
   Safety flags: <none | kind (severity) at step N, ...>
-  Confidence: <high|medium|low> (<reasons>)
+  Confidence: <high | medium (<reasons>) | low (<reasons>)>
   Source: "<title>" by <author>, <date or "undated">
   Provider calls: <provider_calls_line>
   Draft: <staging path>

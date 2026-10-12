@@ -1877,6 +1877,10 @@ def test_review_screen_confidence_and_test_run_line():
         review
     )
     assert "`Test run:` follows `Confidence:` after a test" in review
+    # high prints alone; reasons only for medium and low (engine and spec template agree)
+    assert "  Confidence: <high | medium (<reasons>) | low (<reasons>)>" in read(
+        REFS / "review-screen.md"
+    )
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
     assert "stage 9b in `run-review-install.md`" in answer
     assert "Test it anyway?" in answer
