@@ -9,7 +9,8 @@
   with no error, under the requesting post's metadata. When the first linked post's video has
   the same length, the bundle credits the linked post: source describes it, the requested
   post's text goes into context.thread with its URL, context.links records the linked post,
-  and route.fallbacks carries "video came from a linked post: <url>" (decision 2).
+  and bundle.notes carries "video came from a linked post: <url>" (decision 2; notes, not
+  route.fallbacks, since the M5-A review).
 - A post with no video raises NoMediaError; ingest hands it to the text adapter (issue 8).
 """
 
@@ -105,9 +106,8 @@ def _credit_linked_post(
             "links": [record, *bundle.context.links],
         }
     )
-    note = f"video came from a linked post: {url}"
-    route = bundle.route.model_copy(update={"fallbacks": [*bundle.route.fallbacks, note]})
-    return bundle.model_copy(update={"source": source, "context": context, "route": route})
+    notes = [*bundle.notes, f"video came from a linked post: {url}"]
+    return bundle.model_copy(update={"source": source, "context": context, "notes": notes})
 
 
 class XAdapter:

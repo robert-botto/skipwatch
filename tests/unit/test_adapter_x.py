@@ -166,7 +166,9 @@ def test_x_link_to_video_post_credits_the_linked_post(tmp_path, free_route):
     ]
     assert bundle.context.links[0].url == LINKED_URL
     assert bundle.context.links[0].text == linked["description"]
-    assert bundle.route.fallbacks == [f"video came from a linked post: {LINKED_URL}"]
+    # Decision 3 after the M5-A review: provenance notes live in bundle.notes, not fallbacks.
+    assert bundle.notes == [f"video came from a linked post: {LINKED_URL}"]
+    assert bundle.route.fallbacks == []
     assert seen["download"] == 1  # the media yt-dlp already gave the reply is the linked video
     assert [c.op for c in bundle.provider_calls].count("yt-dlp.metadata") == 2
 
@@ -178,7 +180,7 @@ def test_x_linked_post_with_a_different_video_keeps_the_requested_post(tmp_path,
     bundle = build(LINKING_URL, tmp_path / "w")
     assert bundle.source.canonical_url == "https://x.com/i/status/1505898799335628805"
     assert bundle.context.post_text == reply["description"] and bundle.context.thread == []
-    assert bundle.route.fallbacks == []
+    assert bundle.route.fallbacks == [] and bundle.notes == []
 
 
 def test_x_linked_post_that_fails_to_load_keeps_the_requested_post(tmp_path, free_route):
