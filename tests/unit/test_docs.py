@@ -7,7 +7,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import ModuleType
 
+import typer
 from PIL import Image
+
+from skipwatch.cli import app
 
 ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "docs/demo"
@@ -109,11 +112,13 @@ def _readme() -> str:
     return README.read_text(encoding="utf-8")
 
 
+FENCE = re.compile(r"^(`{3,})[^\n]*\n(.*?)^\1", flags=re.M | re.S)
+
+
 def _code(markdown: str) -> list[str]:
     """Every inline code span and every line of every fenced block."""
-    fence = re.compile(r"^```[^\n]*\n(.*?)^```", flags=re.M | re.S)
-    lines = [line for block in fence.findall(markdown) for line in block.splitlines()]
-    return lines + re.findall(r"`([^`\n]+)`", fence.sub("", markdown))
+    lines = [line for _, block in FENCE.findall(markdown) for line in block.splitlines()]
+    return lines + re.findall(r"`([^`\n]+)`", FENCE.sub("", markdown))
 
 
 def _skill_md_flags() -> set[str]:
@@ -137,13 +142,28 @@ def test_readme_has_tagline_and_install_lines():
 
 
 def test_readme_relative_links_and_images_resolve():
-    text = _readme()
+    text = FENCE.sub("", _readme())  # links inside code samples are not links
     targets = re.findall(r"\]\(([^)\s]+)\)", text)
     targets += re.findall(r'(?:src|srcset|href)="([^"]+)"', text)
     relative = [t for t in targets if not re.match(r"[a-z]+:|#", t)]
     assert relative, "the README links no local files"
     for target in relative:
         assert (ROOT / target.split("#")[0]).exists(), target
+
+
+def test_readme_skipwatch_commands_and_their_flags_exist():
+    group = typer.main.get_command(app)
+    commands = group.commands  # type: ignore[attr-defined]
+    seen = 0
+    for code in _code(_readme()):
+        for match in re.finditer(r"(?:^|[\s(])skipwatch ([a-z][a-z-]*)([^`]*)", code):
+            name, rest = match.groups()
+            assert name in commands, f"skipwatch {name}"
+            options = {opt for param in commands[name].params for opt in param.opts}
+            for flag in re.findall(r"(?<![\w-])(--?[a-z][a-z-]*)", rest):
+                assert flag in options, f"skipwatch {name} {flag}"
+            seen += 1
+    assert seen >= 5
 
 
 def test_readme_slash_command_words_and_flags_are_in_skill_md():
@@ -172,3 +192,13 @@ def test_docs_have_no_em_dash_personal_paths_or_emails():
         text = path.read_text(encoding="utf-8")
         for bad in (EM_DASH, "/Users/", "@gmail.com", "/private/tmp"):
             assert bad not in text, (path.name, bad)
+
+
+def test_readme_documents_tiers_the_engine_and_the_skill_layout():
+    text = _readme()
+    assert "uvx skipwatch doctor" in text and "uv tool install skipwatch" in text
+    for tier in ("| 0 |", "| 1 |", "| 1c |", "| 2 |", "| 3 |"):
+        assert tier in text, tier
+    for tag in ("[spoken 00:58]", "[on-screen 00:33]", "[inferred]"):
+        assert tag in text, tag  # the real excerpt shows the provenance tags
+    assert "not affiliated" in text

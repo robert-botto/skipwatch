@@ -131,3 +131,157 @@ Flags:
 </picture>
 
 A deterministic engine (`skipwatch`, Python) does the mechanical work: download, transcribe, sample frames, check, install. Claude does the reading and writing in your session. `frame-reader` agents read the frames in parallel, and `skill-critic` reviews the draft. Claude itself never looks at a frame image, so untrusted pixels stay out of the session that can run commands.
+
+## What you get
+
+A normal Agent Skill folder:
+
+```text
+<name>/
+  SKILL.md                  the procedure, with a source tag on every step
+  skipwatch.json            source, counts, confidence, checks and a sha256 for every file
+  references/
+    source.md               evidence: the transcript excerpt and frame behind each step
+    transcript.md           the full timed transcript
+  assets/frames/            up to 8 of the frames the steps point to, 960 wide
+```
+
+`SKILL.md` has a title, what the skill does, prerequisites, numbered steps, decision points, gotchas, how to verify it worked, a worked example, what is unverified, and the attribution. Its frontmatter uses only the portable Agent Skills keys, so the skill also works outside Claude Code.
+
+Every step ends with exactly one tag:
+
+| Tag | Meaning |
+|---|---|
+| `[spoken mm:ss]` | the creator said it at that time; the quote must match the transcript |
+| `[on-screen mm:ss]` | it was on screen at that time; a frame-reader agent copied it |
+| `[written]` | it came from the post, its thread or a page it links to |
+| `[inferred]` | Claude filled a gap; the review screen and the skill list it under Unverified |
+
+Here is an excerpt of a real skill made from [a TypeScript tip Matt Pocock posted on X](https://x.com/mattpocockuk/status/1505892984658743300), the run in the GIF above. `[...]` marks the parts left out. The name `g2-skill` came from `--name` in a test run.
+
+````markdown
+---
+name: g2-skill
+description: Use when the user wants a recursive DeepPartial type in TypeScript to mock nested entities in tests, for example "add a DeepPartial type", "make every nested field optional in my test fixture", "Partial only goes one level deep, how do I mock a nested object", "write a deep partial for this interface". Not for runtime deep-merge helpers or for the built-in one-level Partial type alone.
+compatibility: TypeScript (any editor) as shown in the source video.
+metadata:
+  source_url: "https://x.com/mattpocockuk/status/1505892984658743300"
+  source_author: "@mattpocockuk"
+  source_title: "Matt Pocock - 🔥 TypeScript Tip #11 🔥  Deep partials are SUPER useful and not native..."
+  source_date: "2022-03-21"
+  extracted_at: "2026-10-12"
+  extracted_by: "skipwatch 0.1.0"
+---
+
+# Mock nested TypeScript entities with a DeepPartial type
+
+[...]
+
+## Procedure
+
+[...]
+
+2. Add the three DeepPartial types to the file.
+
+   ```
+   export type DeepPartial<Thing> = Thing extends Function
+     ? Thing
+     : Thing extends Array<infer InferredArrayMember>
+     ? DeepPartialArray<InferredArrayMember>
+     : Thing extends object
+     ? DeepPartialObject<Thing>
+     : Thing | undefined;
+   ```
+
+   ```
+   interface DeepPartialArray<Thing> extends Array<DeepPartial<Thing>> {}
+   ```
+
+   ```
+   type DeepPartialObject<Thing> = {
+     [Key in keyof Thing]?: DeepPartial<Thing[Key]>;
+   };
+   ```
+
+   Expected: the types compile and sit above the `Post` interface. [on-screen 00:33]
+
+   ![DeepPartial, DeepPartialArray and DeepPartialObject definitions](assets/frames/f000331.jpg)
+
+3. Annotate the mock with `DeepPartial<Post>` instead of `Post` (the annotation line is not in any frame that was read).
+
+   Expected: the missing `meta` error goes away. [inferred]
+
+4. Provide only the fields the test needs, at any depth.
+
+   > So a deep partial, as we've got there, it actually goes and makes everything inside it partial, too. So even in comments here, we don't have to provide this value here.
+
+   Expected: nested fields such as `meta.name`, `meta.description` and `comments[].value` are optional too. [spoken 00:58]
+
+[...]
+
+## Attribution
+
+Distilled from Matt Pocock - 🔥 TypeScript Tip #11 🔥  Deep partials are SUPER useful and not native... by @mattpocockuk (https://x.com/mattpocockuk/status/1505892984658743300), posted 2022-03-21, with SkipWatch. The workflow and wording are the creator's.
+````
+
+SkipWatch is not affiliated with the creators whose videos it reads. Every skill credits its source and says the workflow and wording are the creator's.
+
+## Capability tiers
+
+`/skipwatch doctor` tells you which tier this machine is at, what the next tier unlocks, and the exact command that installs it. Every tier runs the whole pipeline. A run never fails for a missing optional piece: it does what it can and says what it skipped on the review screen.
+
+| Tier | Requires | Unlocks |
+|---|---|---|
+| 0 | uv | Local files with a captions sidecar, YouTube videos with captions, text-only posts, frame sampling on everything (ffmpeg and yt-dlp come as dependencies) |
+| 1 | Tier 0 plus a Whisper backend (uv extra `whisper` or `mlx`) | Any video or audio without captions: X, TikTok, Instagram, Facebook, screen recordings, podcasts |
+| 1c | Tier 0 plus a cloud transcription key (OpenAI, Groq or Deepgram) | Same as Tier 1 without local compute |
+| 2 | Tier 1 plus node 22+ or deno | Full YouTube format list, fewer YouTube failures |
+| 3 | Tier 1 plus treg logged in | X thread continuations and replies, expanded link content, provider transcripts for cross-check, downloads when yt-dlp is blocked |
+
+## Without Claude Code
+
+The engine is a plain command line tool. It does the mechanical stages; reading the frames and writing the skill need Claude. Once SkipWatch is on PyPI:
+
+```bash
+uvx skipwatch doctor
+uv tool install skipwatch
+```
+
+```text
+skipwatch doctor [--json]
+skipwatch probe <url or path> [--cookies-from-browser <browser>] [--json]
+skipwatch ingest <url or path> --work <dir> [--provider auto|free|treg] [--max-height 1080] [--cookies-from-browser <browser>] [--json]
+skipwatch transcribe --work <dir> [--backend auto|captions|mlx|faster|openai|groq|deepgram] [--model <name>] [--json]
+skipwatch frames --work <dir> [--per-minute N] [--max N] [--dense] [--json]
+skipwatch plan --work <dir> [--batch-size 20] [--json]
+skipwatch redact --stdin
+skipwatch check <staging dir> --work <dir> [--json]
+skipwatch install <staging dir> [--scope user|project|agents] [--to <dir>] [--force] [--json]
+skipwatch pack <skill> [-o <file>] [--json]
+skipwatch unpack <pack or https url> [--json]
+skipwatch list [--json]
+skipwatch share <skill> [--json]
+skipwatch resume [<dir>] [--json]
+skipwatch cache [--clear] [--json]
+```
+
+The skill also calls `new-work`, `mark`, `merge-notes`, `copy-frames`, `validate-notes`, `validate-critique` and `validate-test` to manage a run. Progress goes to stderr. With `--json`, the result is one JSON line on stdout.
+
+Exit codes are stable:
+
+| Exit | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Check failed (frontmatter, structure, provenance, style) |
+| 2 | Unsupported source (no adapter, unknown file type) |
+| 3 | Download failed on every route; stderr lists the routes and reasons |
+| 4 | Private or login-required content |
+| 5 | Safety flags present; check otherwise passed |
+| 6 | Install target exists and `--force` not given |
+| 7 | No usable content |
+| 8 | Missing dependency; stderr names the install command |
+| 9 | Pack integrity failure: checksum or manifest mismatch |
+| 64 | Usage error |
+| 70 | Internal error; please report it with the run's logs |
+
+Per-platform failures and their fixes are in [platforms.md](skills/skipwatch/references/platforms.md).
