@@ -26,6 +26,7 @@ from skipwatch.models import (
     RunFile,
     Segment,
     SourceInfo,
+    TesterReport,
     Transcript,
 )
 
@@ -246,6 +247,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "cache-entry",
         "installs",
         "export-log",
+        "test-report",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -467,3 +469,20 @@ def test_export_log_round_trip():
     assert ExportLog().entries == []
     with pytest.raises(ValidationError):
         ExportLogEntry.model_validate({"provider": "mem0", "name": "run-x"})
+
+
+def test_tester_report_blocked_needs_step_and_detail():
+    assert TesterReport(outcome="completed", task="do it").step is None
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", task="do it")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", detail="needs an account", task="do it")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="ambiguous", step=2, detail="", task="do it")
+    assert TesterReport(outcome="blocked", step=3, detail="needs an account", task="t").step == 3
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", step=0, detail="x", task="t")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="ambiguous", step=1, detail="x" * 501, task="t")
+    r = TesterReport(outcome="ambiguous", step=1, detail="which folder?", task="t")
+    assert TesterReport.model_validate_json(r.model_dump_json(by_alias=True)) == r

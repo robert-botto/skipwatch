@@ -466,6 +466,23 @@ class ExportLog(_Tagged):
     entries: list[ExportLogEntry] = []
 
 
+class TesterReport(_Tagged):
+    """test-report.json from the skill-tester agent (8.9). Named TesterReport, not TestReport,
+    so pytest never tries to collect it (M5-M6 issue 25)."""
+
+    schema_: Literal["skipwatch/test-report/1"] = _tag("skipwatch/test-report/1")
+    outcome: Literal["completed", "blocked", "ambiguous"]
+    step: int | None = Field(default=None, ge=1)
+    detail: str = Field(default="", max_length=500)
+    task: str
+
+    @model_validator(mode="after")
+    def _stopped_runs_name_the_step(self) -> "TesterReport":
+        if self.outcome != "completed" and (self.step is None or not self.detail.strip()):
+            raise ValueError(f"{self.outcome} needs a step and a detail")
+        return self
+
+
 # ---- command --json outputs ----
 Tier = Literal["none", "0", "1", "1c", "2", "3"]
 
@@ -558,4 +575,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "cache-entry": CacheEntry,
     "installs": InstallsFile,
     "export-log": ExportLog,
+    "test-report": TesterReport,
 }

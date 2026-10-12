@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "description": "test-report.json from the skill-tester agent (8.9). Named TesterReport, not TestReport,\nso pytest never tries to collect it (M5-M6 issue 25).",
+  "properties": {
+    "detail": {
+      "default": "",
+      "maxLength": 500,
+      "title": "Detail",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "completed",
+        "blocked",
+        "ambiguous"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/test-report/1",
+      "default": "skipwatch/test-report/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "step": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Step"
+    },
+    "task": {
+      "title": "Task",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "outcome",
+    "task"
+  ],
+  "title": "TesterReport",
+  "type": "object"
+}
