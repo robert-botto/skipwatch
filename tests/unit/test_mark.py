@@ -78,7 +78,7 @@ def test_mark_needs_an_existing_work_folder(tmp_path):
         app,
         ["mark", "--work", str(tmp_path / "nope"), "--stage", "read", "--status", "done"],
     )
-    assert r.exit_code == 2 and "not a SkipWatch work folder" in r.output
+    assert r.exit_code == 64 and "has no readable stages.json" in r.output
     assert not (tmp_path / "nope").exists()  # never creates a work folder
 
 
@@ -87,6 +87,7 @@ def test_mark_needs_an_existing_work_folder(tmp_path):
 
 def notes_work(tmp_path, ids):
     w = tmp_path / "w"
+    WorkDir(w).ensure()  # directly in tmp_path, the test home's work/ (conftest)
     (w / "notes").mkdir(parents=True)
     batch = Batch(id=2, frame_ids=ids, notes_path="notes/batch-02.json")
     write_model(w / "batches.json", BatchesFile(batches=[batch]))

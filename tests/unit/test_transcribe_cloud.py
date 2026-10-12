@@ -74,9 +74,9 @@ def _no_keys(monkeypatch):
 
 
 @pytest.fixture
-def work(tmp_path):
-    """A work folder with ingest.json (no captions) and a media file."""
-    w = WorkDir(tmp_path / "w")
+def work(sw_home):
+    """A work folder with ingest.json (no captions) and a media file, under the test home."""
+    w = WorkDir(sw_home / "work" / "w")
     w.ensure()
     (w.path / "media").mkdir()
     (w.path / "media" / "video.mp4").write_bytes(b"not really a video")

@@ -107,7 +107,7 @@ def test_usage_error_after_the_command_starts_exits_64_with_the_summary(monkeypa
 
 def test_real_command_through_the_real_app(monkeypatch, capsys, logs):
     log = logs / "check.log"
-    code = _run(monkeypatch, ["--log", str(log), "check", str(logs.parent / "nope")])
+    code = _run(monkeypatch, ["--log", str(log), "check", str(logs.parent / "staging" / "nope")])
     assert code == ExitCode.USAGE
     err = capsys.readouterr().err.splitlines()
     assert err[0] == "rc=64 elapsed=0s"

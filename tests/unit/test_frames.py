@@ -433,7 +433,7 @@ def test_frames_without_video_writes_empty_frames(tmp_path, sw_home, media):
 
 
 def test_frames_without_ingest_exits_7(tmp_path, sw_home):
-    w = tmp_path / "w"
+    w = sw_home / "work" / "w"
     WorkDir(w).ensure()
     assert CliRunner().invoke(app, ["frames", "--work", str(w)]).exit_code == 7
 

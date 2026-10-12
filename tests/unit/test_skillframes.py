@@ -8,7 +8,7 @@ from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import Frame, FramesFile, Sampling
 from skipwatch.skillframes import MAX_SKILL_FRAMES, SKILL_FRAME_WIDTH, copy_frames
-from skipwatch.workdir import write_model
+from skipwatch.workdir import WorkDir, write_model
 
 
 def frame_id(n: int) -> str:
@@ -18,6 +18,7 @@ def frame_id(n: int) -> str:
 def make_work(tmp_path: Path, sizes: list[tuple[int, int]], mode: str = "RGB") -> Path:
     """A work folder with frames/<id>.jpg (a gradient, so resampling matters) and frames.json."""
     work = tmp_path / "work"
+    WorkDir(work).ensure()  # directly in tmp_path, the test home's work/ (conftest)
     (work / "frames").mkdir(parents=True)
     frames = []
     for n, (w, h) in enumerate(sizes, start=1):

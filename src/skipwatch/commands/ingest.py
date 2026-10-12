@@ -5,6 +5,7 @@ from typing import Annotated
 import typer
 
 from skipwatch.adapters.base import IngestOptions
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.ingest import run_ingest
 from skipwatch.output import emit_json, progress
 from skipwatch.runner import run_command
@@ -19,7 +20,7 @@ class Provider(StrEnum):
 
 def _ingest(value: str, work: Path, opts: IngestOptions, json_out: bool) -> int:
     progress(f"Ingesting {value}")
-    bundle = run_ingest(value, WorkDir(work), opts)
+    bundle = run_ingest(value, WorkDir(home_work_or_pack_folder(work)), opts)
     captions = bundle.context.captions_path or "none"
     progress(f"Ingested {bundle.source.title or value} (captions: {captions})")
     if json_out:

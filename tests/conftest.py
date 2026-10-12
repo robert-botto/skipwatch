@@ -79,9 +79,22 @@ def _live_tests_see_the_real_treg(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path_factory, monkeypatch):
-    """No test reads or writes the real ~/.skipwatch (ingest and transcribe store a run cache)."""
-    monkeypatch.setenv("SKIPWATCH_HOME", str(tmp_path_factory.mktemp("default-swhome")))
+def _isolated_home(tmp_path_factory, tmp_path, monkeypatch):
+    """No test reads or writes the real ~/.skipwatch (ingest and transcribe store a run cache).
+
+    The default home's work/ is this test's tmp_path, so a folder a test builds directly in
+    tmp_path (with a stages.json) is a work folder the --work guard accepts. Tests of the
+    guard itself use sw_home, whose work/ is a real folder."""
+    home = tmp_path_factory.mktemp("default-swhome")
+    try:
+        (home / "work").symlink_to(tmp_path, target_is_directory=True)
+    except OSError:
+        if os.name != "nt":
+            raise
+        import _winapi  # a junction needs no symlink privilege on Windows
+
+        _winapi.CreateJunction(str(tmp_path), str(home / "work"))
+    monkeypatch.setenv("SKIPWATCH_HOME", str(home))
 
 
 @pytest.fixture

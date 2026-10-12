@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 from skipwatch import skillmd
 from skipwatch.commands.validate_notes import field_path
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import Critique, TesterReport
 from skipwatch.output import progress
@@ -45,6 +46,7 @@ def _read(path: Path, cls: type[M]) -> M:
 
 
 def _validate_critique(work: Path, skill: Path) -> int:
+    work = home_work_or_pack_folder(work)
     skill_md = skill / "SKILL.md"
     if not skill_md.is_file():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"{skill_md} not found")
@@ -71,6 +73,7 @@ def _validate_critique(work: Path, skill: Path) -> int:
 
 
 def _validate_test(work: Path) -> int:
+    work = home_work_or_pack_folder(work)
     report = _read(work / "test-report.json", TesterReport)
     line = "Test run: " + report.outcome
     if report.outcome != "completed":

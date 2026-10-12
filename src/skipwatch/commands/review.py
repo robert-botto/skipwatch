@@ -4,6 +4,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.review import ReviewInputs, screen
 from skipwatch.runner import run_command
@@ -23,6 +24,7 @@ def _review(
         raise SkipwatchError(
             ExitCode.USAGE, f"--test-run takes the line validate-test printed ({TEST_RUN}...)"
         )
+    work = home_work_or_pack_folder(work)
     inputs = ReviewInputs(degradations=degradations, unread=unread, test_run=test_run)
     text = screen(work, skill, inputs)
     typer.echo(json.dumps({"screen": text}) if json_out else text, nl=json_out)

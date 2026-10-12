@@ -13,6 +13,7 @@ from skipwatch.errors import ExitCode
 from skipwatch.models import MediaInfo
 from skipwatch.providers import content_free as cf
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "generic"
 PAGE = "https://example.com/post"
@@ -49,7 +50,7 @@ def test_generic_info_without_formats_raises_no_media(tmp_path, monkeypatch):
 def test_generic_unsupported_url_via_cli_is_exit_7_naming_the_url(tmp_path, monkeypatch, sw_home):
     raise_from_ytdlp(monkeypatch, f"ERROR: Unsupported URL: {PAGE}")
     r = CliRunner().invoke(
-        app, ["ingest", PAGE, "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", PAGE, "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.NO_CONTENT
     assert PAGE in r.output
@@ -61,7 +62,7 @@ def test_generic_login_wall_names_the_host(tmp_path, monkeypatch, sw_home):
         "ERROR: [vimeo] 1: The web client only works when logged-in. Use --cookies, ...",
     )
     r = CliRunner().invoke(
-        app, ["ingest", "https://vimeo.com/1", "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", "https://vimeo.com/1", "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "vimeo.com" in r.output and "--cookies-from-browser" in r.output

@@ -13,6 +13,7 @@ from skipwatch.models import IngestBundle, LinkContext, ProviderCall, Route, Sou
 from skipwatch.providers import content_free as cf
 from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 PAGE = "https://blog.example.com/how-i-ship"
 X_TEXT_POST = "https://x.com/someone/status/1506032263359864843"
@@ -95,7 +96,7 @@ def test_unsupported_page_via_cli_becomes_a_text_bundle(tmp_path, monkeypatch, p
     monkeypatch.setattr(cf, "extract", extract)
     pages(LinkContext(url=PAGE, title="How I ship", text=words(300)))
     r = CliRunner().invoke(
-        app, ["ingest", PAGE, "--work", str(tmp_path / "w"), "--provider", "free", "--json"]
+        app, ["ingest", PAGE, "--work", str(home_work("w")), "--provider", "free", "--json"]
     )
     assert r.exit_code == 0, r.output
     bundle = IngestBundle.model_validate_json(r.stdout)

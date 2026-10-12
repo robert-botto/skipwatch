@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.config import skipwatch_home
 from skipwatch.models import ResumeResult
 from skipwatch.output import emit_json, progress
@@ -11,7 +12,10 @@ from skipwatch.runner import run_command
 
 
 def _resume(work: Path | None, json_out: bool) -> int:
-    work = work or newest_incomplete(skipwatch_home())
+    if work is not None:
+        work = home_work_or_pack_folder(work, require_stages=False)
+    else:
+        work = newest_incomplete(skipwatch_home())
     if work is None:
         progress("Resume: nothing to resume")
         result = ResumeResult(work="", next_stage=None)

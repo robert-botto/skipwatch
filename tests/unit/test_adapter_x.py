@@ -17,6 +17,7 @@ from skipwatch.models import LinkContext, MediaInfo, ProviderCall
 from skipwatch.providers import content_free as cf
 from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded"
 G2_URL = "https://x.com/mattpocockuk/status/1505892984658743300"
@@ -205,7 +206,7 @@ def test_x_text_only_free_route_is_exit_7_naming_treg(tmp_path, free_route, sw_h
     error = json.loads((REC / "text" / "text-only-reply.error.json").read_text(encoding="utf-8"))
     free_route({error["url"]: cf.FreeRouteError("metadata", error["message"])})
     r = CliRunner().invoke(
-        app, ["ingest", error["url"], "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", error["url"], "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.NO_CONTENT, r.output
     assert "This post has no video. Enable treg (Tier 3) to read text posts." in r.output
@@ -215,7 +216,7 @@ def test_x_protected_post_is_exit_4(tmp_path, free_route, sw_home):
     message = "ERROR: [twitter] 1: You are not authorized to view this protected tweet"
     free_route({G2_URL: cf.FreeRouteError("metadata", message)})
     r = CliRunner().invoke(
-        app, ["ingest", G2_URL, "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", G2_URL, "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "--cookies-from-browser" in r.output
@@ -236,7 +237,7 @@ def test_x_login_error_names_x(tmp_path, free_route, sw_home):
     message = "ERROR: [twitter] 1: NSFW tweet requires authentication. Use --cookies, ..."
     free_route({G2_URL: cf.FreeRouteError("metadata", message)})
     r = CliRunner().invoke(
-        app, ["ingest", G2_URL, "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", G2_URL, "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "X says this needs a login" in r.output

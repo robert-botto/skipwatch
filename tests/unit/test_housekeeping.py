@@ -12,8 +12,9 @@ from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 
 @pytest.fixture(autouse=True)
-def _in_project(tmp_path, monkeypatch):
-    """The skill runs from the project <P>; its tester scratch is <P>/.skipwatch/test-run-*."""
+def _in_project(tmp_path, monkeypatch, sw_home):
+    """The skill runs from the project <P>; its tester scratch is <P>/.skipwatch/test-run-*.
+    The home is sw_home, so a folder directly in tmp_path is outside the home's work/."""
     project = tmp_path / "project"
     project.mkdir()
     monkeypatch.chdir(project)

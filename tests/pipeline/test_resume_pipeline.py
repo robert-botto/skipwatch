@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from skipwatch.media import ffmpeg_paths, find_system_ffmpeg, static_ffmpeg_fetched
-from skipwatch.workdir import STAGE_ORDER
+from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 pytestmark = [
     pytest.mark.pipeline,
@@ -91,6 +91,7 @@ def _run_json(work: Path) -> None:
 
 
 def ingested(home: Path, work: Path) -> Path:
+    WorkDir(work).ensure()  # what new-work leaves, at a name the test picks
     sw(home, "ingest", str(FIX / "tutorial-60s.mp4"), "--work", str(work))
     _run_json(work)
     sw(home, "transcribe", "--work", str(work))
@@ -156,7 +157,7 @@ def test_resume_after_killed_frames_completes(home: Path, tmp_path: Path):
     assert resume_json(home, str(work))["next_stage"] == "read"  # the orchestrator's stages next
 
     # Same frames as a run that was never interrupted, and no partial frame survives.
-    clean = ingested(home, tmp_path / "uninterrupted")
+    clean = ingested(home, home / "work" / "uninterrupted")
     sw(home, "frames", "--work", str(clean))
     resumed_frames = json.loads((work / "frames.json").read_text(encoding="utf-8"))
     assert resumed_frames == json.loads((clean / "frames.json").read_text(encoding="utf-8"))

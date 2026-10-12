@@ -24,24 +24,27 @@ def home_work_folder(work: Path) -> Path:
     return _home_folder(work, "work")
 
 
-def home_work_or_pack_folder(work: Path) -> Path:
+def home_work_or_pack_folder(work: Path, require_stages: bool = True) -> Path:
     """home_work_folder, or the same rule for the home's packs/ (a pack test run's folder).
-    When neither fits, the work/ refusal is the one raised."""
+    When neither fits, the work/ refusal is the one raised. require_stages=False checks the
+    place only (resume reports a missing stages.json with its own exit code)."""
     try:
-        return home_work_folder(work)
+        return _home_folder(work, "work", require_stages)
     except SkipwatchError as work_error:
         try:
-            return _home_folder(work, "packs")
+            return _home_folder(work, "packs", require_stages)
         except SkipwatchError:
             raise work_error from None
 
 
-def _home_folder(work: Path, area: str) -> Path:
+def _home_folder(work: Path, area: str, require_stages: bool = True) -> Path:
     """home_work_folder's rule for the home's work/ or packs/ folder."""
     root = (skipwatch_home() / area).resolve()
     resolved = work.resolve()
-    if work.is_symlink() or resolved.parent != root:
+    if work.is_symlink() or resolved.parent != root or ".." in work.parts:
         raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
+    if not require_stages:
+        return resolved
     try:
         WorkDir(resolved).stages()
     except (OSError, ValueError) as exc:
