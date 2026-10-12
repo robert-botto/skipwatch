@@ -84,6 +84,8 @@ Then run your first video:
 
 The only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time a session starts. You never run pip or create a virtualenv.
 
+Installing the plugin also installs a SessionStart hook. At the start of a session, when the plugin's lockfile changed since its last sync (the first session after an install or update), it runs `uv sync` for the plugin's own environment: that downloads the locked Python dependencies from PyPI and can take up to 300 s. Otherwise it does nothing, and it never fails your session.
+
 To pin a specific version:
 
 ```bash
@@ -117,11 +119,10 @@ Flags:
 | `--yes` | install without the prompt, but only when safety flags, gaps and name collisions are all zero |
 | `--keep-media` | keep the downloaded media after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (the readers still read frames) |
-| `--provider free\|treg\|auto` | content providers for a URL; `auto` uses treg too when you are logged in; `free` never makes a paid call |
+| `--provider free\|treg\|auto` | content providers for a URL; `auto` is the free route unless you set `[providers.treg] enabled = true` in `config.toml`; `treg` forces the paid provider; `free` never makes a paid call |
 | `--cookies-from-browser <browser>` | read private or login-only content you can open in that browser; the only way cookies are ever used |
 | `--fast` | skip the critic; confidence is then at most `medium` |
 | `--test` | test-run the skill before the review screen |
-| `--lang source` | accepted; it has no effect in this version |
 
 ## How it works
 
@@ -236,7 +237,7 @@ SkipWatch is not affiliated with the creators whose videos it reads. Every skill
 | 1 | Tier 0 plus a Whisper backend (uv extra `whisper` or `mlx`) | Any video or audio without captions: X, TikTok, Instagram, Facebook, screen recordings, podcasts |
 | 1c | Tier 0 plus a cloud transcription key (OpenAI, Groq or Deepgram) | Same as Tier 1 without local compute |
 | 2 | Tier 1 plus node 22+ or deno | Full YouTube format list, fewer YouTube failures |
-| 3 | Tier 1 plus treg logged in | X thread continuations and replies, expanded link content, provider transcripts for cross-check, downloads when yt-dlp is blocked |
+| 3 | Tier 1 plus treg logged in and turned on (`[providers.treg] enabled = true`) | X thread continuations and replies, expanded link content, provider transcripts for cross-check, downloads when yt-dlp is blocked |
 
 ## Without Claude Code
 
@@ -302,11 +303,14 @@ A pack's checksums prove the files were not changed by accident. They do not pro
 
 No telemetry, no analytics, no update pings. The engine runs on your machine. Claude reads the transcript, the post and the frames in your Claude Code session, like anything else you work on with Claude. The engine's own network traffic is:
 
+- PyPI, when the SessionStart hook syncs the plugin's Python environment after an install or update;
 - the platform your link points to, through yt-dlp;
 - the pages a post links to (at most 5 per post, public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
-- treg, only at Tier 3. Its calls are paid, capped at $0.05 per run by default, and listed on the review screen. `--provider free` turns it off;
+- treg, only at Tier 3 and only after you turn it on (`[providers.treg] enabled = true` in `config.toml`, or `--provider treg` for one run). Its calls are paid, capped at $0.05 per run by default, and listed on the review screen;
 - cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
+
+The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline, critique, transcript and post text, which can contain secrets shown or said in the video. A successful install deletes them, the drafts and the downloaded media (unless `--keep-media`); a cancelled or stopped run keeps them for `/skipwatch resume`, and SkipWatch says so. The run cache under `~/.skipwatch/cache/` keeps its own copy of the transcript and post text so a re-run within 7 days skips that work; `skipwatch cache --clear` removes it.
 
 ## What gets installed where
 

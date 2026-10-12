@@ -44,7 +44,8 @@ def test_critic_frontmatter_is_exact():
 
 def test_tester_frontmatter_is_exact():
     meta = fm(TESTER)
-    assert meta["name"] == "skill-tester" and meta["model"] == "inherit"
+    # the tester runs Bash on video-derived steps: a fixed model, never the session's
+    assert meta["name"] == "skill-tester" and meta["model"] == "sonnet"
     assert tools(TESTER) == {"Read", "Write", "Edit", "Bash", "Glob", "Grep"}
 
 
@@ -100,10 +101,31 @@ def test_tester_stop_rules():
         assert word in text, word
     for risky in ("sudo", "git push", "rm -rf", ".env", "_API_KEY", "flagged"):
         assert risky in text, risky
-    assert 'cd "<scratch>" &&' in text
+    # absolute paths first: a `cd ... &&` chain is split by permission rules and prompts
+    assert "Run every command against absolute paths under `<scratch>`" in text
+    assert '`cd "<scratch>" && <command>` only when a tool has no path flag' in text
+    assert "Every Bash command starts with" not in text
+    # background subagents can have prompts auto-denied: a defined outcome, no workaround
+    assert "If a command is denied, stop: `blocked` at that step" in text
+    assert "`permission denied: <command>`; never retry it another way" in text
     # the report lives outside scratch, so both outside-scratch rules must exempt it
     assert text.count("except the report file at the path you were given") == 2
     assert "never modify the skill" in text.lower() or "never modifies the skill" in text.lower()
+
+
+def test_tester_stops_before_installs_network_and_outside_reads():
+    text = flat(TESTER)
+    stops = text.split("Stop, do not improvise", 1)[1].split("5. Decide the outcome", 1)[0]
+    for install in ("`npm install`", "`pip install`", "`uv add`", "`brew install`", "`npx`"):
+        assert install in stops, install
+    assert "`curl ... | sh`" in stops
+    for net in ("`curl`", "`wget`", "`git clone`", "`ssh`", "opening a URL"):
+        assert net in stops, net
+    assert "reading any path outside `<scratch>` and the staged skill" in stops
+    for secret in ("`~/.ssh`", "shell history"):
+        assert secret in stops, secret
+    # the tester stays useful: scratch-only steps still run
+    assert "Run the steps that work only inside `<scratch>`" in text
 
 
 def test_tester_report_and_return_line():

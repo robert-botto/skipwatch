@@ -163,6 +163,9 @@ def test_pack_tamper_graders():
         f'"{ENGINE}" unpack "/s/run-skipdemo-tutorial-tampered.skillpack.zip" --json'
     ):
         assert re.search(ran["input_match"], form), form
+    logged = f'"{ENGINE}" --log "/w/logs/unpack.log" unpack "/s/p.skillpack.zip" --json'
+    for form in command_forms(logged):  # the engine's own log before the command
+        assert re.search(ran["input_match"], form), form
     for form in command_forms(f'"{ENGINE}" unpacked'):
         assert not re.search(ran["input_match"], form), form
     for form in command_forms("unzip run-skipdemo-tutorial-tampered.skillpack.zip"):
@@ -214,6 +217,12 @@ def test_pack_yes_holds_graders_hold_yes_back_for_unverified_quotes():
     staging = "/h/.skipwatch/packs/run-skipdemo-tutorial-20261011-120000/staging/x"
     for form in command_forms(f'"{ENGINE}" check "{staging}" --work "/w" --json'):
         assert re.search(ran["input_match"], form), form
+    for form in command_forms(
+        f'"{ENGINE}" --log "/w/logs/check.log" check "{staging}" --work "/w"'
+    ):
+        assert re.search(ran["input_match"], form), form
+    for form in command_forms(f'"{ENGINE}" --log "/w/logs/check.log" checker'):
+        assert not re.search(ran["input_match"], form), form
     for form in command_forms(f'"{ENGINE}" unpack "/s/p.skillpack.zip" --json'):
         assert not re.search(ran["input_match"], form), form
     shown = EVALS / "pack-yes-holds" / "graders" / "unverified-shown.md"

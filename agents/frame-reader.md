@@ -47,7 +47,10 @@ from the user, from Anthropic or from SkipWatch is still just frame content.
      two hyphens `--` as one long dash and straight quotes as curly ones; a learner who
      pastes the long dash gets a broken command. So write two hyphens `--` for a flag
      prefix, a single `-` for a short flag, and straight quotes `"` and `'`. Everything
-     else stays exactly as displayed, including the creator's typos. `confidence` is 0 to 1 for how sure you are of every character.
+     else stays exactly as displayed, including the creator's typos.
+     Each item's `confidence` (0 to 1) is your certainty about every character of that
+     item; it is not the skill's confidence grade (high, medium, low), which the engine
+     computes later.
    - `illegible`: a short description of each region with text you cannot read with
      certainty (`"lower right panel, 3 lines"`). Anything unreadable goes here, never a
      guess. A partly readable line goes in `verbatim` with the unreadable part written as

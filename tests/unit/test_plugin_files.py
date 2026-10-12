@@ -15,7 +15,7 @@ def fm(path: Path) -> dict:
 
 
 def test_agents_have_explicit_tools_without_agent():
-    expected = {"frame-reader": "sonnet", "skill-critic": "sonnet", "skill-tester": "inherit"}
+    expected = {"frame-reader": "sonnet", "skill-critic": "sonnet", "skill-tester": "sonnet"}
     for name, model in expected.items():
         meta = fm(ROOT / "agents" / f"{name}.md")
         assert meta["name"] == name and meta["model"] == model
@@ -36,8 +36,16 @@ def test_plugin_skill_frontmatter():
     assert meta["name"] == "skipwatch"
     assert meta["argument-hint"] == "<url or path> [flags]"
     assert "summarize" in meta["description"].lower()  # names the near misses (R-UX-3)
-    tools = {t.strip() for t in str(meta["allowed-tools"]).split(",")}
+    raw = str(meta["allowed-tools"])
+    parts = re.split(r",|\s(?=[A-Z]\w*\b)", raw)
+    tools = {re.sub(r"\(.*", "", p.strip()) for p in parts if p.strip()}
     assert tools == {"Bash", "Read", "Write", "Agent"}
+    # Bash is narrowed to rules (verified live), never a bare grant
+    assert re.search(r"(^|,)\s*Bash\s*(,|$)", raw) is None
+    assert 'Bash("${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *)' in raw
+    # housekeeping moved into the engine: only two harmless prefixes remain
+    for wide in ("rm -rf", "cp -R", "find", "printenv", "touch", "date"):
+        assert f"Bash({wide}" not in raw, wide
 
 
 def test_no_em_dash_in_plugin_files():
