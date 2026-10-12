@@ -42,6 +42,7 @@ def test_new_work_prints_only_the_path_without_json(sw_home):
 def test_new_work_uses_home_when_skipwatch_home_is_unset(tmp_path, monkeypatch):
     monkeypatch.delenv("SKIPWATCH_HOME", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows
     r = new_work("--slug", "demo", "--json")
     assert r.exit_code == 0, r.output
     work = Path(json.loads(r.stdout)["work"])
