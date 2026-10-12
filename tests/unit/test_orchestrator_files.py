@@ -1303,7 +1303,7 @@ SHARING = REFS / "sharing.md"
 def test_sharing_reference_commands_and_messages():
     text = flat(SHARING)
     for command in (
-        "<ENGINE> list --json",
+        '<ENGINE> list 2>&1; echo "rc=$?"',
         '<ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json',
         '<ENGINE> unpack "<pack or url>" --json',
         '<ENGINE> check "<staging>" --work "<work>" --json',
@@ -1598,3 +1598,12 @@ def test_pack_yes_needs_every_quote_re_verified():
     )
     assert "otherwise show the pack review screen with its prompt and wait" in step
     assert "`--yes` rule (zero safety flags, zero gaps, no collision)" not in step
+
+
+def test_list_prints_the_engine_lines_unchanged():
+    raw = read(SHARING)
+    section = re.sub(r"\s+", " ", raw.split("## list", 1)[1].split("\n## ", 1)[0])
+    # one format, the engine's: no fallbacks invented here
+    assert "exactly as the engine printed them" in section
+    for invented in ("the video's creator", "undated", "untitled", "--json"):
+        assert invented not in section, invented
