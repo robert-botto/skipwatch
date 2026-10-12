@@ -486,3 +486,8 @@ def test_tester_report_blocked_needs_step_and_detail():
         TesterReport(outcome="ambiguous", step=1, detail="x" * 501, task="t")
     r = TesterReport(outcome="ambiguous", step=1, detail="which folder?", task="t")
     assert TesterReport.model_validate_json(r.model_dump_json(by_alias=True)) == r
+
+
+def test_tester_report_is_not_collected_by_pytest():
+    # pytest collects every Test* class it can see, so the rename alone (issue 25) is not enough
+    assert getattr(TesterReport, "__test__", True) is False

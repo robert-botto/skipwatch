@@ -1,6 +1,6 @@
 """Pydantic models for every file SkipWatch writes (R-ARCH-2). schemas/ is generated from here."""
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -469,6 +469,8 @@ class ExportLog(_Tagged):
 class TesterReport(_Tagged):
     """test-report.json from the skill-tester agent (8.9). Named TesterReport, not TestReport,
     so pytest never tries to collect it (M5-M6 issue 25)."""
+
+    __test__: ClassVar[bool] = False  # the name still starts with "Test" for pytest's matcher
 
     schema_: Literal["skipwatch/test-report/1"] = _tag("skipwatch/test-report/1")
     outcome: Literal["completed", "blocked", "ambiguous"]
