@@ -32,7 +32,7 @@ def home_work_folder(work: Path) -> Path:
     return resolved
 
 
-def _remove(path: Path) -> None:
+def remove_path(path: Path) -> None:
     """Delete a file or folder; a symlink is unlinked, never followed."""
     if path.is_symlink() or path.is_file():
         path.unlink()
@@ -94,7 +94,7 @@ def _cleanup(work: Path, keep_media: bool, scratch: Path | None) -> int:
         if path != scratch and not _inside(work, path):
             continue
         if path.is_symlink() or path.exists():
-            _remove(path)
+            remove_path(path)
             removed += 1
     progress(f"Cleanup: removed {removed} item(s) from {work}")
     return 0
@@ -128,7 +128,7 @@ def _snapshot_draft(work: Path) -> int:
     if not draft.is_dir() or draft.is_symlink():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"no draft to snapshot: {draft}")
     snapshot = work / "draft-pre-critic"
-    _remove(snapshot)
+    remove_path(snapshot)
     shutil.copytree(draft, snapshot, symlinks=True)
     progress(f"Snapshot: {snapshot}")
     return 0
