@@ -57,10 +57,19 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
   no gaps, inferred under 15% of steps and critic score 8 or more; `medium` is one gap or
-  inferred under 30%; otherwise `low`. With no `critique.json` the critic did not run, so
-  confidence is capped at `medium` and the reason says `critic not run`. Add every other
+  inferred under 30%; otherwise `low`. With no `critique.json` confidence is capped at
+  `medium`. The reason is `critic not run` only under `--fast`; when stage 6b gave up on
+  the critic it is only `critic failed twice`, never `critic not run`. A critic score under 8 adds
+  `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.
+- **Test run:** only when a test ran (the answer "test it", or `--test`), one line
+  directly after `Confidence:`, exactly the line `validate-test` printed (plan issue 22):
+
+      Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>
+
+  indented like the other lines. Screens without a test have no such line and keep the
+  4.3 shape.
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
@@ -102,8 +111,9 @@ each only when it applies:
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
-  `run-protocol.md`): the line is copied exactly from `route.fallbacks` in
-  `W/ingest.json`. `source` describes the linked
+  `run-protocol.md`): the line is copied exactly from `notes` in `W/ingest.json`,
+  falling back to `route.fallbacks` only for a bundle cached before the engine moved the
+  note there (its `notes` does not hold the line). `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
 - **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
@@ -117,6 +127,34 @@ each only when it applies:
   two measures are both low, so never compute the similarity yourself or warn without
   that line. Steps still come from the timed transcript; the line tells the user to check
   the spoken steps.
+
+## Pack variant
+
+Installing a pack (`sharing.md`) shows the same screen, in the same line order, with
+`W` the pack work folder `<work>` that unpack printed. These lines differ:
+
+- **Confidence:** the confidence of the pack on this machine, `<pack_confidence>`, is the
+  4.3 rule without a critic score, because the critic did not run here: with the counts in
+  `<work>/check-report.json`, `medium` when there is at least one step, at most one gap
+  and inferred under 30% of steps, otherwise `low`, so never `high`. The pack's own claim
+  is `claimed_confidence` and `claimed_critic_score` from unpack's JSON (the same values
+  as `pack.manifest` in `<work>/ingest.json`). Print
+  `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claim>, critic <score or none>)`,
+  then any other reason that applies after a `; `.
+- **Unverified:** add `<k> quoted steps not re-verified (shared pack)` from the
+  provenance result's info item in `<work>/check-report.json`: a pack carries no reader
+  notes and no post text, so its `[on-screen]` and `[written]` quotes cannot be checked
+  again here. Its `[spoken]` quotes are checked against the transcript the pack carries.
+- **Source:** as usual from `source` in `<work>/ingest.json`, then
+  `(from pack <file>, sha256 <12 hex>)`: `<file>` is `pack.file` and `<12 hex>` the first
+  12 hex characters of `pack.sha256` after its `sha256:` prefix.
+- **Provider calls:** `none (shared pack)`; installing a pack calls no provider.
+- **Unread frames:** `none`; nothing was read on this machine.
+
+```
+  Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)
+  Source: "tutorial-60s" by local file, undated (from pack run-skipdemo-tutorial.skillpack.zip, sha256 3f2a9c41b7d0)
+```
 
 ## The prompt line
 
@@ -174,7 +212,9 @@ still names the install command.
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
 - **show draft:** print `W/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
-- **test it:** print `Test runs arrive in M5` and re-show the prompt.
+- **test it:** run the test run in `## Test run` of `run-protocol.md` (it asks
+  `Test it anyway?` first when there are safety flags), then show the whole screen again
+  with its `Test run:` line, and the prompt.
 - **rename:** ask for the new name, check it against the naming rule in
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
   staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,

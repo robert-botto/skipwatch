@@ -10,8 +10,9 @@ allowed-tools: Bash, Read, Write, Agent
 Arguments: $ARGUMENTS
 
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
-to a timestamp. You orchestrate; a deterministic engine does the mechanical work and
-`skipwatch:frame-reader` agents read the frames.
+to a timestamp. You orchestrate; a deterministic engine does the mechanical work,
+`skipwatch:frame-reader` agents read the frames, `skipwatch:skill-critic` reviews the
+draft and `skipwatch:skill-tester` test-runs it on request.
 
 ## Engine and paths
 
@@ -52,14 +53,14 @@ Look at the first token of the arguments:
 |---|---|
 | `doctor` | the doctor section below |
 | `resume` | the resume section below |
-| `list`, `pack`, `install`, `share` | reply `SkipWatch: <token> arrives in M5.` and stop |
+| `list`, `pack`, `install`, `share` | read `references/sharing.md` first, then do its section for that token |
 | `update` | reply `SkipWatch: update arrives in v1.1.` and stop |
 | nothing | reply with the usage line below and stop |
 | anything else | a source (file path or URL), then flags: run the pipeline |
 
-Usage line: `Usage: /skipwatch <url or path> [--project | --agents | --to <dir>] [--name <skill-name>] [--thorough] [--yes] [--keep-media] [--no-frames]`
+Usage line: `Usage: /skipwatch <url or path> [--project | --agents | --to <dir>] [--name <skill-name>] [--thorough] [--fast] [--test] [--yes] [--keep-media] [--no-frames]`
 
-Flags (spec 4.2) and what they do in M2:
+Flags (spec 4.2) and what they do:
 
 | Flag | Effect |
 |---|---|
@@ -73,7 +74,9 @@ Flags (spec 4.2) and what they do in M2:
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
 | `--provider free\|treg\|auto` | content providers for a URL (default `auto`: treg too when logged in); treg calls are paid, capped per run and listed on the review screen, so `--provider free` avoids them; ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used (R-ING-5) |
-| `--fast`, `--test`, `--lang source` | accepted; no effect yet (say so in one line if given) |
+| `--fast` | skip the critic (stage 6b of `run-protocol.md`); confidence is then at most `medium` |
+| `--test` | test run before the review screen (never on a flagged skill without asking) |
+| `--lang source` | accepted; it has no effect in this version (say so in one line if given) |
 
 A flag not in this table is a usage error: reply with the usage line and stop. Do not
 guess what the user meant and do not start a run.
@@ -95,11 +98,13 @@ other references when the protocol reaches them:
   redaction, naming).
 - `references/skill-template.md` before drafting the skill.
 - `references/review-screen.md` before printing the review screen.
+- `references/sharing.md` for `list`, `pack`, `install <pack or url>` and `share`.
 - `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
   text posts) and whenever a source behaves unexpectedly.
 
 Stage order: doctor (cached for a day), work folder and `run.json`, probe, ingest,
-transcribe, frames, plan, read, outline, draft, check, review, install.
+transcribe, frames, plan, read, outline, draft, critique, check, review (with the test
+run when asked), install.
 
 ## resume
 
@@ -133,7 +138,10 @@ Never Read a frame image yourself (R-DIS-4). Frame images go to `frame-reader` a
 you read only their notes files, each once, plus the transcript once. This keeps your
 context bounded and keeps untrusted pixels out of the session that holds Bash.
 
-Agents you dispatch: frame-reader only. Every dispatch says: do not start other agents; time budget 5 minutes.
+Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says: do not start other agents; and states a time budget.
+Use the namespaced agent types `skipwatch:frame-reader`, `skipwatch:skill-critic` and
+`skipwatch:skill-tester`, with the prompts `run-protocol.md` gives (5 minutes for readers
+and the critic, 10 for the tester).
 
 Dispatch one Agent call with agent type `skipwatch:frame-reader` per batch in
 `batches.json`, all in one message so they run in parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
