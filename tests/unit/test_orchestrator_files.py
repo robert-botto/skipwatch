@@ -883,8 +883,7 @@ def test_referenced_frames_copied_into_staging_before_check():
     assert "at most 8 (3.4)" in text
     # copy-frames scales to 960 wide before check hashes the files (plan issue 7)
     assert (
-        '<ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ...'
-        in text
+        '<ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ...' in text
     )
     assert "960 wide" in text
     assert 'cp "<W>/frames/' not in text
@@ -1487,7 +1486,6 @@ def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
     assert "`read`, `distill` or `critique`: run `validate-notes`" not in resume
 
 
-
 def test_review_screen_confidence_and_test_run_line():
     review = flat(REFS / "review-screen.md")
     # 4.3: high needs the critic
@@ -1496,7 +1494,8 @@ def test_review_screen_confidence_and_test_run_line():
         assert reason in review, reason
     # plan issue 22: one optional line directly after Confidence, absent without a test
     raw = read(REFS / "review-screen.md")
-    assert "  Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>" in raw
+    line = "  Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>"
+    assert line in raw
     assert "directly after `Confidence:`" in review
     assert "keep the 4.3 shape" in review
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
@@ -1514,7 +1513,9 @@ def test_review_screen_pack_variant():
         "<pack_confidence> (shared pack: critic not re-run here; "
         "the pack claims <claim>, critic <score or none>)" in section
     )
-    example = "Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)"
+    example = (
+        "Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)"
+    )
     assert example in section
     assert re.fullmatch(REVIEW_LINES[6][1], "  " + example)  # still the 4.3 Confidence shape
     assert "never `high`" in section
