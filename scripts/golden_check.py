@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +48,44 @@ def _clock(seconds: float | None) -> str:
     return f"{total // 60}:{total % 60:02d}"
 
 
+TASK_KEYS = ("s2", "s3")  # fresh-session tasks: G1's worked example (S2), G2's workflow (S3)
+TASK_FIELDS = {"task", "verify", "setup_files"}
+
+
+def safe_relative(name: str) -> bool:
+    """A setup file path that stays inside the scratch dir on every OS."""
+    path = PurePosixPath(name)
+    return (
+        bool(name)
+        and "\\" not in name
+        and ":" not in name
+        and not path.is_absolute()
+        and (".." not in path.parts)
+    )
+
+
+def task_problems(entry: dict[str, Any]) -> list[str]:
+    """Shape of s2/s3: non-empty task and verify, optional setup_files of safe paths to text."""
+    problems = []
+    for key in TASK_KEYS:
+        spec = entry.get(key)
+        if spec is None:
+            continue
+        unknown = sorted(set(spec) - TASK_FIELDS)
+        if unknown:
+            problems.append(f"{key} has unknown keys: {', '.join(unknown)}")
+        for field in ("task", "verify"):
+            value = spec.get(field)
+            if not isinstance(value, str) or not value.strip():
+                problems.append(f"{key}.{field} is empty")
+        for name, text in (spec.get("setup_files") or {}).items():
+            if not safe_relative(name):
+                problems.append(f"{key}.setup_files path {name} escapes the scratch dir")
+            elif not isinstance(text, str):
+                problems.append(f"{key}.setup_files {name} not text")
+    return problems
+
+
 def check_entry(entry: dict[str, Any], info: dict[str, Any]) -> tuple[bool, str]:
     captions = caption_kind(info)
     hd = has_720p(info)
@@ -55,7 +93,7 @@ def check_entry(entry: dict[str, Any], info: dict[str, Any]) -> tuple[bool, str]
         f"{entry['platform']} {_clock(info.get('duration'))} "
         f"captions={captions} formats>=720p={'yes' if hd else 'no'}"
     )
-    problems = []
+    problems = task_problems(entry)
     if entry["captions"] == "manual" and captions != "manual":
         problems.append("manual captions missing")
     if entry["captions"] == "auto" and captions == "none":

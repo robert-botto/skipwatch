@@ -21,7 +21,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from skipwatch.skillmd import _split_frontmatter, fenced_lines
@@ -32,6 +32,9 @@ CLAUDE_TIMEOUT_S = 30 * 60
 STAGE_TIMEOUT_S = 30 * 60
 ENGINE_STAGES = ("probe", "ingest", "transcribe", "frames", "plan")
 COOKIE_ENV = "SKIPWATCH_GOLDEN_COOKIES"
+# Below this many steps the inferred ratio ceiling is replaced by an absolute count.
+SMALL_SKILL_STEPS = 6
+SMALL_SKILL_INFERRED_MAX = 1
 COOKIE_BROWSERS = {"chrome"}
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
@@ -75,6 +78,7 @@ def metrics(report: dict[str, Any], skill_md: str) -> dict[str, Any]:
     return {
         "steps": steps,
         "inferred": inferred / steps if steps else 0.0,
+        "inferred_steps": inferred,
         "gaps": int(counts.get("gaps", 0)),
         "flags": sum(len(result.get("flags", [])) for result in report.get("results", [])),
         "illegible_in_quotes": illegible_in_quotes(skill_md),
@@ -88,7 +92,14 @@ def judge(report: dict[str, Any], skill_md: str, expected: dict[str, Any]) -> li
     problems = []
     if not low <= m["steps"] <= high:
         problems.append(f"steps={m['steps']} (want {low}..{high})")
-    if m["inferred"] > expected["inferred_ratio_max"]:
+    if m["steps"] < SMALL_SKILL_STEPS:
+        # One honest [inferred] step in a 3-step skill is already 0.33: ratios are noise here.
+        if m["inferred_steps"] > SMALL_SKILL_INFERRED_MAX:
+            problems.append(
+                f"inferred={m['inferred_steps']} steps "
+                f"(want <={SMALL_SKILL_INFERRED_MAX} below {SMALL_SKILL_STEPS} steps)"
+            )
+    elif m["inferred"] > expected["inferred_ratio_max"]:
         problems.append(
             f"inferred={m['inferred']:.2f} (want <={expected['inferred_ratio_max']:.2f})"
         )
@@ -298,6 +309,27 @@ def _run_engine_only(
     return VideoResult(vid, True, f"{vid} ENGINE-OK {' '.join(timings)} {summary}".rstrip())
 
 
+def write_setup_files(spec: dict[str, Any], directory: Path) -> None:
+    """Write a task's setup_files (s2 or s3) into the scratch dir before the fresh session."""
+    for name, text in (spec.get("setup_files") or {}).items():
+        parts = PurePosixPath(name).parts
+        if not name or PurePosixPath(name).is_absolute() or ".." in parts or "\\" in name:
+            raise ValueError(f"setup file {name!r} escapes {directory}")
+        target = directory.joinpath(*parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+
+def prepare(entry: dict[str, Any], directory: Path) -> str:
+    """Write the entry's fresh-session setup files and return its task text."""
+    spec = entry.get("s2") or entry.get("s3")
+    if spec is None:
+        raise SystemExit(f"{entry['id']} has no s2 or s3 task")
+    directory.mkdir(parents=True, exist_ok=True)
+    write_setup_files(spec, directory)
+    return spec["task"]
+
+
 def select(videos: list[dict[str, Any]], only: str | None) -> list[dict[str, Any]]:
     if not only:
         return videos
@@ -326,7 +358,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--stages", help="with --engine-only: comma-separated subset, for example probe,ingest"
     )
+    parser.add_argument(
+        "--prepare",
+        metavar="ID",
+        help="write that entry's s2/s3 setup files into --dir and print its task",
+    )
+    parser.add_argument("--dir", type=Path, help="scratch dir for --prepare")
     args = parser.parse_args(argv)
+    if args.prepare:
+        if args.dir is None:
+            parser.error("--prepare needs --dir")
+        (entry,) = select(
+            json.loads(args.golden.read_text(encoding="utf-8"))["videos"], args.prepare
+        )
+        print(prepare(entry, args.dir))
+        return 0
     videos = select(json.loads(args.golden.read_text(encoding="utf-8"))["videos"], args.only)
     out = args.out.resolve()
     all_ok = True

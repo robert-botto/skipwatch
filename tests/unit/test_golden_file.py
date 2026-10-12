@@ -112,6 +112,49 @@ def test_g1_has_s2_task_and_verify_and_only_g1(golden):
     assert all("s2" not in v for v in golden["videos"][1:])
 
 
+ORDER_TS = (
+    "export interface Order { id: string; items: { sku: string; qty: number }[]; "
+    "customer: { name: string; email: string; address: { city: string; zip: string } }; }"
+)
+
+
+def test_g2_has_s3_task_verify_and_setup_and_only_g2(golden):
+    s3 = golden["videos"][1]["s3"]
+    assert set(s3) == {"task", "verify", "setup_files"}
+    assert "DeepPartial" in s3["task"] and "orderMock" in s3["task"]
+    assert s3["setup_files"] == {"models.ts": ORDER_TS + "\n"}
+    verify = s3["verify"]
+    assert "verify_ok.ts" in verify and "verify_bad.ts" in verify
+    assert "npx --yes -p typescript@5.6 tsc --noEmit --strict --skipLibCheck" in verify
+    assert "! npx" in verify  # the bad file must fail to type-check
+    assert all("s3" not in v for i, v in enumerate(golden["videos"]) if i != 1)
+
+
+@pytest.mark.live
+def test_g2_s3_verify_passes_on_done_work_and_fails_on_undone(golden, tmp_path):
+    """Live: npx fetches typescript@5.6 from npm."""
+    s3 = golden["videos"][1]["s3"]
+    run_mod = _load_script("golden_run")
+    run_mod.write_setup_files(s3, tmp_path)
+    (tmp_path / "test-utils.ts").write_text(
+        "export type DeepPartial<T> = T extends (infer U)[] ? DeepPartial<U>[] : "
+        "T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;\n"
+    )
+    (tmp_path / "mock.ts").write_text(
+        'import type { Order } from "./models";\n'
+        'import type { DeepPartial } from "./test-utils";\n'
+        "export const orderMock: DeepPartial<Order> = "
+        '{ customer: { address: { city: "Leeds" } }, items: [{ qty: 1 }] };\n'
+    )
+
+    def run() -> int:
+        return subprocess.run(["bash", "-c", s3["verify"]], cwd=tmp_path).returncode
+
+    assert run() == 0
+    (tmp_path / "test-utils.ts").write_text("export type DeepPartial<T> = Partial<T>;\n")
+    assert run() != 0  # shallow Partial: nested fields stay required
+
+
 def test_g2_has_context_minimums(golden):
     context = golden["videos"][1]["expected"]["context"]
     assert set(context) == {"thread_min", "replies_min", "links_min"}
@@ -191,6 +234,35 @@ def test_check_line_ok_for_good_youtube(check_mod):
     ok, line = check_mod.check_entry(entry, _info())
     assert ok
     assert line == "G1 OK youtube 10:12 captions=manual formats>=720p=yes"
+
+
+def test_check_validates_task_entries(check_mod):
+    base = {"id": "G2", "platform": "x", "captions": "none", "needs_cookies": False}
+    good = {"task": "t", "verify": "true", "setup_files": {"models.ts": "x"}}
+    assert check_mod.task_problems({**base, "s3": good}) == []
+    assert check_mod.task_problems({**base, "s2": {"task": "t", "verify": "true"}}) == []
+    assert check_mod.task_problems({**base, "s3": {"task": "", "verify": "true"}}) == [
+        "s3.task is empty"
+    ]
+    assert check_mod.task_problems({**base, "s3": {"task": "t"}}) == ["s3.verify is empty"]
+    assert check_mod.task_problems(
+        {**base, "s3": {**good, "setup_files": {"../x.ts": "", "ok.ts": 3}}}
+    ) == ["s3.setup_files path ../x.ts escapes the scratch dir", "s3.setup_files ok.ts not text"]
+    assert check_mod.task_problems({**base, "s3": {**good, "extra": 1}}) == [
+        "s3 has unknown keys: extra"
+    ]
+
+
+def test_check_entry_fails_on_a_bad_task(check_mod):
+    entry = {
+        "id": "G2",
+        "platform": "x",
+        "captions": "none",
+        "needs_cookies": False,
+        "s3": {"task": "t", "verify": ""},
+    }
+    ok, line = check_mod.check_entry(entry, _info(subtitles={}, automatic_captions={}))
+    assert not ok and line.startswith("G2 FAIL s3.verify is empty:")
 
 
 def test_check_fails_when_manual_captions_promised_but_missing(check_mod):
@@ -345,6 +417,25 @@ def test_judge_ratio_at_the_ceiling_passes_and_just_above_fails(run_mod):
     ]
     g2_like = {**EXPECTED, "steps": [3, 15], "inferred_ratio_max": 0.3}
     assert run_mod.judge(_report(steps=10, inferred=3), "", g2_like) == []  # exactly 0.3
+
+
+G4_LIKE = {**EXPECTED, "steps": [3, 15], "inferred_ratio_max": 0.3, "gaps_max": 2}
+
+
+def test_judge_tiny_skill_allows_one_inferred_step_instead_of_the_ratio(run_mod):
+    # Real G4 run: 3 honest steps, the "apply" step [inferred] (1/3 = 0.33 > 0.30).
+    assert run_mod.judge(_report(steps=3, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=5, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=5, inferred=2), "", G4_LIKE) == [
+        "inferred=2 steps (want <=1 below 6 steps)"
+    ]
+
+
+def test_judge_ratio_applies_from_six_steps(run_mod):
+    assert run_mod.judge(_report(steps=6, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=6, inferred=2), "", G4_LIKE) == [
+        "inferred=0.33 (want <=0.30)"
+    ]
 
 
 def test_judge_zero_steps_is_out_of_range_not_a_crash(run_mod):
@@ -589,6 +680,36 @@ def test_engine_only_deletes_media_and_frames_unless_kept(run_mod, tmp_path, kee
     if fail_stage is None:
         assert "frames=5" in result.line  # counts read before the cleanup
     assert (len(_media_left(tmp_path / "G4" / "home")) == 2) is keep
+
+
+def test_write_setup_files_writes_each_file_and_refuses_escapes(run_mod, tmp_path):
+    spec = {"task": "t", "verify": "true", "setup_files": {"models.ts": "x\n", "a/b.ts": "y"}}
+    run_mod.write_setup_files(spec, tmp_path)
+    assert (tmp_path / "models.ts").read_text() == "x\n"
+    assert (tmp_path / "a" / "b.ts").read_text() == "y"
+    run_mod.write_setup_files({"task": "t", "verify": "true"}, tmp_path)  # none: no-op
+    for bad in ("../x.ts", "/etc/x.ts"):
+        with pytest.raises(ValueError):
+            run_mod.write_setup_files({"setup_files": {bad: ""}}, tmp_path / "s")
+
+
+def test_main_prepare_writes_setup_and_prints_task(run_mod, tmp_path, capsys):
+    golden = {
+        "videos": [
+            _entry(id="G1", s2={"task": "do one", "verify": "true"}),
+            _entry(id="G2", s3={"task": "do two", "verify": "true", "setup_files": {"m.ts": "z"}}),
+        ]
+    }
+    path = tmp_path / "golden.json"
+    path.write_text(json.dumps(golden))
+    scratch = tmp_path / "scratch"
+    assert run_mod.main(["--golden", str(path), "--prepare", "G2", "--dir", str(scratch)]) == 0
+    assert (scratch / "m.ts").read_text() == "z"
+    assert capsys.readouterr().out == "do two\n"
+    assert run_mod.main(["--golden", str(path), "--prepare", "G1", "--dir", str(scratch)]) == 0
+    assert capsys.readouterr().out == "do one\n"
+    with pytest.raises(SystemExit):
+        run_mod.main(["--golden", str(path), "--prepare", "G2"])  # --dir is required
 
 
 def test_main_only_selection_and_exit(run_mod, tmp_path, capsys, monkeypatch):

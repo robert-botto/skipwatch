@@ -51,6 +51,13 @@
           "replies_min": 0,
           "links_min": 0
         }
+      },
+      "s3": {
+        "task": "models.ts defines an Order type. I am writing unit tests and want to mock an Order without filling in every nested field. Create test-utils.ts exporting a recursive DeepPartial type (nested objects and arrays must become optional at every level), then create mock.ts that imports Order and DeepPartial and exports `const orderMock: DeepPartial<Order>` containing only customer.address.city and one item with only a qty.",
+        "verify": "printf '%s\\n' 'import type { Order } from \"./models\";' 'import type { DeepPartial } from \"./test-utils\";' 'export const a: DeepPartial<Order> = { customer: { address: { zip: \"1\" } }, items: [{ sku: \"x\" }] };' 'export const b: DeepPartial<Order> = {};' > verify_ok.ts && printf '%s\\n' 'import type { Order } from \"./models\";' 'import type { DeepPartial } from \"./test-utils\";' 'export const c: DeepPartial<Order> = { items: [{ qty: \"not a number\" }] };' > verify_bad.ts && npx --yes -p typescript@5.6 tsc --noEmit --strict --skipLibCheck mock.ts verify_ok.ts > /dev/null && ! npx --yes -p typescript@5.6 tsc --noEmit --strict --skipLibCheck verify_bad.ts > /dev/null",
+        "setup_files": {
+          "models.ts": "export interface Order { id: string; items: { sku: string; qty: number }[]; customer: { name: string; email: string; address: { city: string; zip: string } }; }\n"
+        }
       }
     },
     {
