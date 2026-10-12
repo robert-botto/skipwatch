@@ -1,6 +1,18 @@
 """treg content provider (spec 8.3, Tier 3): thread context, author replies, provider
 transcripts as hints, and a media fallback when yt-dlp is blocked.
 
+Per platform (plan Task M4-A2 and the decisions after the M3 spike):
+- X: the thread's later posts by the author into context.thread, the author's own replies into
+  context.author_replies (never anyone else's), the links in both fetched, and the untimed
+  transcript as a hint for a video post. A text-only post becomes a `text` bundle through
+  build_text_x. Media fallback: the thread's videoUrl.
+- YouTube: the timed transcript as a hint, only when there are no captions.
+- TikTok: the transcript as a hint; media fallback from video_download (clean URL first).
+- Instagram: media fallback from post.detail only; its text always comes from the free route.
+- Facebook: post text when the free route had none; never a media fallback (no media URL).
+Media URLs expire (TikTok, Instagram), so each is downloaded right after its call, through the
+same SSRF-checked, pinned transport links.py uses, with a size and time cap.
+
 Everything goes through the treg CLI as a subprocess (`treg call`, `treg review`, `treg
 balance`); nothing here speaks HTTP to treg. Each `treg call` prints its bill on stderr as
 `treg: charged $<cost> · call id <hex>` (plan decision 5): the cost counts against the per-run
@@ -10,14 +22,38 @@ post content or anything about the user.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from skipwatch.models import ProviderCall
+import requests
+
+from skipwatch import media
+from skipwatch.adapters.base import IngestOptions
+from skipwatch.adapters.localfile import media_info
+from skipwatch.adapters.x import canonical, post_id
+from skipwatch.config import load_config
+from skipwatch.detect import Detected, platform_for_host
+from skipwatch.errors import SkipwatchError
+from skipwatch.models import (
+    IngestBundle,
+    IngestContext,
+    MediaInfo,
+    ProviderCall,
+    Route,
+    SourceInfo,
+    TranscriptHint,
+    TregConfig,
+)
+from skipwatch.providers import links
+from skipwatch.workdir import WorkDir
 
 Runner = Callable[..., subprocess.CompletedProcess]
 
@@ -56,6 +92,19 @@ CAP_REACHED = "treg: cost cap reached"
 _CHARGED = re.compile(r"charged \$(\d+(?:\.\d+)?(?:e-?\d+)?)", re.IGNORECASE)
 _CALL_ID = re.compile(r"call id ([0-9a-f]{8,})", re.IGNORECASE)
 _REPLAY = "nothing new charged"
+THREAD = "anyapi.twitter.thread"
+COMMENTS = "treg.x.post.comments"
+COMMENTS_HEADERS = {"X-Treg-Route-Max-Cost": "0.01"}
+X_TRANSCRIPT = "anyapi.twitter.tweet_transcript"
+YOUTUBE_TRANSCRIPT = "anyapi.youtube.video_transcript_full"
+TIKTOK_TRANSCRIPT = "anyapi.tiktok.video_transcript_full"
+TIKTOK_DOWNLOAD = "anyapi.tiktok.video_download"
+INSTAGRAM_DETAIL = "anyapi.instagram.post.detail"
+FACEBOOK_DETAIL = "anyapi.facebook.post.detail"
+MEDIA_MAX_BYTES = 1_000_000_000
+MEDIA_DEADLINE_S = 600.0
+MEDIA_TYPES = ("video/", "application/octet-stream", "binary/octet-stream")
+_REPLY_PREFIX = re.compile(r"^(?:@\w+\s+)+")
 
 
 def _treg_path() -> str | None:
@@ -260,14 +309,330 @@ class TregClient:
         self.calls = reviewed
 
 
+def _max_cost() -> float:
+    """The per-run cap from config (plan issue 9); the default when config is unreadable."""
+    try:
+        return load_config().providers.treg.max_cost_usd
+    except ValueError:
+        return TregConfig().max_cost_usd
+
+
+# ---- the media fallback download ----
+
+
+def download_media(url: str, dest: Path) -> None:
+    """A plain GET of a provider media URL into dest: no cookies, no environment credentials,
+    every hop SSRF-checked and pinned (links._get), at most 1 GB and 10 minutes. Raises
+    links.Refused or a requests error; a partial file is never left at dest."""
+    deadline = time.monotonic() + MEDIA_DEADLINE_S
+    response = links._get(url, deadline)  # pyright: ignore[reportPrivateUsage]
+    part = dest.with_name(dest.name + ".part")
+    try:
+        if response.status_code != 200:
+            raise links.Refused(f"HTTP {response.status_code}")
+        mime = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if not mime.startswith(MEDIA_TYPES):
+            raise links.Refused(f"not a video: {mime or '(no type)'}")
+        length = response.headers.get("Content-Length")
+        if length and length.isdigit() and int(length) > MEDIA_MAX_BYTES:
+            raise links.Refused("over the 1 GB media cap")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        size = 0
+        with part.open("wb") as out:
+            while True:
+                if time.monotonic() >= deadline:
+                    raise links.Refused("over the media download deadline")
+                chunk = response.raw.read1(links.CHUNK, decode_content=False)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MEDIA_MAX_BYTES:
+                    raise links.Refused("over the 1 GB media cap")
+                out.write(chunk)
+        os.replace(part, dest)
+    finally:
+        links._close(response)  # pyright: ignore[reportPrivateUsage]
+        part.unlink(missing_ok=True)
+
+
+def _probe_media(work: WorkDir, path: Path) -> MediaInfo:
+    info = media_info(path, media.probe(path))
+    return info.model_copy(update={"path": path.relative_to(work.path).as_posix()})
+
+
+# ---- response helpers ----
+
+
+def _handle(value: str | None) -> str:
+    return (value or "").lstrip("@").casefold()
+
+
+def _tweets(thread: Any) -> list[dict]:
+    tweets = thread.get("tweets") if isinstance(thread, dict) else None
+    return [t for t in tweets or [] if isinstance(t, dict)]
+
+
+def _root(tweets: list[dict], wanted: str | None) -> dict | None:
+    return next((t for t in tweets if wanted and str(t.get("id")) == wanted), None)
+
+
+def _text(item: dict) -> str:
+    return str(item.get("text") or "").strip()
+
+
+def _segments_text(data: Any) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    segments = [s for s in data.get("segments") or [] if isinstance(s, dict)]
+    joined = " ".join(str(s.get("text") or "").strip() for s in segments).strip()
+    return joined or (str(data.get("transcript") or "").strip() or None)
+
+
+def _posted(seconds: Any) -> str | None:
+    if not isinstance(seconds, int | float):
+        return None
+    stamp = datetime.fromtimestamp(seconds, UTC).isoformat(timespec="seconds")
+    return stamp.replace("+00:00", "Z")
+
+
+def _host(url: str) -> str:
+    try:
+        return (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def _new_links(texts: list[str], known: list[str], room: int, calls, budget) -> list[str]:
+    """Links in the author's posts worth fetching: t.co resolved, X pages dropped (a
+    JavaScript shell), ones already fetched skipped, at most `room`."""
+    found: list[str] = []
+    for text in texts:
+        for url in links.extract_urls(text):
+            target = links.resolve(url, calls, budget) if _host(url) == "t.co" else url
+            if not target or platform_for_host(_host(target)) == "x":
+                continue
+            if target not in known and target not in found:
+                found.append(target)
+    return found[:room]
+
+
 class TregProvider:
     name = "treg"
 
     def __init__(self, runner: Runner = subprocess.run):
         self.runner = runner
+        self._runs: dict[str, TregClient] = {}
 
     def available(self) -> bool:
         return _treg_path() is not None and logged_in(self.runner)
+
+    def _client(self, work: WorkDir) -> TregClient:
+        """One client per run (work folder): fetch_media or build_text_x, then enrich, share
+        the cap and the log, and enrich hands every call to the bundle."""
+        key = str(work.path)
+        if key not in self._runs:
+            self._runs[key] = TregClient(_max_cost(), runner=self.runner)
+        return self._runs[key]
+
+    # ---- X ----
+
+    def _thread(self, client: TregClient, url: str) -> Any:
+        return client.call(THREAD, body={"url": url})
+
+    def build_text_x(
+        self, detected: Detected, work: WorkDir, opts: IngestOptions
+    ) -> IngestBundle | None:
+        """A text-only X post (plan issue 8): the post as post_text, the author's later posts
+        in the thread as thread. None when treg does not return the post."""
+        wanted = post_id(detected.value)
+        if wanted is None:
+            return None
+        client = self._client(work)
+        url = canonical(wanted)
+        tweets = _tweets(self._thread(client, url))
+        root = _root(tweets, wanted)
+        if root is None:
+            return None
+        client.use(THREAD)
+        handle = root.get("authorHandle")
+        return IngestBundle(
+            source=SourceInfo(
+                kind="text",
+                platform="x",
+                url=detected.value,
+                canonical_url=url,
+                author=f"@{handle}" if handle else None,
+                author_name=root.get("authorName") or None,
+                posted_at=_posted(root.get("createdUtc")),
+            ),
+            context=IngestContext(post_text=_text(root) or None),
+            route=Route(context="treg", media=None),
+        )
+
+    def _enrich_x(self, bundle: IngestBundle, client: TregClient) -> IngestBundle:
+        source, context = bundle.source, bundle.context
+        url = source.canonical_url or source.url or ""
+        wanted = post_id(url)
+        tweets = _tweets(self._thread(client, canonical(wanted) if wanted else url))
+        root = _root(tweets, wanted) or (tweets[0] if tweets else None)
+        author = _handle(source.author) or _handle((root or {}).get("authorHandle"))
+        thread_ids = {str(t.get("id")) for t in tweets}
+        later = tweets[tweets.index(root) + 1 :] if root is not None else []
+        continuations = [
+            _text(t) for t in later if _handle(t.get("authorHandle")) == author and _text(t)
+        ]
+        thread = list(context.thread)
+        added = [t for t in continuations if t not in thread]
+        if added:
+            client.use(THREAD)
+        if source.kind == "text" and not context.post_text and root is not None:
+            context = context.model_copy(update={"post_text": _text(root) or None})
+        replies: list[str] = []
+        if wanted is not None:
+            comments = client.call(COMMENTS, body={"tweet_id": wanted}, headers=COMMENTS_HEADERS)
+            items = comments.get("comments") if isinstance(comments, dict) else None
+            for item in items or []:
+                if not isinstance(item, dict) or _handle(item.get("authorHandle")) != author:
+                    continue
+                if str(item.get("id")) in thread_ids | {wanted}:
+                    continue  # a continuation, already in the thread
+                # the leading @handles address other people: drop them, keep the words
+                text = _REPLY_PREFIX.sub("", _text(item)).strip()
+                if text and text not in context.author_replies and text not in replies:
+                    replies.append(text)
+            if replies:
+                client.use(COMMENTS)
+        calls = list(bundle.provider_calls)
+        known = [link.url for link in context.links]
+        room = links.MAX_LINKS - len(known)
+        budget = links.Budget()
+        fresh = _new_links([*added, *replies], known, room, calls, budget) if room > 0 else []
+        fetched = links.fetch_urls(fresh, calls, budget) if fresh else []
+        context = context.model_copy(
+            update={
+                "thread": [*thread, *added],
+                "author_replies": [*context.author_replies, *replies],
+                "links": [*context.links, *fetched],
+            }
+        )
+        bundle = bundle.model_copy(update={"context": context, "provider_calls": calls})
+        if source.kind == "video":
+            bundle = self._hint(bundle, client, X_TRANSCRIPT, {"url": url}, "transcript")
+        return bundle
+
+    # ---- other platforms ----
+
+    def _hint(
+        self, bundle: IngestBundle, client: TregClient, endpoint: str, body: dict, field: str
+    ) -> IngestBundle:
+        """R-ING-2: a provider transcript is only ever a hint (later a cross-check)."""
+        if bundle.transcript_hint.text:
+            return bundle
+        data = client.call(endpoint, body=body)
+        if not isinstance(data, dict):
+            return bundle
+        text = (_segments_text(data) if field == "segments" else str(data.get(field) or "")) or ""
+        if not text.strip():
+            return bundle
+        client.use(endpoint)
+        hint = TranscriptHint(origin=f"treg:{endpoint}", text=text.strip())
+        return bundle.model_copy(update={"transcript_hint": hint})
+
+    def _enrich_facebook(self, bundle: IngestBundle, client: TregClient) -> IngestBundle:
+        if bundle.context.post_text:
+            return bundle
+        url = bundle.source.canonical_url or bundle.source.url
+        data = client.call(FACEBOOK_DETAIL, body={"url": url})
+        text = str(data.get("text") or "").strip() if isinstance(data, dict) else ""
+        if not text:
+            return bundle
+        client.use(FACEBOOK_DETAIL)
+        context = bundle.context.model_copy(update={"post_text": text})
+        return bundle.model_copy(update={"context": context})
+
+    def enrich(self, bundle: IngestBundle, work: WorkDir, opts: IngestOptions) -> IngestBundle:
+        client = self._client(work)
+        platform = bundle.source.platform
+        url = bundle.source.canonical_url or bundle.source.url or ""
+        if platform == "x":
+            bundle = self._enrich_x(bundle, client)
+        elif platform == "youtube" and not bundle.context.captions_available:
+            body = {"url": url, "captionKind": "any"}
+            bundle = self._hint(bundle, client, YOUTUBE_TRANSCRIPT, body, "segments")
+        elif platform == "tiktok" and bundle.source.kind == "video":
+            bundle = self._hint(bundle, client, TIKTOK_TRANSCRIPT, {"url": url}, "segments")
+        elif platform == "facebook":
+            bundle = self._enrich_facebook(bundle, client)
+        # instagram: post text only ever comes from the free route (plan decision 3)
+        client.review_all()
+        self._runs.pop(str(work.path), None)
+        others = [c for c in bundle.provider_calls if c.provider != "treg"]
+        route = bundle.route
+        if client.capped and CAP_REACHED not in route.fallbacks:
+            route = route.model_copy(update={"fallbacks": [*route.fallbacks, CAP_REACHED]})
+        return bundle.model_copy(
+            update={"provider_calls": [*others, *client.calls], "route": route}
+        )
+
+    # ---- media fallback ----
+
+    def _media_url(self, bundle: IngestBundle, client: TregClient) -> tuple[str, str | None]:
+        """(endpoint, media URL) for the platforms treg can download; Facebook has none."""
+        platform = bundle.source.platform
+        url = bundle.source.canonical_url or bundle.source.url or ""
+        if platform == "x":
+            wanted = post_id(url)
+            tweets = _tweets(self._thread(client, canonical(wanted) if wanted else url))
+            root = _root(tweets, wanted) or (tweets[0] if tweets else {})
+            videos = [m.get("videoUrl") for m in root.get("media") or [] if isinstance(m, dict)]
+            return THREAD, next((v for v in videos if v), None)
+        if platform == "tiktok":
+            data = client.call(TIKTOK_DOWNLOAD, body={"url": url})
+            data = data if isinstance(data, dict) else {}
+            return TIKTOK_DOWNLOAD, data.get("videoUrl") or data.get("watermarkedUrl")
+        if platform == "instagram":
+            data = client.call(INSTAGRAM_DETAIL, body={"url": url})
+            return INSTAGRAM_DETAIL, data.get("videoUrl") if isinstance(data, dict) else None
+        return "", None
+
+    def fetch_media(
+        self, bundle: IngestBundle, work: WorkDir, opts: IngestOptions
+    ) -> MediaInfo | None:
+        if bundle.source.platform not in ("x", "tiktok", "instagram"):
+            return None  # Facebook: treg exposes no media URL (plan decision 4)
+        client = self._client(work)
+        endpoint, url = self._media_url(bundle, client)
+        if not url:
+            return None
+        dest = work.path / "media" / "video.mp4"
+        started = time.monotonic()
+        error = None
+        found = None
+        try:
+            download_media(url, dest)
+            found = _probe_media(work, dest)
+        except links.Refused as exc:
+            error = str(exc)
+        except requests.RequestException as exc:
+            error = type(exc).__name__
+        except SkipwatchError:
+            error = "downloaded file is not playable media"
+        if found is None:
+            dest.unlink(missing_ok=True)
+        else:
+            client.use(endpoint)
+        ms = max(0, int((time.monotonic() - started) * 1000))
+        client.calls.append(
+            ProviderCall(
+                provider="treg",
+                op="media.get",
+                ok=found is not None,
+                ms=ms,
+                endpoint=_host(url) or None,
+                error=error,
+            )
+        )
+        return found
 
 
 PROVIDER = TregProvider()
