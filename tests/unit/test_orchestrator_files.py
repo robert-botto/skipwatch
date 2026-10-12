@@ -349,11 +349,27 @@ def test_review_screen_example_in_4_3_order():
 
 def test_review_screen_rules():
     text = flat(REFS / "review-screen.md")
-    assert "critic not run" in text
-    assert "arrive in M5" not in text  # "test it" runs the test run now
-    # the engine grades confidence (manifest.confidence); a prose copy of the rule drifted
-    assert "the engine computes the grade, so never work it out yourself" in text
+    # the engine prints the screen; Claude never assembles it from the run files
+    command = (
+        '<ENGINE> --log "<W>/logs/review.log" review --work "<W>" --skill "<W>/staging/<name>"'
+    )
+    assert command in text
+    assert "Print its output exactly, never edited or rebuilt by hand" in text
+    for hand in (
+        "Where each line comes from",
+        "first three quoted phrasings",
+        "computes the grade",
+    ):
+        assert hand not in text, hand
     assert "inferred under 15%" not in text and "one gap or inferred" not in text
+    import typer
+
+    from skipwatch.cli import app
+
+    group = typer.main.get_command(app)
+    review = group.commands["review"]  # type: ignore[attr-defined]
+    opts = {o for p in review.params for o in p.opts}
+    assert {"--work", "--skill", "--degradation", "--unread", "--test-run"} <= opts
 
 
 TRACE_TAG = re.compile(
@@ -835,8 +851,6 @@ def test_one_placeholder_style_and_two_confidences_kept_apart():
         found = re.findall(r"(?<![<\w])W(?:/|`)", read(path))
         assert not found, (path, found)  # always `<W>`, never a bare W
     assert "skipwatch redact --stdin" not in read(REFS / "skill-template.md")
-    review = flat(REFS / "review-screen.md")
-    assert "summarises the skill's `Unverified and gaps` section" in review
     reader = flat(ROOT / "agents/frame-reader.md")
     assert "not the skill's confidence grade" in reader
 
@@ -1282,7 +1296,7 @@ def test_only_the_provider_named_option_is_cloud_consent():
 def test_cloud_transcript_rebuilds_like_the_whisper_path():
     review = flat(REFS / "review-screen.md")
     # after a cloud transcript the skill is rebuilt from it, as resume does for Whisper
-    assert "remove the `no transcript` entry from Unverified" in review
+    assert "stop passing the `no transcript` degradation" in review
     assert "outline and draft rebuilt from the new transcript" in review
     assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
 
@@ -1305,15 +1319,12 @@ def test_redispatch_only_the_missing_frames_and_merge():
 def test_unread_frames_are_reported_not_counted_as_gaps():
     # spec 15: unread frames are said on the review screen; they are not gaps (G1 run)
     review = flat(REFS / "review-screen.md")
-    assert "**Unread frames:**" in review
-    assert "`none` when every frame was read" in review
-    assert "Unread frames are not gaps" in review
-    assert "Unread frames never block `--yes`" in review
-    assert "each unread frame range" not in review  # no longer under Unverified
+    assert '`--unread "<ids> (<reason>)"`' in review
+    assert "Unread frames are not gaps and never block `--yes`" in review
     text = protocol_flat()
     assert "Unread frames are not gaps" in text
     assert "never write a `GAP:` line for a frame that is only unread" in text
-    assert "unread frames do not count" in text  # the --yes gate in stage 8
+    assert "unread frames do not count" in text  # the --yes gate in stage 9
 
 
 def test_distill_rules_list_unread_frames_without_a_gap_line():
@@ -1407,8 +1418,8 @@ def test_review_running_marked_when_the_screen_is_printed():
     # the review stage's timing must not include check (stage 7)
     text = protocol_flat()
     running = logged("mark") + ' --work "<W>" --stage review --status running'
-    assert _before(text, "Print the review screen in the exact format", running)
-    assert "as you print the review screen" in text
+    assert _before(text, "Print the review screen with the engine's `review` command", running)
+    assert "as you print the screen" in text
     stage9 = protocol().split("## Stage 9: review", 1)[1]
     assert not stage9.lstrip().startswith("<ENGINE> --log")
 
@@ -1459,17 +1470,22 @@ def test_context_wins_over_frames():
 def test_linked_video_post_credits_the_linked_author():
     text = protocol_flat()
     assert "the video came from a linked post" in text
-    review = flat(REFS / "review-screen.md")
-    assert "  video came from a linked post: <url>" in read(REFS / "review-screen.md")
-    assert "names the linked post's author" in review
     template = flat(REFS / "skill-template.md")
     assert "names the linked post's author" in template
+    # the engine prints the linked-post line, from notes or an older cache's route.fallbacks
+    from skipwatch import review
+
+    source = Path(review.__file__).read_text(encoding="utf-8")
+    assert review.LINKED_POST == "video came from a linked post: "
+    assert "run.ingest.notes, run.ingest.route.fallbacks" in source
 
 
 def test_cookies_runs_cannot_be_packed():
-    review = read(REFS / "review-screen.md")
-    assert "  Fetched with your browser cookies: this skill cannot be packed for sharing." in review
-    assert "`fetched_with_cookies`" in flat(REFS / "review-screen.md")
+    from skipwatch import review
+
+    expected = "Fetched with your browser cookies: this skill cannot be packed for sharing."
+    assert expected == review.COOKIES_LINE
+    assert "cookies" in flat(REFS / "review-screen.md")  # listed as an engine-printed line
 
 
 def test_platform_specific_failures():
@@ -1507,19 +1523,10 @@ def test_no_hand_built_skipwatch_home_paths():
 
 def test_protocol_matches_the_merged_m3_engine():
     text = protocol_flat()
-    # M5 decision 3: the X adapter writes the linked-post note into IngestBundle.notes;
-    # bundles cached before that change still carry it in route.fallbacks
-    assert "`notes` in `ingest.json` has `video came from a linked post: <url>`" in text
-    assert "`route.fallbacks` in `ingest.json` has `video came from a linked post" not in text
-    review = flat(REFS / "review-screen.md")
-    linked = review.split("**Linked post:**", 1)[1].split("- **", 1)[0]
-    assert "`notes` in `<W>/ingest.json`" in linked
-    # the legacy cache branch lives once, at the end, out of the main flow
-    assert "cached before" not in read(REFS / "run-engine.md")
-    for path in (REFS / "run-fallbacks.md", REFS / "review-screen.md"):
-        main, old = read(path).split("\n## Old patterns\n", 1)
-        assert "route.fallbacks` instead of `notes`" in old, path
-        assert "cached before" not in main, path
+    # the engine handles the linked-post note and the legacy cache; no copy in the skill
+    for path in PROMPT_FILES:
+        assert "## Old patterns" not in read(path), path
+        assert "cached before" not in read(path), path
     assert "post id in `source.canonical_url`" not in text  # the engine decides, not you
     # transcribe refuses a text bundle with exit 7 and this message
     assert "`text source: nothing to transcribe`" in text
@@ -1561,32 +1568,23 @@ def test_engine_derives_the_slug():
 
 
 def test_provider_calls_line_comes_from_the_engine():
-    # calls_line.provider_calls_line owns the treg rows, refusals, cap and cache suffixes
+    # calls_line and review own the treg rows, refusals, cap, cache and cloud suffixes
     from skipwatch.models import CheckReport
 
     assert "provider_calls_line" in CheckReport.model_fields
-    review = flat(REFS / "review-screen.md")
-    assert "`provider_calls_line` in `<W>/check-report.json`, printed exactly" in review
-    assert "never compute it from `calls.json` or `treg balance`" in review
-    for arithmetic in ("total to 4 decimals", "`<n>` counts", "refused (cost cap)", "max_cost_usd"):
-        assert arithmetic not in review, arithmetic
-    # the engine line does not cover these two, so the skill still appends them
-    assert "`; transcript cached (<origin>)`" in review
-    assert "`; <provider> transcription (billed to your <ENV VAR> key)`" in review
+    raw = read(REFS / "review-screen.md")
+    assert "  Provider calls: <provider_calls_line>" in raw
+    for arithmetic in ("total to 4 decimals", "`<n>` counts", "refused (cost cap)", "billed to"):
+        assert arithmetic not in raw, arithmetic
     assert "treg cost cap reached" in protocol_flat()  # said in the ingest progress line
 
 
 def test_cross_check_flags_disagreement_and_is_never_a_step_source():
-    review_raw = read(REFS / "review-screen.md")
-    assert "  Cross-check: <similarity> against <origin>" in review_raw
-    assert "  transcript sources disagree: <similarity>" in review_raw
     review = flat(REFS / "review-screen.md")
-    assert "`Transcribe: warning: transcript sources disagree:`" in review  # engine's line
+    assert "cross-check and disagreement lines) comes from the run's files" in review
     text = protocol_flat()
     assert "`cross_check` only to flag disagreements, never as a step source" in text
     assert "`context.thread` and `context.author_replies`" in text
-    # the engine warns only when Dice and overlap are both low; never recompute it
-    assert "never compute the similarity yourself" in review
 
 
 def test_provider_flag_and_treg_login_message():
@@ -1830,8 +1828,7 @@ def test_stage_9_runs_the_test_under_test_flag_and_names_critic_reasons():
     stage9 = raw.split("## Stage 9: review", 1)[1].split("## Stage 9b", 1)[0]
     stage9 = re.sub(r"\s+", " ", stage9)
     assert "Under `--test`" in stage9 and "before printing the screen" in stage9
-    for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
-        assert reason in stage9, reason
+    assert "passing the degradations, unread frames and test-run line" in stage9
 
 
 STAR = "If this saved you an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"
@@ -1875,43 +1872,30 @@ def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
 
 def test_review_screen_confidence_and_test_run_line():
     review = flat(REFS / "review-screen.md")
-    for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
-        assert reason in review, reason
-    # plan issue 22: one optional line directly after Confidence, absent without a test
-    raw = read(REFS / "review-screen.md")
-    line = "  Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>"
-    assert line in raw
-    assert "directly after `Confidence:`" in review
-    assert "keep the shape above" in review
+    # plan issue 22: the validate-test line goes to the engine, which places it
+    assert '`--test-run "<line>"`: only after a test run, the line `validate-test` printed' in (
+        review
+    )
+    assert "`Test run:` follows `Confidence:` after a test" in review
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
     assert "stage 9b in `run-review-install.md`" in answer
     assert "Test it anyway?" in answer
 
 
 def test_review_screen_pack_variant():
-    raw = read(REFS / "review-screen.md")
-    assert "## Pack variant" in raw
-    section = re.sub(r"\s+", " ", raw.split("## Pack variant", 1)[1].split("\n## ", 1)[0])
-    # plan issue 4: the pack's claim is shown, never trusted as this machine's confidence
-    assert "(from pack <file>, sha256 <12 hex>)" in section
-    assert (
-        "<pack_confidence> (shared pack: critic not re-run here; "
-        "the pack claims <claimed_confidence>, critic <claimed_critic_score or none>)" in section
-    )
-    # the engine grades the pack; Claude never computes it from the counts
-    from skipwatch.models import CheckReport
+    review = flat(REFS / "review-screen.md")
+    # the engine prints the pack variant (pack_confidence, the claim, file and checksum)
+    assert 'For a pack install (`sharing.md`), use `--work "<work>" --skill "<staging>"`' in review
+    assert "prints the pack variant itself" in review
+    assert "inferred under 30%" not in review and "claims <claimed_confidence>" not in review
+    step = re.sub(r"\s+", " ", read(SHARING).split("\n4. ", 1)[1].split("\n5. ", 1)[0])
+    assert '--work "<work>" --skill "<staging>"' in step
+    assert "it prints the pack variant itself" in step
+    from skipwatch import review as engine_review
 
-    assert "`pack_confidence` in `<work>/check-report.json`" in section
-    assert "pack_confidence" in CheckReport.model_fields
-    assert "inferred under 30%" not in raw and "at most one gap" not in raw
-    example = (
-        "Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)"
-    )
-    assert example in section
-    assert re.fullmatch(REVIEW_LINES[6][1], "  " + example)  # still the 4.3 Confidence shape
-    assert "never `high`" in section
-    assert "`<k> quoted steps not re-verified (shared pack)`" in section
-    assert "`pack.sha256`" in section and "<claimed_confidence>" in section
+    source = Path(engine_review.__file__).read_text(encoding="utf-8")
+    assert "shared pack: critic not re-run here; " in source
+    assert "(from pack {pack.file}, sha256 {digest})" in source
 
 
 def test_distill_rules_critic_fixes():
@@ -1961,11 +1945,13 @@ def test_share_exit_2_maps_only_the_messages_it_knows():
 
 
 def test_critic_reasons_are_exclusive():
-    for path in (REFS / "run-review-install.md", REFS / "review-screen.md"):
-        text = flat(path)
-        assert "`critic not run` only under `--fast`" in text, path
-        assert "only `critic failed twice`, never `critic not run`" in text, path
-        assert "or no `critique.json`" not in text, path
+    review = flat(REFS / "review-screen.md")
+    assert "pass `critic failed twice`: it replaces `critic not run`" in review
+    assert "Under `--fast` pass nothing for the critic" in review
+    from skipwatch import review as engine_review
+
+    assert engine_review.CRITIC_FAILED == "critic failed twice"
+    assert "or no `critique.json`" not in review
 
 
 def test_copy_frames_exit_7_drops_the_links_and_continues():

@@ -14,11 +14,9 @@ Placeholders and conventions are in `run-engine.md` (stages 1 to 4); stages 5 to
 
 Under `--test`, run the test run (stage 9b) after check and before printing the screen.
 
-Print the review screen in the exact format from `review-screen.md`, which says where
-each line comes from. Confidence reasons include `critic not run` only under `--fast`;
-after stage 7 gave up on the critic, only `critic failed twice`, never `critic not run`;
-and `critic score <s>` when the critic scored under 8. Mark review running as you print
-the review screen, so its timing covers the user's decision:
+Print the review screen with the engine's `review` command, as `review-screen.md`
+shows, passing the degradations, unread frames and test-run line recorded so far. Mark
+review running as you print the screen, so its timing covers the user's decision:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status running
 

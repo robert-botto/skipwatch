@@ -2,16 +2,53 @@
 
 ## Contents
 
-- Example (the fixture run)
-- Where each line comes from
-- Extra lines
-- Pack variant
+- Printing the screen
+- What to pass
+- Format reference
 - The prompt line
 - Transcription offers
 - Answers
-- Old patterns
 
-Print it exactly in this line order, with these prefixes:
+## Printing the screen
+
+The engine builds the screen from the run's files. Run it, as one command:
+
+    <ENGINE> --log "<W>/logs/review.log" review --work "<W>" --skill "<W>/staging/<name>" [--degradation "<line>"]... [--unread "<ids> (<reason>)"]... [--test-run "<line>"]
+
+Print its output exactly, never edited or rebuilt by hand. Then print the prompt line
+below and, when they apply, the transcription offers; the engine never prints those.
+Exit 7 names a missing or invalid run file: re-run check (stage 8 in `run-distill.md`)
+once, then `review` again; a second exit 7 stops with the engine's line. Exit 64: a `--test-run` value that is not the
+`validate-test` line.
+
+For a pack install (`sharing.md`), use `--work "<work>" --skill "<staging>"`. The engine
+prints the pack variant itself (`pack_confidence`, the pack's claim, the pack file and
+checksum, `none (shared pack)`).
+
+## What to pass
+
+- `--degradation "<line>"`: once for each degradation recorded during the run, exactly as
+  recorded, for example `no transcript: <the engine's message>`,
+  `no frames: audio-only file`, `frames not copied: <the engine's message>`,
+  `work folder moved into the project (<path>): home folder not writable`,
+  `test run failed twice`. After stage 7 gave up on the critic, pass
+  `critic failed twice`: it replaces `critic not run`. Under `--fast` pass nothing for
+  the critic; the engine reports `critic not run` itself.
+- `--unread "<ids> (<reason>)"`: once for each group of frames a reader failed twice to
+  cover (stage 4 in `run-engine.md`), for example `f006032 (reader failed twice)`, with
+  `; may hold a step` added as `distill-rules.md` says. Unread frames are not gaps and
+  never block `--yes`. An unread cue frame is a `GAP:` line in the skill instead
+  (`GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`) and is
+  not passed here.
+- `--test-run "<line>"`: only after a test run, the line `validate-test` printed.
+
+Everything else (triggers, counts, confidence and its reasons, source, provider calls,
+the linked-post, cookies, cross-check and disagreement lines) comes from the run's files.
+
+## Format reference
+
+The engine's screen has this shape (`Test run:` follows `Confidence:` after a test;
+extra lines follow `Draft:`):
 
 ```
 Skill ready for review: <name>
@@ -20,15 +57,15 @@ Skill ready for review: <name>
   Unverified: <list or "none">
   Unread frames: <none | frame ids (reason)>
   Safety flags: <none | kind (severity) at step N, ...>
-  Confidence: <high|medium|low> (<reason when not high, e.g. "critic not run">)
-  Source: "<title>" by <author or "local file">, <date or "undated">
-  Provider calls: <none (free route) | list with cost>
+  Confidence: <high|medium|low> (<reasons>)
+  Source: "<title>" by <author>, <date or "undated">
+  Provider calls: <provider_calls_line>
   Draft: <staging path>
 
 Install to <target>? [yes / show draft / test it / rename / cancel]
 ```
 
-## Example (the fixture run)
+The fixture run:
 
 ```
 Skill ready for review: run-skipdemo-tutorial
@@ -43,84 +80,6 @@ Skill ready for review: run-skipdemo-tutorial
   Draft: /Users/me/.skipwatch/work/tutorial-60s-20261009-142211/staging/run-skipdemo-tutorial/
 
 Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / test it / rename / cancel]
-```
-
-## Where each line comes from
-
-- **Triggers:** the first three quoted phrasings in the description.
-- **Steps and gaps:** `counts` in `<W>/check-report.json`.
-- **Unverified:** summarises the skill's `Unverified and gaps` section plus the run's
-  degradations: each inferred step as `step N (<reason>)`, each degradation as recorded
-  (for example `work folder moved into the project (<path>): home folder not writable`).
-- **Unread frames:** frame ids a reader failed twice to cover, with the reason, for
-  example `f006032 (reader failed twice)`; `none` when every frame was read. Unread frames
-  are not gaps and never become `GAP:` lines. Unread frames never block `--yes`; the
-  confidence reason says `frames unread`. The rules for `may hold a step` and for unread
-  cue frames, which are gaps
-  (`GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`) and not
-  repeated here, are in `distill-rules.md`.
-- **Safety flags:** the safety result's `flags`, as `pipe_to_shell (high) at step 7`.
-- **Confidence:** `confidence` in `<W>/staging/<name>/skipwatch.json`, then its reasons:
-  the engine computes the grade, so never work it out yourself. The reason is
-  `critic not run` only under `--fast`; when stage 7 gave up on the critic it is only
-  `critic failed twice`, never `critic not run`. A critic score under 8 adds
-  `critic score <s>` (`critic_score`, one decimal). Add every other reason that applies
-  (`1 gap`, `no transcript`, `frames unread`).
-- **Test run:** only after a test, one line directly after `Confidence:`, exactly as
-  `validate-test` printed it:
-
-      Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>
-
-  Screens without a test keep the shape above.
-- **Source:** `source` in `<W>/ingest.json`: title, author handle and post date; a local
-  file is `local file` and `undated` unless it carries them.
-- **Provider calls:** `provider_calls_line` in `<W>/check-report.json`, printed exactly;
-  never compute it from `calls.json` or `treg balance`. Then a transcript reused from the
-  cache adds `; transcript cached (<origin>)`, and audio sent to a cloud provider adds
-  `; <provider> transcription (billed to your <ENV VAR> key)`.
-- **Draft:** `<W>/staging/<name>/`. **Target:** always absolute.
-
-## Extra lines
-
-Each only when it applies, right after the `Draft:` line:
-
-```
-  video came from a linked post: <url>
-  Fetched with your browser cookies: this skill cannot be packed for sharing.
-  Cross-check: <similarity> against <origin>
-  transcript sources disagree: <similarity>
-```
-
-- **Linked post:** copied exactly from `notes` in `<W>/ingest.json` (an older cache
-  keeps it elsewhere: "Old patterns"). The `Source:` line and the attribution then
-  names the linked post's author.
-- **Cookies:** `fetched_with_cookies` true in `<W>/ingest.json`; such a skill is never
-  packed or shared.
-- **Cross-check:** `cross_check` in `transcript.json`: its `similarity` to 2 decimals and
-  its `origin`.
-- **Disagreement:** copy the `transcript sources disagree: <similarity>` part of the
-  engine's `Transcribe: warning: transcript sources disagree:` line exactly; never
-  compute the similarity yourself or warn without that line.
-
-## Pack variant
-
-Installing a pack (`sharing.md`) shows the same screen with `<W>` = `<work>`. These lines
-differ:
-
-- **Confidence:** `pack_confidence` in `<work>/check-report.json` (the engine's grade
-  without a critic, never `high`). Print
-  `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claimed_confidence>, critic <claimed_critic_score or none>)`,
-  then any other reason after `; `.
-- **Unverified:** add `<k> quoted steps not re-verified (shared pack)` from the
-  provenance result's info item in `<work>/check-report.json` (a pack's `[on-screen]`
-  and `[written]` quotes cannot be re-checked here).
-- **Source:** as usual, then `(from pack <file>, sha256 <12 hex>)`: `pack.file` and the
-  first 12 hex characters of `pack.sha256` after `sha256:`.
-- **Provider calls:** the engine's line, `none (shared pack)`. **Unread frames:** `none`.
-
-```
-  Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)
-  Source: "tutorial-60s" by local file, undated (from pack run-skipdemo-tutorial.skillpack.zip, sha256 3f2a9c41b7d0)
 ```
 
 ## The prompt line
@@ -160,7 +119,7 @@ The collision prompt gains the same options. `--yes` never picks one of these op
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> --log "<W>/logs/transcribe.log" transcribe --work "<W>" --backend <openai|groq|deepgram>`
   with exactly the backend the user picked, never `auto` (so not through resume). On
-  exit 0, remove the `no transcript` entry from Unverified, then continue from stage 3
+  exit 0, stop passing the `no transcript` degradation, then continue from stage 3
   step 5 in `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt
   from the new transcript, check, and this screen anew. Exit 8 or 3: show the engine's
   line and the prompt line again.
@@ -183,8 +142,3 @@ The collision prompt gains the same options. `--yes` never picks one of these op
   Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and
   `Work files at <W> may hold unredacted text from the video.`, and stop.
 - Anything else: re-show the prompt line last printed, once.
-
-## Old patterns
-
-- A bundle cached by an older engine carries `video came from a linked post: <url>` in
-  `route.fallbacks` instead of `notes`. Read it there only when `notes` does not hold it.

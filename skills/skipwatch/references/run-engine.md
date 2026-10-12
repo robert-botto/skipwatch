@@ -158,10 +158,9 @@ Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call.
      `treg: logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg`).
      `--provider treg` forces it, `--provider free` never calls it. The engine makes,
      logs and caps every treg call. Never run `treg` yourself or print its balance.
-   - Linked video: when `notes` in `ingest.json` has `video came from a linked post: <url>`,
-     the video came from a linked post (an older cache keeps it elsewhere: "Old
-     patterns" in `run-fallbacks.md`). `source` describes the linked post; the requested post's text is in
-     `context.thread`. Copy that line to the review screen exactly.
+   - Linked video: when the video came from a linked post (the engine notes it and the
+     review screen shows it), `source` describes the linked post and the requested
+     post's text is in `context.thread`.
    - Text source: when `source.kind` is `"text"` in `<W>/ingest.json`, skip transcribe,
      frames, plan and read and go to stage 5. Print
      `Reading the post: <n> words, <k> links (<n>s)`. A transcribe exit 7 with

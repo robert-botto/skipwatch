@@ -26,8 +26,3 @@ there: re-run the engine stages already done into the new `<W>` with `--home`,
 re-dispatch the readers with the new paths, and continue. Switch once; a second denial
 stops the run with `SkipWatch: cannot write the work folder (<path>): <the denial message>.`
 Never work around a denied Write with a shell redirect or heredoc.
-
-## Old patterns
-
-- A bundle cached by an older engine carries `video came from a linked post: <url>` in
-  `route.fallbacks` instead of `notes`. Read it there only when `notes` does not hold it.

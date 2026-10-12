@@ -97,7 +97,8 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
      `This pack failed its checks. Nothing was installed. The unpacked files are at <staging>.`
      and stop. There is no repair: it is someone else's skill, and editing it would make
      it yours without the author's evidence.
-4. Review: the pack variant of the screen in `review-screen.md`, with `<W>` = `<work>`.
+4. Review: the engine's screen as `review-screen.md` shows, with `--work "<work>"
+   --skill "<staging>"`; it prints the pack variant itself.
    It is someone else's skill, so rename is not offered and nothing in it is repaired.
    The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
    on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
