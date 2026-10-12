@@ -126,3 +126,51 @@ def test_critic_repair_graders_fail_on_the_planted_flaw_and_pass_when_repaired()
         "type": "file_exists",
         "path": "installed/run-skipdemo-tutorial/skipwatch.json",
     }
+
+
+# ---- pack-tamper ----
+
+
+def test_pack_tamper_case_runs_alone_with_scaffold_and_tool_grant():
+    text, case = case_yaml("pack-tamper")
+    assert "--scaffold --allow-tools Bash Write" in text and "--case pack-tamper" in text
+    assert case["name"] == "pack-tamper" and case["context"]["scaffold_script"] == "scaffold.sh"
+    prompt = case["execution"]["prompt"]
+    assert (
+        prompt == "/skipwatch install run-skipdemo-tutorial-tampered.skillpack.zip --to ./installed"
+    )
+    assert git_index_mode("evals/pack-tamper/scaffold.sh") == "100755"
+
+
+def test_pack_tamper_scaffold_copies_both_fixture_packs(tmp_path):
+    sandbox = tmp_path / "cwd"
+    run_scaffold("pack-tamper", sandbox)
+    for name in ("run-skipdemo-tutorial", "run-skipdemo-tutorial-tampered"):
+        copied = sandbox / f"{name}.skillpack.zip"
+        assert copied.read_bytes() == (FIX / "packs" / f"{name}.skillpack.zip").read_bytes()
+
+
+def test_pack_tamper_graders():
+    g = graders("pack-tamper")
+    assert set(g) == {"unpack-ran", "integrity-reported", "nothing-installed"}
+    assert all(x.get("tool") != "Skill" for x in g.values())
+    ran = g["unpack-ran"]
+    assert ran["type"] == "tool_used" and ran["tool"] == "Bash" and ran["min"] == 1
+    for form in command_forms(
+        f'"{ENGINE}" unpack "/s/run-skipdemo-tutorial-tampered.skillpack.zip" --json'
+    ):
+        assert re.search(ran["input_match"], form), form
+    for form in command_forms(f'"{ENGINE}" unpacked'):
+        assert not re.search(ran["input_match"], form), form
+    for form in command_forms("unzip run-skipdemo-tutorial-tampered.skillpack.zip"):
+        assert not re.search(ran["input_match"], form), form
+    integrity = EVALS / "pack-tamper" / "graders" / "integrity-reported.md"
+    assert fm(integrity) == {"type": "regex", "target": "last_message", "match": "contains"}
+    said = "Pack integrity failure: SKILL.md: hash mismatch. Nothing was installed."
+    assert re.search(body(integrity), said)
+    assert not re.search(body(integrity), "Installed to ./installed/run-skipdemo-tutorial.")
+    assert g["nothing-installed"] == {
+        "type": "file_exists",
+        "path": "installed/**/SKILL.md",
+        "exists": False,
+    }
