@@ -86,9 +86,16 @@ def test_home_option_picks_the_cached_doctor_json(monkeypatch, tmp_path, sw_home
     assert DoctorReport.model_validate_json(r.stdout) == CACHED
 
 
-@pytest.mark.parametrize("value", ["-1", "soon"])
+@pytest.mark.parametrize("value", ["-1", "soon", "nan", "inf", "-inf", "1e400"])
 def test_bad_max_age_is_a_usage_error(value, monkeypatch, sw_home):
     monkeypatch.setattr(sys, "argv", ["skipwatch", "doctor", "--max-age-hours", value])
     with pytest.raises(SystemExit) as exc:
         cli.main()
     assert exc.value.code == ExitCode.USAGE
+
+
+def test_a_doctor_json_from_the_future_is_rebuilt(sw_home):
+    cache_doctor(sw_home, age_hours=-48)  # clock skew or a copied file: never trust it
+    r = CliRunner().invoke(app, ["doctor", "--json", "--max-age-hours", "24"])
+    assert r.exit_code == 0, r.output
+    assert "from the cache" not in DoctorReport.model_validate_json(r.stdout).warnings

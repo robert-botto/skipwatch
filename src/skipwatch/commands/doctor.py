@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from datetime import date
@@ -19,11 +20,17 @@ def _cached(path: Path, max_age_hours: float) -> DoctorReport | None:
     """doctor.json when its mtime is under max_age_hours old and it still reads, else None."""
     try:
         age_s = time.time() - path.stat().st_mtime
-        if age_s >= max_age_hours * 3600:
+        if not 0 <= age_s < max_age_hours * 3600:  # a future mtime is stale too
             return None
         return read_model(path, DoctorReport)
     except (OSError, ValidationError, ValueError):
         return None
+
+
+def _finite_hours(value: float | None) -> float | None:
+    if value is not None and not math.isfinite(value):
+        raise typer.BadParameter("must be a finite number of hours")
+    return value
 
 
 def _doctor(json_out: bool, max_age_hours: float | None) -> int:
@@ -53,6 +60,7 @@ def register(app: typer.Typer) -> None:
             typer.Option(
                 "--max-age-hours",
                 min=0,
+                callback=_finite_hours,
                 help="Reuse doctor.json when it is younger than this; else rebuild it.",
             ),
         ] = None,
