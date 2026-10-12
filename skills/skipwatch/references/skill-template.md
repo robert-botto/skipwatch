@@ -25,7 +25,7 @@ values.
 ```markdown
 ---
 name: <name>
-description: <What the workflow does, third person, one clause, e.g. "Deploys an Astro site to Cloudflare Pages">. Use when the user wants to <goal>, for example "<trigger phrasing 1>", "<trigger phrasing 2>", "<trigger phrasing 3>". Not for <near miss 1> or <near miss 2>.
+description: <What the workflow does, third person, one clause, unquoted, for example Deploys an Astro site to Cloudflare Pages>. Use when the user wants to <goal>, for example "<trigger phrasing 1>", "<trigger phrasing 2>", "<trigger phrasing 3>". Not for <near miss 1> or <near miss 2>.
 compatibility: <tools and versions> as shown in the source video.
 metadata:
   source_url: "<url, or empty for a local file>"

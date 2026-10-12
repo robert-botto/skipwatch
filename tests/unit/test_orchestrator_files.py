@@ -274,6 +274,8 @@ def test_skill_template_frontmatter_is_portable():
     # what it does, then when (best practices: a description says both)
     assert meta["description"].startswith("<What the workflow does, third person")
     assert ". Use when the user wants to <goal>" in meta["description"]
+    # the "what" clause is unquoted, so it never becomes the first quoted trigger
+    assert meta["description"].split(". Use when", 1)[0].count('"') == 0
     assert "One third-person clause on what the skill does" in flat(REFS / "distill-rules.md")
     assert "says in one clause what the skill does" in flat(ROOT / "agents/skill-critic.md")
 
