@@ -10,6 +10,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from skipwatch.checks.frontmatter import is_skill_name
 from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, ResumeResult, RunFile, StageName, StagesFile
@@ -42,14 +43,15 @@ def _run(work: Path) -> RunFile | None:
 
 def skill_name(work: Path, run: RunFile | None) -> str | None:
     """The run's skill and staging folder: run.json's name when set (rename-staging writes
-    it), else the one real folder under <W>/staging; None when that is not clear."""
-    if run is not None and run.name:
+    it), else the one real folder under <W>/staging; None when that is not clear. A name
+    that breaks the skill-name rule is ignored, never printed (REV8)."""
+    if run is not None and run.name and is_skill_name(run.name):
         return run.name
     staging = work / "staging"
     if staging.is_symlink() or not staging.is_dir():
         return None
     folders = [p for p in staging.iterdir() if p.is_dir() or p.is_symlink()]
-    if len(folders) != 1 or folders[0].is_symlink():
+    if len(folders) != 1 or folders[0].is_symlink() or not is_skill_name(folders[0].name):
         return None
     return folders[0].name
 
