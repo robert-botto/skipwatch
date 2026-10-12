@@ -105,6 +105,9 @@ def test_tester_stop_rules():
     assert "Run every command against absolute paths under `<scratch>`" in text
     assert '`cd "<scratch>" && <command>` only when a tool has no path flag' in text
     assert "Every Bash command starts with" not in text
+    # background subagents can have prompts auto-denied: a defined outcome, no workaround
+    assert "If a command is denied, stop: `blocked` at that step" in text
+    assert "`permission denied: <command>`; never retry it another way" in text
     # the report lives outside scratch, so both outside-scratch rules must exempt it
     assert text.count("except the report file at the path you were given") == 2
     assert "never modify the skill" in text.lower() or "never modifies the skill" in text.lower()
