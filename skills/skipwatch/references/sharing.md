@@ -31,15 +31,19 @@ or the folder's base name for a path. `<cwd>` is the current directory, absolute
 
     <ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json; echo "rc=$?"
 
-- Exit 0: print `Packed <name>: <path>, <bytes / 1024, rounded> KB.` and then
+- Exit 0: print the engine's two lines as given,
+  `Packed <name>: <files> files, <KB> KB, sha256 <12 hex>` and `Wrote <path>`, then
   `sha256 <hex>: post this next to the pack so people can check they got the same file.`
-  (`<hex>` is `sha256` without its `sha256:` prefix).
-- Exit 4: `This skill was fetched with your browser cookies, so it cannot be packed for sharing.`
+  (`<hex>` is the JSON `sha256` without its `sha256:` prefix).
+- Exit 4: the engine's line,
+  `This skill was made from content fetched with your browser cookies, so it cannot be packed for sharing.`
 - Exit 9: the engine's line (it names the changed files), then
   `Reinstall the skill or run /skipwatch again on its source.`
 - Exit 1: the engine's line (the skill did not pass its checks when it was made), then
   `Reinstall the skill or run /skipwatch again on its source.`
-- Exit 2: `No installed SkipWatch skill named <skill>. /skipwatch list shows them.`
+- Exit 2 whose message contains `no installed SkipWatch skill named`:
+  `No installed SkipWatch skill named <skill>. /skipwatch list shows them.` Any other
+  exit 2 (a path that is not a skill folder): the engine's line.
 - Exit 64 whose message says `pass the path instead`: several installed skills share that
   name. Print the engine's line (it lists their paths) and stop.
 
@@ -57,18 +61,22 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
 
        <ENGINE> unpack "<pack or url>" --json; echo "rc=$?"
 
-   - Exit 9: `Pack integrity failure: <engine message>. Nothing was installed.` and stop.
+   - Exit 9: `Pack integrity failure: <engine message>. Nothing was installed.` and stop,
+     with the engine message without its `pack integrity: ` prefix.
    - Exit 3: `Download failed: <engine message>.` and stop.
-   - Exit 2: `Not a pack: <engine message>.` and stop (an `http://` URL is exit 2 too:
-     pack URLs must be https).
-   - Exit 4: `This pack was made from content fetched with someone's browser cookies; SkipWatch will not install it.`
+   - Exit 2: `Not a pack: <engine message>.` and stop (an `http://` URL is exit 2 too,
+     with `pack URLs must be https`).
+   - Exit 4: the engine's line,
+     `This pack was made from content fetched with someone's browser cookies; SkipWatch does not unpack it.`,
      and stop.
-   - Exit 0: take `name`, `work`, `staging`, `pack_sha256`, `claimed_confidence` and
+   - Exit 0: print the engine's two lines as given,
+     `Pack verified: <name>, <files> files, sha256 <12 hex>` and `Unpacked to <staging>`.
+     Take `name`, `work`, `staging`, `pack_sha256`, `claimed_confidence` and
      `claimed_critic_score` from the JSON. `<work>` and `<staging>` are those values,
-     copied exactly. Print `Pack verified: <name>, <files> files (<n>s)`.
-   - When unpack cannot write under the home folder, apply the stage 2 fallback of
-     `run-protocol.md` once: the same command with the `SKIPWATCH_HOME="<P>/.skipwatch"`
-     prefix, and that prefix on check and install too.
+     copied exactly; the skill is at `<work>/staging/<name>`.
+   - Exit 1 (for example an unwritable home folder, which ends in an uncaught error):
+     `SkipWatch: unpack failed: <last 3 stderr lines>` and stop. Unpack has no fallback
+     folder; never retry it under another home.
 3. Check. Pack mode is automatic (the engine sees the pack in `<work>/ingest.json`):
 
        <ENGINE> check "<staging>" --work "<work>" --json >"<work>/logs/check.json" 2>"<work>/logs/check.log"; echo "rc=$?"; tail -n 8 "<work>/logs/check.log"

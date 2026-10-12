@@ -1312,7 +1312,8 @@ def test_sharing_reference_commands_and_messages():
         assert command in text, command
     for phrase in (
         "No SkipWatch skills installed.",
-        "This skill was fetched with your browser cookies, so it cannot be packed for sharing.",
+        "This skill was made from content fetched with your browser cookies, "
+        "so it cannot be packed for sharing.",
         "Reinstall the skill or run /skipwatch again on its source.",
         "No installed SkipWatch skill named <skill>. /skipwatch list shows them.",
         "post this next to the pack so people can check they got the same file.",
@@ -1320,7 +1321,7 @@ def test_sharing_reference_commands_and_messages():
         "Download failed: <engine message>.",
         "Not a pack: <engine message>.",
         "This pack was made from content fetched with someone's browser cookies; "
-        "SkipWatch will not install it.",
+        "SkipWatch does not unpack it.",
         "Post it where the creator will see it.",
         "This skill came from a local recording, so there is no creator link to share.",
     ):
@@ -1607,3 +1608,20 @@ def test_list_prints_the_engine_lines_unchanged():
     assert "exactly as the engine printed them" in section
     for invented in ("the video's creator", "undated", "untitled", "--json"):
         assert invented not in section, invented
+
+
+def test_sharing_matches_the_m5_c_engine():
+    text = flat(SHARING)
+    # pack and unpack progress lines exactly as commands/pack.py and unpack.py print them
+    assert "`Packed <name>: <files> files, <KB> KB, sha256 <12 hex>`" in text
+    assert "`Pack verified: <name>, <files> files, sha256 <12 hex>`" in text
+    assert "`Unpacked to <staging>`" in text
+    # exit 9 messages start with "pack integrity: "; the screen line does not repeat it
+    assert "without its `pack integrity: ` prefix" in text
+    assert "`pack URLs must be https`" in text
+    # unpack has no writable-home fallback: an unwritable home is an uncaught error
+    step2 = _install_step(2)
+    assert "SKIPWATCH_HOME" not in step2
+    assert "`SkipWatch: unpack failed: <last 3 stderr lines>`" in step2
+    pack = text.split("## pack `<skill>`", 1)[1].split("## install", 1)[0]
+    assert "Exit 2 whose message contains `no installed SkipWatch skill named`" in pack
