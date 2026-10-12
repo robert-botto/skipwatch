@@ -400,11 +400,12 @@ def test_a_scratch_symlink_to_a_matching_folder_is_refused(tmp_path):
 
 
 def test_a_scratch_holding_the_work_folder_is_refused(tmp_path):
-    home = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    scratch = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    home = scratch / ".skipwatch"
     work = home / "work" / "demo-20261012-120000"
     WorkDir(work).ensure()
     write(work / "draft" / "SKILL.md")
-    r = invoke("--home", str(home), "cleanup", "--work", str(work), "--scratch", str(home))
+    r = invoke("--home", str(home), "cleanup", "--work", str(work), "--scratch", str(scratch))
     assert r.exit_code == ExitCode.USAGE
     assert (work / "draft" / "SKILL.md").is_file() and (work / "stages.json").is_file()
 
@@ -533,9 +534,10 @@ def test_discard_pack_refuses_a_bad_scratch_and_deletes_nothing(tmp_path):
 
 
 def test_discard_pack_refuses_a_scratch_holding_the_pack_folder(tmp_path):
-    home = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    scratch = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    home = scratch / ".skipwatch"
     work = pack_folder(home)
-    r = invoke("--home", str(home), "discard-pack", "--work", str(work), "--scratch", str(home))
+    r = invoke("--home", str(home), "discard-pack", "--work", str(work), "--scratch", str(scratch))
     assert r.exit_code == ExitCode.USAGE
     assert (work / "staging" / "demo" / "SKILL.md").is_file()
     assert (work / "stages.json").is_file()

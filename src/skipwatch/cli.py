@@ -40,6 +40,14 @@ def _root(
     ] = None,
 ) -> None:
     if home is not None:
+        given = Path(home).expanduser()
+        # the skill's homes are ~/.skipwatch and <project>/.skipwatch; SKIPWATCH_HOME stays open
+        if given.name != ".skipwatch" or given.is_symlink():
+            print(
+                f"--home refused: {home} is not a .skipwatch folder (or is a symlink)",
+                file=sys.stderr,
+            )
+            raise typer.Exit(ExitCode.USAGE)
         config.set_home_option(home)
         ctx.call_on_close(lambda: config.set_home_option(None))
     if log is not None:

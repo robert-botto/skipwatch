@@ -189,7 +189,7 @@ def test_probe_out_writes_the_json_to_logs(extract, no_whisper, run_folder):
 
 def test_probe_out_respects_home(extract, no_whisper, tmp_path, sw_home):
     extract(recorded())
-    home = tmp_path / "other-home"
+    home = tmp_path / "other" / ".skipwatch"
     work = home / "work" / "demo-20261012-120000"
     WorkDir(work).ensure()
     out = work / "logs" / "probe.json"

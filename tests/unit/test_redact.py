@@ -461,7 +461,7 @@ def test_redact_in_out_writes_the_redacted_file_and_its_folders(run_folder):
 
 
 def test_redact_in_out_respects_home(tmp_path, sw_home):
-    home = tmp_path / "other-home"
+    home = tmp_path / "other" / ".skipwatch"
     work = home / "work" / "demo-20261012-120000"
     WorkDir(work).ensure()
     (work / "draft").mkdir()

@@ -231,7 +231,7 @@ def test_note_accepts_a_pack_work_folder(pack):
 
 
 def test_note_on_a_pack_respects_home(tmp_path, sw_home):
-    home = tmp_path / "other-home"
+    home = tmp_path / "other" / ".skipwatch"
     pack = home / "packs" / "demo-20261012-120000"
     WorkDir(pack).ensure()
     r = CliRunner().invoke(
