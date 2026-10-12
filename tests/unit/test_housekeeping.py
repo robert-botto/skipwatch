@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 from skipwatch.cli import app
 from skipwatch.config import skipwatch_home
 from skipwatch.errors import ExitCode
-from skipwatch.workdir import WorkDir
+from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 
 @pytest.fixture(autouse=True)
@@ -416,3 +416,134 @@ def test_discard_refuses_a_symlink_to_a_sibling_work_folder(sw_home):
     r = invoke("discard-work", "--work", str(link))
     assert r.exit_code == ExitCode.USAGE
     assert (real / "stages.json").is_file() and link.is_symlink()
+
+
+# ---- discard-pack: remove a pack work folder after install or cancel ----
+
+
+def pack_folder(home: Path | None = None, name: str = "demo-20261012-120000") -> Path:
+    """A pack work folder as unpack makes one: staging, ingest.json and stages.json."""
+    work = (home or skipwatch_home()) / "packs" / name
+    WorkDir(work).ensure()
+    write(work / "staging" / "demo" / "SKILL.md")
+    write(work / "ingest.json", "{}")
+    return work
+
+
+def test_discard_pack_removes_the_pack_and_this_projects_scratch(tmp_path):
+    work = pack_folder()
+    scratch = scratch_dir(tmp_path)
+    r = invoke("discard-pack", "--work", str(work), "--scratch", str(scratch))
+    assert r.exit_code == 0, r.output
+    assert not work.exists() and not scratch.exists()
+    assert (skipwatch_home() / "packs").is_dir()
+    assert (tmp_path / "project" / ".skipwatch").is_dir()
+
+
+def test_discard_pack_without_scratch_or_with_a_missing_scratch(tmp_path):
+    work = pack_folder()
+    assert invoke("discard-pack", "--work", str(work)).exit_code == 0
+    assert not work.exists()
+    work = pack_folder()
+    missing = tmp_path / "project" / ".skipwatch" / "test-run-never"
+    assert invoke("discard-pack", "--work", str(work), "--scratch", str(missing)).exit_code == 0
+    assert not work.exists()
+
+
+def test_discard_pack_accepts_any_stage_state():
+    work = pack_folder()
+    for stage in STAGE_ORDER:
+        WorkDir(work).mark(stage, "done")
+    assert invoke("discard-pack", "--work", str(work)).exit_code == 0
+    assert not work.exists()
+
+
+def test_discard_pack_with_home_option(tmp_path):
+    project_home = tmp_path / "project" / ".skipwatch"
+    work = pack_folder(project_home)
+    assert invoke("discard-pack", "--work", str(work)).exit_code == ExitCode.USAGE
+    assert (work / "stages.json").is_file()
+    r = invoke("--home", str(project_home), "discard-pack", "--work", str(work))
+    assert r.exit_code == 0, r.output
+    assert not work.exists()
+
+
+def test_discard_pack_refuses_anything_but_a_pack_folder(tmp_path):
+    valid = (outside_folder(tmp_path) / "stages.json").read_text()
+    home = skipwatch_home()
+    run = work_folder(tmp_path)
+    targets = (
+        run,  # a run work folder under work/, valid stages.json
+        victim(tmp_path / "anywhere", stages=valid),  # a planted stages.json elsewhere
+        victim(tmp_path / "packs" / "demo-20261012-120000", stages=valid),  # a lookalike packs/
+        victim(home / "packs" / "a" / "nested-20261012-120000", stages=valid),
+        victim(home / "packs" / "empty-20261012-120000", stages=""),
+        victim(home / "packs" / "none-20261012-120000", stages=None),
+        victim(home / "PACKS" / "case-20261012-120000", stages=valid),
+        victim(home / "work" / "packs" / "deep-20261012-120000", stages=valid),
+    )
+    for target in targets:
+        r = invoke("discard-pack", "--work", str(target))
+        assert r.exit_code == ExitCode.USAGE, (target, r.output)
+        assert target.is_dir(), target
+    for target in targets[1:]:
+        assert_untouched(target)
+    for target in (home / "packs", home, tmp_path):
+        assert invoke("discard-pack", "--work", str(target)).exit_code == ExitCode.USAGE
+        assert target.is_dir()
+    assert (run / "stages.json").is_file()
+
+
+def test_discard_pack_refuses_a_symlinked_pack_folder(tmp_path):
+    real = pack_folder()
+    outside = victim(tmp_path / "elsewhere", stages=(real / "stages.json").read_text())
+    for name, target in (("link-a", real), ("link-b", outside)):
+        link = real.parent / name
+        symlink(link, target)
+        r = invoke("discard-pack", "--work", str(link))
+        assert r.exit_code == ExitCode.USAGE
+        assert link.is_symlink()
+    assert (real / "staging" / "demo" / "SKILL.md").is_file()
+    assert_untouched(outside)
+
+
+def test_discard_pack_refuses_a_bad_scratch_and_deletes_nothing(tmp_path):
+    work = pack_folder()
+    real = scratch_dir(tmp_path, "real")
+    link = real.parent / "test-run-link"
+    symlink(link, real)
+    upper = real.parent / "TEST-RUN-upper"
+    write(upper / "SKILL.md")
+    for scratch in (
+        scratch_dir(tmp_path / "other"),  # another project's tester folder
+        link,  # a symlink to a matching folder
+        upper,  # a case variant of the prefix
+        tmp_path / "project" / ".SKIPWATCH" / "test-run-real",  # a case variant of the folder
+        real.parent / "test-run-",  # the prefix alone
+        real.parent,
+        tmp_path / "project",
+        work,
+    ):
+        r = invoke("discard-pack", "--work", str(work), "--scratch", str(scratch))
+        assert r.exit_code == ExitCode.USAGE, (scratch, r.output)
+        assert (work / "staging" / "demo" / "SKILL.md").is_file()
+    assert (real / "SKILL.md").is_file() and link.is_symlink()
+    assert (upper / "SKILL.md").is_file()
+    assert (scratch_dir(tmp_path / "other") / "SKILL.md").is_file()
+
+
+def test_discard_pack_refuses_a_scratch_holding_the_pack_folder(tmp_path):
+    home = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    work = pack_folder(home)
+    r = invoke("--home", str(home), "discard-pack", "--work", str(work), "--scratch", str(home))
+    assert r.exit_code == ExitCode.USAGE
+    assert (work / "staging" / "demo" / "SKILL.md").is_file()
+    assert (work / "stages.json").is_file()
+
+
+def test_discard_pack_refuses_a_bad_work_and_keeps_the_scratch(tmp_path):
+    run = work_folder(tmp_path)
+    scratch = scratch_dir(tmp_path)
+    r = invoke("discard-pack", "--work", str(run), "--scratch", str(scratch))
+    assert r.exit_code == ExitCode.USAGE
+    assert (scratch / "SKILL.md").is_file() and (run / "stages.json").is_file()

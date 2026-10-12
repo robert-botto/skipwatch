@@ -21,7 +21,12 @@ from skipwatch.workdir import STAGE_ORDER, WorkDir
 def home_work_folder(work: Path) -> Path:
     """The work folder, resolved: directly under the home's work/ (as --home sets it), not a
     symlink, with a stages.json that reads. Anything else is exit 64 before any deletion."""
-    root = (skipwatch_home() / "work").resolve()
+    return _home_folder(work, "work")
+
+
+def _home_folder(work: Path, area: str) -> Path:
+    """home_work_folder's rule for the home's work/ or packs/ folder."""
+    root = (skipwatch_home() / area).resolve()
     resolved = work.resolve()
     if work.is_symlink() or resolved.parent != root:
         raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
@@ -32,7 +37,7 @@ def home_work_folder(work: Path) -> Path:
     return resolved
 
 
-def _remove(path: Path) -> None:
+def remove_path(path: Path) -> None:
     """Delete a file or folder; a symlink is unlinked, never followed."""
     if path.is_symlink() or path.is_file():
         path.unlink()
@@ -94,7 +99,7 @@ def _cleanup(work: Path, keep_media: bool, scratch: Path | None) -> int:
         if path != scratch and not _inside(work, path):
             continue
         if path.is_symlink() or path.exists():
-            _remove(path)
+            remove_path(path)
             removed += 1
     progress(f"Cleanup: removed {removed} item(s) from {work}")
     return 0
@@ -122,13 +127,25 @@ def _discard_work(work: Path) -> int:
     return 0
 
 
+def _discard_pack(work: Path, scratch: Path | None) -> int:
+    """Remove a pack work folder unpack made, after install or cancel (sharing.md), and this
+    project's test-run scratch folder; every path is checked before anything is deleted."""
+    work = _home_folder(work, "packs")
+    scratch = None if scratch is None else _scratch_folder(work, scratch)
+    shutil.rmtree(work)
+    if scratch is not None and scratch.exists():
+        shutil.rmtree(scratch)
+    progress(f"Discarded {work}")
+    return 0
+
+
 def _snapshot_draft(work: Path) -> int:
     work = home_work_folder(work)
     draft = work / "draft"
     if not draft.is_dir() or draft.is_symlink():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"no draft to snapshot: {draft}")
     snapshot = work / "draft-pre-critic"
-    _remove(snapshot)
+    remove_path(snapshot)
     shutil.copytree(draft, snapshot, symlinks=True)
     progress(f"Snapshot: {snapshot}")
     return 0
@@ -163,3 +180,14 @@ def register(app: typer.Typer) -> None:
     ):
         """Remove a fresh work folder under the home's work/ (only the first stage done)."""
         run_command(lambda: _discard_work(work))
+
+    @app.command("discard-pack")
+    def _discard_pack_cmd(
+        work: Annotated[Path, typer.Option("--work", help="The pack work folder unpack printed.")],
+        scratch: Annotated[
+            Path | None,
+            typer.Option("--scratch", help="The tester's <project>/.skipwatch/test-run-<name>."),
+        ] = None,
+    ):
+        """Remove a pack work folder under the home's packs/, and the test run's scratch."""
+        run_command(lambda: _discard_pack(work, scratch))
