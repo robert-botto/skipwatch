@@ -671,14 +671,18 @@ done (3.4, section 15). A stage left `running` by a killed process counts as not
    - `detect` or `ingest`: stage 3 from step 3. The probe and the long-video question
      belong to the start of a run and are not repeated.
    - `transcribe`, `frames`, `plan`: that step of stage 3, then the rest.
-   - `read`, `distill` or `critique`: run `validate-notes` (stage 4) and re-dispatch
-     readers only for batches whose notes file is missing or invalid, then stage 5.
+   - `read` or `distill`: run `validate-notes` (stage 4) and re-dispatch readers only for
+     batches whose notes file is missing or invalid, then stage 5.
+   - `critique`: stage 6b when `<W>/staging/<name>/SKILL.md` exists, then stage 7;
+     otherwise as `read`. `<name>` is the one folder under `<W>/staging/`. Stage 6b
+     honours `--fast` from `run.flags`.
    - `check`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, otherwise stage 5.
    - `review` or `install`: stage 7 (staging may have been edited by hand), then stage 8.
    - a text source never runs transcribe, frames, plan or read, and the engine's
      `next_stage` already skips them: it is the first of distill, critique, check, review
-     and install not yet done, handled by the lines above, except that `distill` and
-     `critique` go straight to stage 5 with no `validate-notes` (there are no batches).
+     and install not yet done, handled by the lines above, except that `distill`, and
+     `critique` without a staged `SKILL.md`, go straight to stage 5 with no
+     `validate-notes` (there are no batches).
      Work already staged is not redone. `null` means the run is finished.
 
 From there the run is an ordinary run: same progress lines, same review prompt, same

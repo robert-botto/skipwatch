@@ -1469,3 +1469,12 @@ def test_stage_9_star_nudge_share_line_and_draft_cleanup():
     )
     assert cleanup in stage9
     assert "SKIPWATCH_KEEP_DRAFTS" in stage9
+
+
+def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
+    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    assert (
+        "`critique`: stage 6b when `<W>/staging/<name>/SKILL.md` exists, then stage 7; "
+        "otherwise as `read`" in resume
+    )
+    assert "`read`, `distill` or `critique`: run `validate-notes`" not in resume
