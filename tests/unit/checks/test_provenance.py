@@ -412,3 +412,9 @@ def test_provenance_fails_short_whole_item_of_other_kinds(tmp_path, kind):
 def test_provenance_fails_on_mid_word_prompt_quote(tmp_path):
     r = _case_with_note(tmp_path, "rite a four line poem about river")
     assert not r.ok and r.items[0].step == 2
+
+
+def test_provenance_short_spoken_quote_points_at_on_screen_tag(tmp_path):
+    r = _run(tmp_path, _step5_quote("copilot"))
+    assert not r.ok and r.items[0].msg == "[spoken 00:49] quote is too short to verify"
+    assert "[on-screen mm:ss]" in (r.items[0].fix or "")

@@ -91,7 +91,15 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
     for quote in step.quotes + step.code_quotes:
         q = _norm(quote)
         if _too_short(q):
-            items.append(CheckItem(step=step.number, msg=f"{label} quote is too short to verify"))
+            # A short spoken quote is too weak alone (any common word is in some transcript).
+            # When the screen shows it whole, the on-screen tag is the evidence that verifies.
+            items.append(
+                CheckItem(
+                    step=step.number,
+                    msg=f"{label} quote is too short to verify",
+                    fix="if the screen shows this whole command, tag the step [on-screen mm:ss]",
+                )
+            )
         elif not _contains_words(heard, q):
             items.append(
                 CheckItem(
