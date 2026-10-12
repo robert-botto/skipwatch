@@ -1854,10 +1854,13 @@ def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     stage10 = raw.split("## Stage 10: install", 1)[1].split("\n## Resume", 1)[0]
     stage10 = re.sub(r"\s+", " ", stage10)
     # once per home, after the two install lines; the marker test is its own Bash call
-    assert STAR in stage10
-    assert 'test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"' in stage10
-    assert "Only when it does not exist" in stage10
-    assert _before(stage10, "Then print two lines", ".star-nudged")
+    # the engine owns the once-per-home marker and the line
+    from skipwatch.commands import nudge
+
+    assert nudge.STAR_LINE == STAR
+    assert "<ENGINE> nudge" in stage10
+    assert ".star-nudged" not in stage10 and "touch" not in stage10
+    assert _before(stage10, "Then print two lines", "<ENGINE> nudge")
     assert "/skipwatch share <name> prints a thank-you post for the creator." in stage10
     # the engine deletes every raw work file (it honours SKIPWATCH_KEEP_DRAFTS itself)
     cleanup = logged("cleanup") + ' --work "<W>" [--keep-media] [--scratch'

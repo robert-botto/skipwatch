@@ -92,11 +92,12 @@ Then print two lines:
     Installed to <path>. Try it: "<first trigger phrase>".
     This skill credits <author, or "the video's creator">. Source: <url or file name>.
 
-Then the star nudge, once per SkipWatch home. Check the marker with one Bash call,
-`test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"` (with `<P>/.skipwatch` as the
-home when the run moved into the project). Only when it does not exist, print
-`If this saved you an hour, a star helps others find it: https://github.com/robert-botto/skipwatch`
-and create the marker with `touch` on the same path. Then print:
+Then the star nudge; the engine prints its line once per SkipWatch home (add `--home`
+when the run moved) and prints nothing after that. Print its output line, if any:
+
+    <ENGINE> nudge
+
+Then print:
 
     /skipwatch share <name> prints a thank-you post for the creator.
 
