@@ -1197,6 +1197,11 @@ def test_slug_rule_is_spelled_out():
 def test_provider_calls_line_lists_each_call_and_the_total():
     review = flat(REFS / "review-screen.md")
     assert "`none (free route)`" in review
+    # the free route logs provider="free" rows at cost 0 into calls.json too
+    assert "Only rows whose `provider` is `treg` count" in review
+    assert "no treg rows means `none (free route)`" in review
+    assert "`<n>` counts the treg rows" in review
+    assert "counts every row" not in review
     assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
     example = "treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012"
     assert example in review

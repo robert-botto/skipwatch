@@ -65,8 +65,10 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
 - **Provider calls:** `W/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
-  `ok`, `endpoint`, `call_id` and `review`. No rows means `none (free route)`. Otherwise
-  `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts every row,
+  `ok`, `endpoint`, `call_id` and `review`. The free route logs its own rows there too
+  (`provider` `free`, cost 0). Only rows whose `provider` is `treg` count; no treg rows
+  means `none (free route)`. Otherwise
+  `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts the treg rows,
   each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
   computed from `calls.json`, never from `treg balance`, which you never run or print. For
   example `treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012)`.
