@@ -20,17 +20,15 @@ review running as you print the screen, so its timing covers the user's decision
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status running
 
-Install folder `<dir>` (the target is `<dir>/<name>`):
-- `--to D`: `D`
-- `--project`: `<P>/.claude/skills`; `--agents`: `<P>/.agents/skills`
-- otherwise `$HOME/.claude/skills` (or `[install] scope` in
-  `${SKIPWATCH_HOME:-$HOME/.skipwatch}/config.toml`).
+Collision test, one engine call; the engine resolves the install target exactly as
+`install` does (the default scope comes from its config). Add `--scope project` or
+`--scope agents` only when the user gave `--project` or `--agents`, and `--to "<D>"` only
+for `--to D`:
 
-Collision test, one engine call; read the line it prints, never an exit code:
+    <ENGINE> target-free --name "<name>" [--scope project|agents | --to "<D>"]
 
-    <ENGINE> target-free --to "<dir>" --name "<name>"
-
-It prints `target free: <path>` or `target exists: <path>`; that `<path>` is the target.
+Read the line it prints, never an exit code: `target free: <path>` or
+`target exists: <path>`; that `<path>` is the target.
 
 Under `--yes`, install without asking only if safety flags, gaps and name collisions are
 all zero; unread frames do not count, except unread cue frames, which are gaps. Print the

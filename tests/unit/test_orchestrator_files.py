@@ -330,7 +330,15 @@ def test_run_protocol_yes_gate():
         "collisions are all zero" in text
     )  # R-REV-1
     # the engine reports the collision as a line, never an exit code to interpret
-    assert '<ENGINE> target-free --to "<dir>" --name "<name>"' in text
+    # the engine resolves the target as install does; Claude never reads config.toml
+    assert '<ENGINE> target-free --name "<name>" [--scope project|agents | --to "<D>"]' in text
+    assert "[install] scope" not in text
+    import typer
+
+    from skipwatch.cli import app
+
+    target_free = typer.main.get_command(app).commands["target-free"]  # type: ignore[attr-defined]
+    assert "--scope" in {o for p in target_free.params for o in p.opts}
     assert "`target free: <path>` or `target exists: <path>`" in text
     assert "test -e" not in text
     assert '"~/' not in text
