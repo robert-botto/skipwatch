@@ -85,8 +85,9 @@ def engine(root: Path) -> Engine:
 @pytest.fixture(scope="module")
 def work(root: Path, engine: Engine) -> Path:
     """doctor, ingest, transcribe, frames and plan, exactly as the orchestrator runs them."""
-    w = root / "work"
     engine.ok("doctor")
+    made = engine.ok("new-work", "--slug", "tutorial-60s", "--json")
+    w = Path(json.loads(made.stdout.splitlines()[-1])["work"])
     engine.ok("ingest", str(FIX / "tutorial-60s.mp4"), "--work", str(w))
     engine.ok("transcribe", "--work", str(w))
     engine.ok("frames", "--work", str(w))

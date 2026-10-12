@@ -9,11 +9,12 @@ from skipwatch.models import (
     NotesFile,
     ValidateNotesResult,
 )
-from skipwatch.workdir import write_model
+from skipwatch.workdir import WorkDir, write_model
 
 
 def make_work(tmp_path, batches: dict[int, list[str]]):
     w = tmp_path / "w"
+    WorkDir(w).ensure()  # directly in tmp_path, the test home's work/ (conftest)
     (w / "notes").mkdir(parents=True)
     write_model(
         w / "batches.json",
@@ -82,7 +83,7 @@ def test_validate_notes_fails_on_wrong_frames(tmp_path):
 
 def test_validate_notes_exit_7_without_batches(tmp_path):
     w = tmp_path / "w"
-    w.mkdir()
+    WorkDir(w).ensure()
     r = run(w)
     assert r.exit_code == 7 and "batches.json" in r.output
 

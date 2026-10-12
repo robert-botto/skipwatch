@@ -4,6 +4,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.output import emit_json, progress
 from skipwatch.runner import run_command
 from skipwatch.transcribe import run_transcribe
@@ -22,7 +23,7 @@ class Backend(StrEnum):
 
 def _transcribe(work: Path, backend: str, model: str | None, json_out: bool) -> int:
     progress(f"Transcribing with backend {backend}")
-    transcript = run_transcribe(WorkDir(work), backend, model)
+    transcript = run_transcribe(WorkDir(home_work_or_pack_folder(work)), backend, model)
     silent = " (silent: leaning on frames)" if transcript.silent else ""
     progress(f"Transcribed {len(transcript.segments)} segments from {transcript.origin}{silent}")
     if json_out:

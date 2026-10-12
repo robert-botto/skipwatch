@@ -9,6 +9,7 @@ from skipwatch.checks import provenance
 from skipwatch.checks.runner import build_context
 from skipwatch.config import skipwatch_home
 from skipwatch.models import CheckResult, Counts, Manifest, ManifestSource
+from skipwatch.workdir import WorkDir
 from tests.unit.checks.conftest import symlink_or_skip
 
 NAME = "run-packdemo"
@@ -113,6 +114,7 @@ def pack_ctx(
     work = work or skipwatch_home() / "packs" / f"{NAME}-20261011-120000"
     staging = work / "staging" / NAME
     staging.mkdir(parents=True)
+    WorkDir(work).ensure()  # unpack writes stages.json too; check's --work guard reads it
     (staging / "SKILL.md").write_text(skill_md, encoding="utf-8")
     for rel, text in (extra or {}).items():
         (staging / rel).parent.mkdir(parents=True, exist_ok=True)

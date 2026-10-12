@@ -11,7 +11,7 @@ from skipwatch.workdir import WorkDir, write_model
 
 @pytest.mark.parametrize("backend", ["auto", "mlx", "captions", "openai"])
 def test_text_source_is_exit_7_before_any_backend(tmp_path, backend, sw_home):
-    work = WorkDir(tmp_path / "w")
+    work = WorkDir(sw_home / "work" / "w")
     work.ensure()
     bundle = IngestBundle(
         source=SourceInfo(kind="text", platform="generic", url="https://example.com/post"),

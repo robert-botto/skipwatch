@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.output import emit_json, progress
 from skipwatch.plan import DEFAULT_BATCH_SIZE, run_plan
 from skipwatch.runner import run_command
@@ -10,8 +11,7 @@ from skipwatch.workdir import WorkDir
 
 
 def _plan(work_dir: Path, batch_size: int, json_out: bool) -> int:
-    work = WorkDir(work_dir)
-    work.ensure()
+    work = WorkDir(home_work_or_pack_folder(work_dir))
     result = run_plan(work, batch_size)
     frames = sum(len(b.frame_ids) for b in result.batches)
     progress(f"Planned {len(result.batches)} reader batch(es) for {frames} frame(s)")

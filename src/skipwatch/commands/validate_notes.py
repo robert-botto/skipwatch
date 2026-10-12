@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import Batch, BatchesFile, NotesError, NotesFile, ValidateNotesResult
 from skipwatch.output import emit_json, progress
@@ -69,6 +70,7 @@ def batch_problem(errors: list[NotesError]) -> str:
 
 
 def _validate_notes(work: Path, json_out: bool) -> int:
+    work = home_work_or_pack_folder(work)
     batches_path = work / "batches.json"
     if not batches_path.is_file():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"{batches_path} not found; run plan first")

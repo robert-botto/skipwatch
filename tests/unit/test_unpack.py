@@ -267,7 +267,7 @@ def test_unpack_lays_out_pack_work_folder(tmp_path, sw_home):
     assert (work / "stages.json").is_file()
     assert result.transcript is True and result.files == 5
     assert result.claimed_confidence == "high" and result.claimed_critic_score == 8.5
-    assert result.pack_sha256 == pack_skill(source, tmp_path / "again.zip").sha256
+    assert result.pack_sha256 == pack_skill(source, tmp_path / "again.skillpack.zip").sha256
 
     second = unpack(pack, None, now=NOW, fetched_from="https://example.com/run-x.skillpack.zip")
     assert Path(second.work) == sw_home / "packs" / f"{NAME}-20261011-093000-1"

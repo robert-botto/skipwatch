@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 from skipwatch.cli import app
 from skipwatch.models import Critique
+from skipwatch.workdir import WorkDir
 
 SKILL = """---
 name: demo
@@ -32,6 +33,7 @@ SCORES = {
 @pytest.fixture
 def work(tmp_path):
     w = tmp_path / "w"
+    WorkDir(w).ensure()  # directly in tmp_path, the test home's work/ (conftest)
     (w / "staging" / "demo").mkdir(parents=True)
     (w / "staging" / "demo" / "SKILL.md").write_text(SKILL, encoding="utf-8")
     return w

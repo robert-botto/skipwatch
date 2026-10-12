@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
+from skipwatch.config import skipwatch_home
 from skipwatch.models import IngestBundle, MediaInfo, Route, SourceInfo
 from skipwatch.workdir import WorkDir, write_model
 
@@ -49,8 +50,10 @@ def make_held_video(path: Path) -> Path:
 
 
 def make_local_work(tmp_path: Path, video: Path, duration: float | None = None) -> Path:
-    """A work folder whose ingest.json points at `video` (a local file, M1 localfile shape)."""
-    w = tmp_path / "work"
+    """A work folder whose ingest.json points at `video` (a local file, M1 localfile shape),
+    directly under the current home's work/ so the --work guard accepts it."""
+    del tmp_path  # kept for callers; the home is per test (conftest)
+    w = skipwatch_home() / "work" / "work"
     (w / "media").mkdir(parents=True)
     target = w / "media" / video.name
     shutil.copyfile(video, target)

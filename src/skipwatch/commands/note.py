@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from skipwatch.commands.workfiles import home_work_folder, remove_path
+from skipwatch.commands.workfiles import home_work_or_pack_folder, remove_path
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.review import DEGRADATIONS_FILE, read_degradations
@@ -72,7 +72,7 @@ def _note(
     clear: str | None,
 ) -> int:
     field, value = _value(degradation, unread, critic_failed, clear)
-    work = home_work_folder(work)
+    work = home_work_or_pack_folder(work)
     if clear is not None:
         return _clear(work, value)
     if critic_failed:

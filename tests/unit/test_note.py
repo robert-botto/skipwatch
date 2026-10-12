@@ -212,3 +212,53 @@ def test_critic_failed_deletes_the_critique_even_with_a_corrupt_file(work):
     assert r.exit_code == ExitCode.NO_CONTENT
     assert not (work / "critique.json").exists()
     assert (work / "degradations.json").read_text() == "{not json"
+
+
+# ---- pack test runs: stage 9b notes into a work folder under the home's packs/ ----
+
+
+@pytest.fixture
+def pack(sw_home) -> Path:
+    path = sw_home / "packs" / "demo-20261012-120000"
+    WorkDir(path).ensure()
+    return path
+
+
+def test_note_accepts_a_pack_work_folder(pack):
+    r = note(pack, "--degradation", "test run failed twice")
+    assert r.exit_code == 0, r.output
+    assert recorded(pack).degradations == ["test run failed twice"]
+
+
+def test_note_on_a_pack_respects_home(tmp_path, sw_home):
+    home = tmp_path / "other" / ".skipwatch"
+    pack = home / "packs" / "demo-20261012-120000"
+    WorkDir(pack).ensure()
+    r = CliRunner().invoke(
+        app,
+        ["--home", str(home), "note", "--work", str(pack), "--degradation", "x"],
+    )
+    assert r.exit_code == 0, r.output
+    assert recorded(pack).degradations == ["x"]
+
+
+def test_note_refuses_bad_pack_folders(tmp_path, sw_home):
+    nested = sw_home / "packs" / "a" / "demo-20261012-120000"
+    WorkDir(nested).ensure()
+    empty = sw_home / "packs" / "empty-20261012-120000"
+    empty.mkdir(parents=True)
+    (empty / "stages.json").write_text("", encoding="utf-8")
+    real = tmp_path / "real" / "demo-20261012-120000"
+    WorkDir(real).ensure()
+    link = sw_home / "packs" / "link-20261012-120000"
+    targets = [nested, empty, sw_home / "packs"]
+    try:
+        link.symlink_to(real, target_is_directory=True)
+        targets.append(link)
+    except OSError:
+        pass
+    for target in targets:
+        r = note(target, "--critic-failed")
+        assert r.exit_code == ExitCode.USAGE, target
+        assert not (target / "degradations.json").exists(), target
+    assert not (real / "degradations.json").exists()

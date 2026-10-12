@@ -17,6 +17,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import BatchesFile, NotesFile
 from skipwatch.output import progress
@@ -39,12 +40,8 @@ class MarkStatus(StrEnum):
 
 
 def _mark(work_dir: Path, stage: ClaudeStage, status: MarkStatus) -> int:
-    work = WorkDir(work_dir)
-    if not work.file("stages.json").is_file():
-        # never create a work folder here; a typo in the path must not start a new run
-        raise SkipwatchError(
-            ExitCode.UNSUPPORTED_SOURCE, f"{work_dir} is not a SkipWatch work folder"
-        )
+    # never create a work folder here; a typo in the path must not start a new run
+    work = WorkDir(home_work_or_pack_folder(work_dir))
     work.mark(stage.value, status.value)
     progress(f"Marked {stage.value} {status.value}")
     return 0
@@ -65,6 +62,7 @@ def _read_notes(path: Path, batch: int) -> NotesFile:
 
 
 def _merge_notes(work_dir: Path, batch_id: int) -> int:
+    work_dir = home_work_or_pack_folder(work_dir)
     batches_path = work_dir / "batches.json"
     if not batches_path.is_file():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"{batches_path} not found; run plan first")

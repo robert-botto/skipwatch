@@ -6,6 +6,7 @@ three log lines on the real stderr, so the skill never builds `T0=$(date +%s); .
 The root context closes before cli.main reports, so stop() runs first and is idempotent.
 """
 
+import os
 import sys
 import time
 from dataclasses import dataclass
@@ -30,7 +31,10 @@ def start(path: Path) -> None:
     """Send stderr to path (parents created, file overwritten) until stop()."""
     global _active
     path.parent.mkdir(parents=True, exist_ok=True)
-    stream = path.open("w", encoding="utf-8", buffering=1)  # line-buffered, readable live
+    # never follows a symlink swapped in after cli checked the path (adversarial review REV6)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o644)
+    stream = os.fdopen(fd, "w", encoding="utf-8", buffering=1)  # line-buffered, readable live
     _active = _Log(path=path, started=time.monotonic(), stream=stream, saved_stderr=sys.stderr)
     sys.stderr = stream
 

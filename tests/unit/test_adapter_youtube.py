@@ -14,6 +14,7 @@ from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import MediaInfo
 from skipwatch.providers import content_free as cf
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 
 def test_caption_choice_prefers_manual_then_orig():
@@ -259,7 +260,7 @@ def test_r_ing_6_login_required_is_exit_4_naming_the_flag(tmp_path, monkeypatch,
             "ingest",
             "https://www.youtube.com/watch?v=x",
             "--work",
-            str(tmp_path / "w"),
+            str(home_work("w")),
             "--provider",
             "free",
         ],
@@ -276,7 +277,7 @@ def test_r_ing_6_still_private_with_cookies_says_so(tmp_path, monkeypatch, sw_ho
             "ingest",
             "https://www.youtube.com/watch?v=x",
             "--work",
-            str(tmp_path / "w"),
+            str(home_work("w")),
             "--provider",
             "free",
             "--cookies-from-browser",
@@ -295,7 +296,7 @@ def test_metadata_network_failure_is_exit_3_listing_the_route(tmp_path, monkeypa
             "ingest",
             "https://www.youtube.com/watch?v=x",
             "--work",
-            str(tmp_path / "w"),
+            str(home_work("w")),
             "--provider",
             "free",
         ],
@@ -313,7 +314,7 @@ def test_bot_check_is_named_as_such_with_both_ways_out(tmp_path, monkeypatch, sw
         "--cookies for the authentication.",
     )
     r = CliRunner().invoke(
-        app, ["ingest", "https://www.youtube.com/watch?v=x", "--work", str(tmp_path / "w")]
+        app, ["ingest", "https://www.youtube.com/watch?v=x", "--work", str(home_work("w"))]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT
     assert "bot check" in r.output and "--cookies-from-browser" in r.output

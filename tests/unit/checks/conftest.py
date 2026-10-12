@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 
 from skipwatch.checks.runner import CheckContext, build_context
+from skipwatch.workdir import WorkDir
 
 FIX = Path(__file__).resolve().parents[2] / "fixtures" / "skills"
 NAME = "run-skipdemo-tutorial"
@@ -20,15 +21,23 @@ def _isolated_home(sw_home):
     return sw_home
 
 
+def sw_home_work() -> Path:
+    from skipwatch.config import skipwatch_home
+
+    return skipwatch_home() / "work"
+
+
 def write_jpeg(path: Path, width: int = 960, height: int = 540) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (width, height), (30, 30, 30)).save(path, "JPEG")
 
 
 def make_case(tmp_path: Path, edit: Callable[[str], str] | None = None) -> tuple[Path, Path]:
-    """Copy the good skill and the work folder; staging is work/staging/<name>/."""
-    work = tmp_path / "work"
+    """Copy the good skill and the work folder; staging is work/staging/<name>/. The work folder
+    sits directly under the test home's work/, where check's --work guard accepts it."""
+    work = sw_home_work() / "work"
     shutil.copytree(FIX / "work", work)
+    WorkDir(work).ensure()
     staging = work / "staging" / NAME
     shutil.copytree(FIX / "good" / NAME, staging)
     write_jpeg(staging / "assets" / "frames" / "f000250.jpg")

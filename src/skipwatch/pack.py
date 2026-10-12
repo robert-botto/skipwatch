@@ -36,7 +36,7 @@ from skipwatch.models import (
     UnpackResult,
 )
 from skipwatch.project import PACK_SUFFIX
-from skipwatch.workdir import WorkDir, write_model
+from skipwatch.workdir import WorkDir, write_bytes_atomic, write_model
 
 ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 IGNORED_NAMES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
@@ -166,6 +166,22 @@ def _zip_info(name: str) -> zipfile.ZipInfo:
     return info
 
 
+def pack_target(out: Path) -> Path:
+    """-o checked before anything is written (adversarial review REV6): a <name>.skillpack.zip
+    path that is not a symlink, and, when a file is already there, an earlier pack (a zip)."""
+
+    def refuse(why: str) -> SkipwatchError:
+        return SkipwatchError(ExitCode.USAGE, f"will not write the pack to {out}: {why}")
+
+    if not out.name.endswith(PACK_SUFFIX) or out.name == PACK_SUFFIX:
+        raise refuse(f"the file name must end in {PACK_SUFFIX}")
+    if out.is_symlink():
+        raise refuse("it is a symlink")
+    if out.exists() and not (out.is_file() and zipfile.is_zipfile(out)):
+        raise refuse("something other than an earlier pack is already there")
+    return out.absolute()
+
+
 def pack_skill(skill_dir: Path, out: Path | None) -> PackResult:
     """Deterministic stored zip of an installed skill. out defaults to ./<name>.skillpack.zip."""
     skill_dir = skill_dir.resolve()
@@ -192,16 +208,13 @@ def pack_skill(skill_dir: Path, out: Path | None) -> PackResult:
         )
     entries[MANIFEST_NAME] = manifest_bytes
     _check_limits(entries)
-    out = (out if out is not None else Path.cwd() / f"{name}{PACK_SUFFIX}").absolute()
-    tmp = out.with_name(out.name + ".tmp")
-    try:
-        with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_STORED) as z:
-            for entry in sorted(f"{name}/{rel}" for rel in entries):
-                z.writestr(_zip_info(entry), entries[entry[len(name) + 1 :]])
-        os.replace(tmp, out)
-    finally:
-        tmp.unlink(missing_ok=True)
-    data = out.read_bytes()
+    out = pack_target(out if out is not None else Path.cwd() / f"{name}{PACK_SUFFIX}")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as z:
+        for entry in sorted(f"{name}/{rel}" for rel in entries):
+            z.writestr(_zip_info(entry), entries[entry[len(name) + 1 :]])
+    data = buffer.getvalue()
+    write_bytes_atomic(out, data)
     return PackResult(
         name=name,
         path=str(out),

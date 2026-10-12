@@ -4,13 +4,15 @@ from typing import Annotated
 import typer
 
 from skipwatch.checks.runner import run_all
+from skipwatch.commands.workfiles import home_work_or_pack_folder, path_under
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import emit_json, progress
 from skipwatch.runner import run_command
 
 
 def _check(staging: Path, work: Path | None, json_out: bool) -> int:
-    work = work or staging.parent.parent
+    work = home_work_or_pack_folder(work or staging.parent.parent)
+    staging = path_under(work, "staging", staging, "staging folder")
     if not (staging / "SKILL.md").is_file():
         raise SkipwatchError(ExitCode.USAGE, f"{staging} has no SKILL.md")
     if not (work / "ingest.json").is_file():

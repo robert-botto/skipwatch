@@ -21,6 +21,7 @@ from skipwatch.models import MediaInfo
 from skipwatch.probe import probe
 from skipwatch.providers import content_free as cf
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded"
 
@@ -305,7 +306,7 @@ def fake_ytdlp(monkeypatch, error: str):
 def test_login_wall_is_exit_4_naming_cookie_flag(tmp_path, monkeypatch, sw_home, url, error, site):
     fake_ytdlp(monkeypatch, error)
     r = CliRunner().invoke(
-        app, ["ingest", url, "--work", str(tmp_path / "w"), "--provider", "free"]
+        app, ["ingest", url, "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.PRIVATE_CONTENT, r.output
     assert "--cookies-from-browser" in r.output and f"{site} says" in r.output

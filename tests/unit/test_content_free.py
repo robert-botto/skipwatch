@@ -8,6 +8,7 @@ from skipwatch.errors import ExitCode
 from skipwatch.models import MediaInfo
 from skipwatch.providers import content_free as cf
 from skipwatch.workdir import WorkDir
+from tests.unit._work import home_work
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded"
 
@@ -511,7 +512,7 @@ def test_session_cookies_are_never_persisted_and_not_user_cookies(tmp_path, sess
     from skipwatch.models import IngestBundle
 
     url = "https://x.com/someone/status/1"
-    work = tmp_path / "w"
+    work = home_work("w")
     r = CliRunner().invoke(
         app, ["ingest", url, "--work", str(work), "--provider", "free", "--json"]
     )

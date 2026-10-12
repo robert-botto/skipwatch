@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.frames import run_frames
 from skipwatch.output import emit_json, progress
 from skipwatch.runner import run_command
@@ -12,8 +13,7 @@ from skipwatch.workdir import WorkDir
 def _frames(
     work_dir: Path, per_minute: int | None, max_frames: int | None, dense: bool, json_out: bool
 ) -> int:
-    work = WorkDir(work_dir)
-    work.ensure()
+    work = WorkDir(home_work_or_pack_folder(work_dir))
     progress("Sampling frames")
     result = run_frames(work, per_minute, max_frames, dense)
     cues = sum(1 for f in result.frames if f.reason == "cue")

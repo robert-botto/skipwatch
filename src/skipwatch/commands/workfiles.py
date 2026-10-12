@@ -24,17 +24,81 @@ def home_work_folder(work: Path) -> Path:
     return _home_folder(work, "work")
 
 
-def _home_folder(work: Path, area: str) -> Path:
+def home_work_or_pack_folder(work: Path, require_stages: bool = True) -> Path:
+    """home_work_folder, or the same rule for the home's packs/ (a pack test run's folder).
+    When neither fits, the work/ refusal is the one raised. require_stages=False checks the
+    place only (resume reports a missing stages.json with its own exit code)."""
+    try:
+        return _home_folder(work, "work", require_stages)
+    except SkipwatchError as work_error:
+        try:
+            return _home_folder(work, "packs", require_stages)
+        except SkipwatchError:
+            raise work_error from None
+
+
+def _home_folder(work: Path, area: str, require_stages: bool = True) -> Path:
     """home_work_folder's rule for the home's work/ or packs/ folder."""
     root = (skipwatch_home() / area).resolve()
     resolved = work.resolve()
-    if work.is_symlink() or resolved.parent != root:
+    if work.is_symlink() or resolved.parent != root or ".." in work.parts:
         raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
+    if not require_stages:
+        return resolved
     try:
         WorkDir(resolved).stages()
     except (OSError, ValueError) as exc:
         raise SkipwatchError(ExitCode.USAGE, f"{work} has no readable stages.json") from exc
     return resolved
+
+
+def _refuse_dotdot(path: Path, flag: str) -> None:
+    if ".." in path.parts:
+        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} must not contain ..")
+
+
+def path_under(work: Path, sub: str, path: Path, flag: str) -> Path:
+    """path resolved, refused (exit 64) unless it lies inside <work>/<sub> with no `..` and no
+    symlink anywhere inside that folder, the last component included (adversarial review REV6).
+    work is an already-checked folder; path itself need not exist yet."""
+    folder = work / sub
+
+    def refuse(why: str) -> SkipwatchError:
+        return SkipwatchError(ExitCode.USAGE, f"{flag} {path} {why}")
+
+    _refuse_dotdot(path, flag)
+    if folder.is_symlink():
+        raise refuse(f"is in {folder}, which is a symlink")
+    resolved = path.resolve()
+    if not resolved.is_relative_to(folder) or resolved == folder:
+        raise refuse(f"is not inside {folder}")
+    given = Path(os.path.abspath(path))
+    for part in (given, *given.parents):
+        if not os.path.lexists(part):
+            continue
+        if not part.resolve().is_relative_to(folder):
+            break
+        if part.is_symlink():
+            raise refuse(f"goes through a symlink: {part}")
+    return resolved
+
+
+def log_path(log: Path) -> Path:
+    """--log resolved, refused (exit 64) unless it lies under <W>/logs of a work or pack folder
+    W as home_work_or_pack_folder checks it, with no `..` and no symlink inside logs/."""
+    _refuse_dotdot(log, "--log")
+    resolved = log.resolve()
+    for area in ("work", "packs"):
+        root = (skipwatch_home() / area).resolve()
+        if not resolved.is_relative_to(root):
+            continue
+        parts = resolved.relative_to(root).parts
+        if len(parts) >= 2:
+            work = _home_folder(root / parts[0], area)
+            return path_under(work, "logs", log, "--log")
+    raise SkipwatchError(
+        ExitCode.USAGE, f"--log {log} is not inside the logs/ folder of a work folder"
+    )
 
 
 def remove_path(path: Path) -> None:

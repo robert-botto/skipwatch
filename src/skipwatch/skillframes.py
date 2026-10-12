@@ -6,7 +6,6 @@ frame always gives the same bytes (R-CLI-1).
 """
 
 import io
-import os
 from pathlib import Path
 
 from PIL import Image
@@ -14,6 +13,7 @@ from PIL import Image
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.manifest import read_work_file
 from skipwatch.models import FramesFile
+from skipwatch.workdir import write_bytes_atomic
 
 SKILL_FRAME_WIDTH = 960
 MAX_SKILL_FRAMES = 8  # spec 10: a skill carries at most 8 frames
@@ -78,8 +78,6 @@ def copy_frames(work: Path, dest: Path, ids: list[str]) -> list[Path]:
     out = []
     for fid, data in zip(wanted, encoded, strict=True):
         target = dest / f"{fid}.jpg"
-        tmp = target.with_suffix(".jpg.tmp")
-        tmp.write_bytes(data)
-        os.replace(tmp, target)
+        write_bytes_atomic(target, data)
         out.append(target)
     return out

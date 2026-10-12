@@ -140,17 +140,19 @@ def test_non_work_folder_raises_exit_2(tmp_path):
 
 @pytest.mark.parametrize("content", ["{}", "{not json", '{"schema": "skipwatch/stages/1"}'])
 def test_invalid_stages_json_is_exit_7(tmp_path, content):
-    (tmp_path / "stages.json").write_text(content)
+    w = tmp_path / "w"  # directly in tmp_path, the test home's work/ (conftest)
+    w.mkdir()
+    (w / "stages.json").write_text(content)
     with pytest.raises(SkipwatchError) as e:
-        resume_info(tmp_path)
+        resume_info(w)
     assert e.value.code == ExitCode.NO_CONTENT
     assert e.value.message.startswith("stages.json is unreadable: ")
-    r = resume(str(tmp_path), "--json")
+    r = resume(str(w), "--json")
     assert r.exit_code == 7 and r.stdout == ""
 
 
 def test_resume_json_validates_and_exit_codes(sw_home, tmp_path):
-    w = work_at(tmp_path / "w", done=("detect", "ingest"), running="transcribe")
+    w = work_at(sw_home / "work" / "w", done=("detect", "ingest"), running="transcribe")
     r = resume(str(w.path), "--json")
     assert r.exit_code == 0, r.output
     out = ResumeResult.model_validate_json(r.stdout)  # R-CLI-2: requires the schema tag
@@ -160,9 +162,12 @@ def test_resume_json_validates_and_exit_codes(sw_home, tmp_path):
     again = resume(str(w.path), "--json")  # R-CLI-1: read-only, so the same answer twice
     assert again.exit_code == 0 and again.stdout == r.stdout
 
-    bad = resume(str(tmp_path), "--json")
+    (sw_home / "work" / "empty").mkdir()
+    bad = resume(str(sw_home / "work" / "empty"), "--json")
     assert bad.exit_code == 2 and bad.stdout == ""
     assert "not a SkipWatch work folder" in bad.stderr
+    outside = work_at(tmp_path / "elsewhere", done=("detect",))
+    assert resume(str(outside.path), "--json").exit_code == 64
 
 
 def test_resume_without_folder_picks_newest_incomplete(sw_home):
@@ -209,7 +214,7 @@ FINISHED = (
 
 def test_finished_run_is_complete_without_the_export_feature(tmp_path, sw_home):
     # export never runs before M6, so a run whose install is done has nothing left
-    w = work_at(tmp_path / "w", done=FINISHED)
+    w = work_at(sw_home / "work" / "w", done=FINISHED)
     r = resume_info(w.path)
     assert r.next_stage is None and r.completed[-1] == "install"
     out = resume(str(w.path), "--json")

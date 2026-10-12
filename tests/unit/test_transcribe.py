@@ -258,7 +258,7 @@ def test_nothing_to_transcribe_is_exit_7_even_with_a_cached_transcript(
         route=Route(context="free", media="free" if media else None),
     )
     _seed_cached_transcript(tmp_path, bundle)
-    w = WorkDir(tmp_path / "w")
+    w = WorkDir(sw_home / "work" / "w")
     w.ensure()
     write_model(w.file("ingest.json"), bundle)
     r = transcribe(w)

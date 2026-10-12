@@ -12,7 +12,7 @@ from skipwatch.cli import app
 from skipwatch.errors import ExitCode
 from skipwatch.media import find_system_ffmpeg
 from skipwatch.models import CallsFile, IngestBundle, SourceFile
-from skipwatch.workdir import read_model
+from skipwatch.workdir import WorkDir, read_model
 
 SYSTEM = find_system_ffmpeg()
 needs_ffmpeg = pytest.mark.skipif(SYSTEM is None, reason="system ffmpeg required")
@@ -37,6 +37,8 @@ def make_audio(path: Path, seconds: int = 2) -> None:
 
 
 def ingest(*args: str):
+    if "--work" in args:  # the folder new-work would have made (adversarial review REV6)
+        WorkDir(Path(args[args.index("--work") + 1])).ensure()
     return CliRunner().invoke(app, ["ingest", *args])
 
 

@@ -31,7 +31,7 @@ from skipwatch.models import (
     Transcript,
 )
 from skipwatch.skillmd import SkillDoc, parse
-from skipwatch.workdir import WorkDir, run_stage, write_model
+from skipwatch.workdir import WorkDir, run_stage, write_bytes_atomic, write_model
 
 GAP_LINE = re.compile(r"^\s*(?:[-*]\s+|\d+\.\s+)?GAP\b")
 
@@ -60,10 +60,9 @@ def skill_files(staging: Path) -> list[Path]:
 
 
 def write_atomic(path: Path, data: bytes) -> None:
-    """Write via a temp file in the same folder and os.replace: never through a hardlink."""
-    tmp = path.with_name(f".{path.name}.skipwatch-tmp")
-    tmp.write_bytes(data)
-    os.replace(tmp, path)
+    """Write via a fresh temp file in the same folder and os.replace: never through a hardlink,
+    never through a planted temp-name symlink."""
+    write_bytes_atomic(path, data)
 
 
 @dataclass
