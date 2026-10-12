@@ -1520,3 +1520,14 @@ def test_review_screen_pack_variant():
     assert "never `high`" in section
     assert "`<k> quoted steps not re-verified (shared pack)`" in section
     assert "`pack.sha256`" in section and "`claimed_confidence`" in section
+
+
+def test_distill_rules_critic_fixes():
+    raw = read(REFS / "distill-rules.md")
+    assert "\n## Critic fixes\n" in raw
+    section = re.sub(r"\s+", " ", raw.split("\n## Critic fixes\n", 1)[1].split("\n## ", 1)[0])
+    section = section.lower()
+    assert "edit the draft" in section
+    assert "verbatim text stays verbatim" in section
+    assert "never add a step without evidence" in section
+    assert "never removes the attribution" in section
