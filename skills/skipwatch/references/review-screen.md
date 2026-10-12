@@ -127,6 +127,34 @@ each only when it applies:
   that line. Steps still come from the timed transcript; the line tells the user to check
   the spoken steps.
 
+## Pack variant
+
+Installing a pack (`sharing.md`) shows the same screen, in the same line order, with
+`W` the pack work folder `<work>` that unpack printed. These lines differ:
+
+- **Confidence:** the confidence of the pack on this machine, `<pack_confidence>`, is the
+  4.3 rule without a critic score, because the critic did not run here: with the counts in
+  `<work>/check-report.json`, `medium` when there is at least one step, at most one gap
+  and inferred under 30% of steps, otherwise `low`, so never `high`. The pack's own claim
+  is `claimed_confidence` and `claimed_critic_score` from unpack's JSON (the same values
+  as `pack.manifest` in `<work>/ingest.json`). Print
+  `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claim>, critic <score or none>)`,
+  then any other reason that applies after a `; `.
+- **Unverified:** add `<k> quoted steps not re-verified (shared pack)` from the
+  provenance result's info item in `<work>/check-report.json`: a pack carries no reader
+  notes and no post text, so its `[on-screen]` and `[written]` quotes cannot be checked
+  again here. Its `[spoken]` quotes are checked against the transcript the pack carries.
+- **Source:** as usual from `source` in `<work>/ingest.json`, then
+  `(from pack <file>, sha256 <12 hex>)`: `<file>` is `pack.file` and `<12 hex>` the first
+  12 hex characters of `pack.sha256` after its `sha256:` prefix.
+- **Provider calls:** `none (shared pack)`; installing a pack calls no provider.
+- **Unread frames:** `none`; nothing was read on this machine.
+
+```
+  Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)
+  Source: "tutorial-60s" by local file, undated (from pack run-skipdemo-tutorial.skillpack.zip, sha256 3f2a9c41b7d0)
+```
+
 ## The prompt line
 
 - Normal: `Install to <target>? [yes / show draft / test it / rename / cancel]`

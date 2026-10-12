@@ -1495,3 +1495,21 @@ def test_review_screen_confidence_and_test_run_line():
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
     assert "`## Test run` of `run-protocol.md`" in answer
     assert "Test it anyway?" in answer
+
+
+def test_review_screen_pack_variant():
+    raw = read(REFS / "review-screen.md")
+    assert "## Pack variant" in raw
+    section = re.sub(r"\s+", " ", raw.split("## Pack variant", 1)[1].split("\n## ", 1)[0])
+    # plan issue 4: the pack's claim is shown, never trusted as this machine's confidence
+    assert "(from pack <file>, sha256 <12 hex>)" in section
+    assert (
+        "<pack_confidence> (shared pack: critic not re-run here; "
+        "the pack claims <claim>, critic <score or none>)" in section
+    )
+    example = "Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)"
+    assert example in section
+    assert re.fullmatch(REVIEW_LINES[6][1], "  " + example)  # still the 4.3 Confidence shape
+    assert "never `high`" in section
+    assert "`<k> quoted steps not re-verified (shared pack)`" in section
+    assert "`pack.sha256`" in section and "`claimed_confidence`" in section
