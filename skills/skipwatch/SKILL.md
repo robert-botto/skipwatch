@@ -10,8 +10,9 @@ allowed-tools: Bash, Read, Write, Agent
 Arguments: $ARGUMENTS
 
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
-to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and the
-agents under "Reading frames" read, critique and test.
+to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and three agents
+(`skipwatch:frame-reader`, `skipwatch:skill-critic`, `skipwatch:skill-tester`; see "Rules
+that hold in every stage") read frames, critique the draft and test it.
 
 ## Engine and paths
 
@@ -123,8 +124,7 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
   `--yes` is never that consent.
 - Never Read a frame image yourself. You read each notes file and the transcript once.
 - Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says: do not start other agents; and states a time budget.
-  Use the agent types `skipwatch:frame-reader`, `skipwatch:skill-critic` and
-  `skipwatch:skill-tester` with the prompts the run files give.
+  Use those namespaced agent types with the prompts the run files give.
 - Draft text reaches staging only through `<ENGINE> redact --stdin`, file to file, and
   never appears inside a Bash command.
 - Install only after the user's yes, or under `--yes` with zero safety flags, gaps and

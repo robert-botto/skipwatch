@@ -617,6 +617,9 @@ def test_non_engine_exit_codes_mapped():
 
 def test_skill_md_lists_the_agents_once():
     skill = read(SKILL / "SKILL.md")
+    # every quoted section name points at a heading that exists
+    for name in re.findall(r'see "([^"]+)"', flat(SKILL / "SKILL.md")):
+        assert f"\n## {name}\n" in skill, name
     for agent in ("skipwatch:frame-reader", "skipwatch:skill-critic", "skipwatch:skill-tester"):
         assert skill.count(f"`{agent}`") == 1, agent
 
