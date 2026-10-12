@@ -58,9 +58,18 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
   no gaps, inferred under 15% of steps and critic score 8 or more; `medium` is one gap or
   inferred under 30%; otherwise `low`. With no `critique.json` the critic did not run, so
-  confidence is capped at `medium` and the reason says `critic not run`. Add every other
+  confidence is capped at `medium` and the reason says `critic not run` (`--fast`), or
+  `critic failed twice` when stage 6b gave up on it. A critic score under 8 adds
+  `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.
+- **Test run:** only when a test ran (the answer "test it", or `--test`), one line
+  directly after `Confidence:`, exactly the line `validate-test` printed (plan issue 22):
+
+      Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>
+
+  indented like the other lines. Screens without a test have no such line and keep the
+  4.3 shape.
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
@@ -174,7 +183,9 @@ still names the install command.
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
 - **show draft:** print `W/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
-- **test it:** print `Test runs arrive in M5` and re-show the prompt.
+- **test it:** run the test run in `## Test run` of `run-protocol.md` (it asks
+  `Test it anyway?` first when there are safety flags), then show the whole screen again
+  with its `Test run:` line, and the prompt.
 - **rename:** ask for the new name, check it against the naming rule in
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
   staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,

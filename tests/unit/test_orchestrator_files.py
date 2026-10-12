@@ -223,7 +223,7 @@ def test_review_screen_example_in_4_3_order():
 def test_review_screen_rules():
     text = flat(REFS / "review-screen.md")
     assert "critic not run" in text and "capped at `medium`" in text  # plan issue 12
-    assert "Test runs arrive in M5" in text
+    assert "arrive in M5" not in text  # "test it" runs the test run now
     assert "R-REV-1" in text
 
 
@@ -1478,3 +1478,20 @@ def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
         "otherwise as `read`" in resume
     )
     assert "`read`, `distill` or `critique`: run `validate-notes`" not in resume
+
+
+
+def test_review_screen_confidence_and_test_run_line():
+    review = flat(REFS / "review-screen.md")
+    # 4.3: high needs the critic
+    assert "critic score 8 or more" in review
+    for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
+        assert reason in review, reason
+    # plan issue 22: one optional line directly after Confidence, absent without a test
+    raw = read(REFS / "review-screen.md")
+    assert "  Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>" in raw
+    assert "directly after `Confidence:`" in review
+    assert "keep the 4.3 shape" in review
+    answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
+    assert "`## Test run` of `run-protocol.md`" in answer
+    assert "Test it anyway?" in answer
