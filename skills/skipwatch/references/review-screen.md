@@ -64,8 +64,22 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
-- **Provider calls:** `W/calls.json`. Empty means `none (free route)`; otherwise list each
-  as `<provider> <op> ($<cost>)` with the total. When `W/ingest.json` has `from_cache`
+- **Provider calls:** `W/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
+  `ok`, `endpoint`, `call_id` and `review`. The free route logs its own rows there too
+  (`provider` `free`, cost 0). Only rows whose `provider` is `treg` count; no treg rows
+  means `none (free route)`. Otherwise
+  `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts the treg rows,
+  each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
+  computed from `calls.json`, never from `treg balance`, which you never run or print. For
+  example `treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)`.
+  Two kinds of treg row add nothing to the total: `media.get` rows, the download of a
+  treg media URL, shown as `media.get $0.0000`; and rows whose `error` is `cost cap`,
+  which never ran, shown as `<op> refused (cost cap)`. Every other treg row counts with
+  its `cost_usd`, even one without a `call_id`. When `route.fallbacks` in
+  `W/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
+  cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
+  `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be
+  missing and can raise the cap. When `W/ingest.json` has `from_cache`
   true, the metadata came from the 7-day run cache (R-TR-3): append
   `; cached from <date>` (the date from the ingest log's cache line, else
   `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
@@ -83,6 +97,8 @@ each only when it applies:
 ```
   video came from a linked post: <url>
   Fetched with your browser cookies: this skill cannot be packed for sharing.
+  Cross-check: <similarity> against <origin>
+  transcript sources disagree: <similarity>
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
@@ -93,6 +109,14 @@ each only when it applies:
 - **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
   `--cookies-from-browser`, R-ING-5). The skill came from content only the user's login
   could see, so it is never packed or shared (section 10); the manifest records it.
+- **Cross-check:** `transcript.json` has `cross_check` with a `similarity`: print it to 2
+  decimals with its `origin` (for example `treg:anyapi.twitter.tweet_transcript`).
+- **Disagreement:** the transcribe log has the engine's
+  `Transcribe: warning: transcript sources disagree:` line; copy its
+  `transcript sources disagree: <similarity>` part exactly. The engine warns only when
+  two measures are both low, so never compute the similarity yourself or warn without
+  that line. Steps still come from the timed transcript; the line tells the user to check
+  the spoken steps.
 
 ## The prompt line
 

@@ -71,7 +71,7 @@ Flags (spec 4.2) and what they do in M2:
 | `--yes` | install without the prompt only when safety flags, gaps and collisions are all zero |
 | `--keep-media` | keep `W/media/` after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
-| `--provider free\|treg\|auto` | content providers for a URL (default `auto`); ignored for a local file, which never consults providers |
+| `--provider free\|treg\|auto` | content providers for a URL (default `auto`: treg too when logged in); treg calls are paid, capped per run and listed on the review screen, so `--provider free` avoids them; ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used (R-ING-5) |
 | `--fast`, `--test`, `--lang source` | accepted; no effect yet (say so in one line if given) |
 

@@ -1189,3 +1189,87 @@ def test_slug_rule_is_spelled_out():
     assert "collapse repeated hyphens, trim hyphens from both ends" in text
     assert "cut to 80 characters for a file stem and 40 for a URL" in text
     assert "use `video` if nothing is left" in text
+
+
+# ---- M4: treg provider calls, cost and cross-check (Task M4-C1) ----
+
+
+def test_provider_calls_line_lists_each_call_and_the_total():
+    review = flat(REFS / "review-screen.md")
+    assert "`none (free route)`" in review
+    # the free route logs provider="free" rows at cost 0 into calls.json too
+    assert "Only rows whose `provider` is `treg` count" in review
+    assert "no treg rows means `none (free route)`" in review
+    assert "`<n>` counts the treg rows" in review
+    assert "counts every row" not in review
+    assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
+    # catalog prices from content_treg.CATALOG_PRICES; the total is the sum of the shown costs
+    example = "treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)"
+    assert example in review
+    # a treg call without a stderr call id can still carry cost_usd from its body, so the
+    # exclusions are named, not inferred from a missing call_id
+    assert "`media.get` rows" in review and "`<op> refused (cost cap)`" in review
+    assert "rows whose `error` is `cost cap`" in review
+    assert "not billed calls" not in review
+    assert "`cost_usd`" in review and "`op`" in review
+    # the total is computed from calls.json, never from the treg balance
+    assert "never from `treg balance`" in review
+
+
+def test_treg_cost_cap_is_surfaced():
+    review = flat(REFS / "review-screen.md")
+    assert "`treg: cost cap reached`" in review  # the engine's route.fallbacks entry
+    assert "`; treg cost cap reached ($<max_cost_usd>)`" in review
+    assert "`[providers.treg] max_cost_usd`" in review
+    text = flat(REFS / "run-protocol.md")
+    assert "treg cost cap reached" in text  # said in the ingest progress line too
+
+
+def test_cross_check_flags_disagreement_and_is_never_a_step_source():
+    review_raw = read(REFS / "review-screen.md")
+    assert "  Cross-check: <similarity> against <origin>" in review_raw
+    assert "  transcript sources disagree: <similarity>" in review_raw
+    review = flat(REFS / "review-screen.md")
+    assert "`Transcribe: warning: transcript sources disagree:`" in review  # engine's line
+    text = flat(REFS / "run-protocol.md")
+    assert "`cross_check` only to flag disagreements, never as a step source" in text
+    assert "`context.thread` and `context.author_replies`" in text
+    # the engine warns only when Dice and overlap are both low; never recompute it
+    assert "never compute the similarity yourself" in review
+
+
+def test_provider_flag_and_treg_login_message():
+    text = flat(REFS / "run-protocol.md")
+    assert "--provider <the --provider flag, or auto>" in text  # passthrough, unchanged
+    # the engine's own exit 8 line (ingest.py), quoted exactly, then the free-route hint
+    assert "treg is not installed or not logged in: run `treg login`" in text
+    assert _before(text, "run `treg login`", "or re-run with --provider free.")
+    assert "treg was requested but" not in text
+    # auto uses treg only when doctor found it logged in and config does not disable it
+    assert "`[providers.treg] enabled`" in text and "`false`" in text
+    assert "Never run `treg` yourself" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "treg calls are paid" in skill and "`--provider free`" in skill
+
+
+def _platform_section(name: str) -> str:
+    text = read(REFS / "platforms.md")
+    body = text.split(f"\n## {name}\n", 1)[1]
+    return re.sub(r"\s+", " ", body.split("\n## ", 1)[0])
+
+
+def test_platforms_have_a_treg_subsection_each():
+    expected = {
+        "YouTube (M2)": ("timed transcript", "hint only"),
+        "X (M3)": ("context.thread", "context.author_replies", "media fallback"),
+        "TikTok (M3)": ("media fallback", "hint only"),
+        "Instagram (M3)": ("media fallback", "never for post text"),
+        "Facebook (M3)": ("post text", "never a media fallback"),
+    }
+    for name, phrases in expected.items():
+        section = _platform_section(name)
+        assert "### treg (Tier 3)" in section, name
+        treg = section.split("### treg (Tier 3)", 1)[1]
+        assert "Calls:" in treg and "Adds:" in treg, name
+        for phrase in phrases:
+            assert phrase in treg, (name, phrase)

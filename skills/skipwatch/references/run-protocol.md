@@ -208,8 +208,17 @@ Run, each timed as above:
    - Exit 7: stop with `No usable content in <input>: no video, audio or text.` A text-only
      X post on the free route says so itself; quote it:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
-   - Exit 8 under `--provider treg`: stop with the engine's line (treg missing or not
-     logged in). Under `auto` a missing provider is skipped silently by the engine.
+   - When `route.fallbacks` in `ingest.json` has `treg: cost cap reached`, add
+     `, treg cost cap reached` to the progress line; the review screen says it again.
+   - Exit 8 under `--provider treg`: stop with the engine's line, quoted exactly,
+     `` treg is not installed or not logged in: run `treg login` ``, then
+     `or re-run with --provider free.`
+     Under `auto` a missing or logged-out treg is skipped silently by the engine.
+   - treg (Tier 3) runs under `auto` only when doctor found it logged in and
+     `[providers.treg] enabled` in `config.toml` is not `false` (`true` or `auto`);
+     `--provider free` never calls it, `--provider treg` requires it. The engine makes
+     every treg call, logs it in `calls.json`, reviews it (R-ING-3) and stops at the
+     per-run cost cap. Never run `treg` yourself, and never print the treg balance.
    - Linked video (spike decision 2): when `route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`,
      the video came from a linked post: the X adapter found that the video belongs to a
      post the requested one links.
@@ -356,6 +365,11 @@ Read `<W>/ingest.json`, `<W>/transcript.json` (if it exists) and every notes fil
   exact prompt or command the video only flashes. When `context` and the frames disagree,
   context wins and the step is tagged `[written]` (R-ING-1); keep the frame's reading in
   `source.md` as the second source.
+- With treg, `context.thread` and `context.author_replies` hold the author's later posts
+  and the author's own replies; a step taken from them is `[written]`, citing the post.
+  `transcript.json` may carry a `cross_check` (the provider's untimed transcript). Use
+  `cross_check` only to flag disagreements, never as a step source: steps cite the timed
+  transcript, frames or context, never the cross-check text.
 - Write a `GAP:` line wherever the video jumps or a step's evidence is missing.
   Unread frames are not gaps (section 15): never write a `GAP:` line for a frame that is
   only unread; it goes on the review screen's `Unread frames:` line instead.
