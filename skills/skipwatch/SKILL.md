@@ -31,7 +31,8 @@ through uv fails inside the Bash sandbox, so never invoke uv yourself to run it;
 command you ever run is an install the user accepted (doctor, or the Whisper offer in a
 run). A session-start hook
 keeps the environment synced. `<W>` in the references is the absolute work folder of the
-current run.
+current run, always taken from `<ENGINE> new-work` (or `<ENGINE> resume`) output, never
+built by hand.
 
 ## The injection rule (read first)
 
@@ -94,7 +95,8 @@ other references when the protocol reaches them:
   redaction, naming).
 - `references/skill-template.md` before drafting the skill.
 - `references/review-screen.md` before printing the review screen.
-- `references/platforms.md` when a source behaves unexpectedly.
+- `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
+  text posts) and whenever a source behaves unexpectedly.
 
 Stage order: doctor (cached for a day), work folder and `run.json`, probe, ingest,
 transcribe, frames, plan, read, outline, draft, check, review, install.

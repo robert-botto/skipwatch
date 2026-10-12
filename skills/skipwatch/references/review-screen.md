@@ -75,6 +75,25 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Draft:** `W/staging/<name>/`.
 - **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 
+## Extra lines
+
+Zero or more of these lines come right after the `Draft:` line, before the blank line,
+each only when it applies:
+
+```
+  video came from a linked post: <url>
+  Fetched with your browser cookies: this skill cannot be packed for sharing.
+```
+
+- **Linked post:** the run recorded that the video came from a linked post (stage 3 of
+  `run-protocol.md`): the line is copied exactly from `route.fallbacks` in
+  `W/ingest.json`. `source` describes the linked
+  post, so the `Source:` line names the linked post's author, and so does the
+  attribution.
+- **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
+  `--cookies-from-browser`, R-ING-5). The skill came from content only the user's login
+  could see, so it is never packed or shared (section 10); the manifest records it.
+
 ## The prompt line
 
 - Normal: `Install to <target>? [yes / show draft / test it / rename / cancel]`

@@ -80,8 +80,19 @@ def resume_json(home: Path, *args: str) -> dict:
     return json.loads(sw(home, "resume", *args, "--json").stdout)
 
 
+def _run_json(work: Path) -> None:
+    """run.json as the orchestrator writes it; resume only offers folders that have one."""
+    run = {
+        "schema": "skipwatch/run/1",
+        "input": "tutorial-60s.mp4",
+        "started_at": "2026-10-09T12:00:00Z",
+    }
+    (work / "run.json").write_text(json.dumps(run), encoding="utf-8")
+
+
 def ingested(home: Path, work: Path) -> Path:
     sw(home, "ingest", str(FIX / "tutorial-60s.mp4"), "--work", str(work))
+    _run_json(work)
     sw(home, "transcribe", "--work", str(work))
     return work
 
@@ -160,6 +171,7 @@ def _decoy(work: Path, done_through: str) -> None:
     stages = {name: {"status": "done" if name in done else "pending"} for name in STAGE_ORDER}
     payload = {"schema": "skipwatch/stages/1", "stages": stages}
     (work / "stages.json").write_text(json.dumps(payload), encoding="utf-8")
+    _run_json(work)
 
 
 def test_resume_without_folder_picks_newest_incomplete_run(home: Path, tmp_path: Path):
