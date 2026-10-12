@@ -34,6 +34,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import requests
+import urllib3
 
 from skipwatch import media
 from skipwatch.adapters.base import IngestOptions
@@ -327,6 +328,24 @@ def _max_cost() -> float:
 # ---- the media fallback download ----
 
 
+DEADLINE_MESSAGE = "over the media download deadline"
+
+
+def _stream(response: requests.Response, part: Path, deadline: float) -> None:
+    size = 0
+    with part.open("wb") as out:
+        while True:
+            if time.monotonic() >= deadline:
+                raise links.Refused(DEADLINE_MESSAGE)
+            chunk = response.raw.read1(links.CHUNK, decode_content=False)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > MEDIA_MAX_BYTES:
+                raise links.Refused("over the 1 GB media cap")
+            out.write(chunk)
+
+
 def download_media(url: str, dest: Path) -> None:
     """A plain GET of a provider media URL into dest: no cookies, no environment credentials,
     every hop SSRF-checked and pinned (links._get), at most 1 GB and 10 minutes. Raises
@@ -344,18 +363,14 @@ def download_media(url: str, dest: Path) -> None:
         if length and length.isdigit() and int(length) > MEDIA_MAX_BYTES:
             raise links.Refused("over the 1 GB media cap")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        size = 0
-        with part.open("wb") as out:
-            while True:
-                if time.monotonic() >= deadline:
-                    raise links.Refused("over the media download deadline")
-                chunk = response.raw.read1(links.CHUNK, decode_content=False)
-                if not chunk:
-                    break
-                size += len(chunk)
-                if size > MEDIA_MAX_BYTES:
-                    raise links.Refused("over the 1 GB media cap")
-                out.write(chunk)
+        try:
+            _stream(response, part, deadline)
+        except (urllib3.exceptions.HTTPError, requests.RequestException, OSError) as exc:
+            # a cut connection, a stalled read, or the watchdog closing the socket at the
+            # deadline: an expired URL or a flaky CDN, never a crash
+            if time.monotonic() >= deadline - links.WATCHDOG_SLACK_S:
+                raise links.Refused(DEADLINE_MESSAGE) from exc
+            raise links.Refused(type(exc).__name__) from exc
         os.replace(part, dest)
     finally:
         links._close(response)  # pyright: ignore[reportPrivateUsage]
@@ -620,8 +635,8 @@ class TregProvider:
             found = _probe_media(work, dest)
         except links.Refused as exc:
             error = str(exc)
-        except requests.RequestException as exc:
-            error = type(exc).__name__
+        except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as exc:
+            error = type(exc).__name__  # backstop: a media failure never ends ingest
         except SkipwatchError:
             error = "downloaded file is not playable media"
         if found is None:
