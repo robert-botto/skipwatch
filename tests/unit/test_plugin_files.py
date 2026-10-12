@@ -39,7 +39,7 @@ def test_plugin_skill_frontmatter():
     raw = str(meta["allowed-tools"])
     parts = re.split(r",|\s(?=[A-Z]\w*\b)", raw)
     tools = {re.sub(r"\(.*", "", p.strip()) for p in parts if p.strip()}
-    assert tools == {"Bash", "Read", "Write", "Edit", "Agent"}
+    assert tools == {"Bash", "Read", "Write", "Agent"}
     # Bash is narrowed to rules (verified live), never a bare grant
     assert re.search(r"(^|,)\s*Bash\s*(,|$)", raw) is None
     assert 'Bash("${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *)' in raw

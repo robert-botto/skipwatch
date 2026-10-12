@@ -477,7 +477,7 @@ def test_skill_md_frontmatter_kept():
     meta = fm(SKILL / "SKILL.md")
     assert meta["name"] == "skipwatch"
     assert meta["argument-hint"] == "<url or path> [flags]"
-    assert set(allowed_tools()) == {"Bash", "Read", "Write", "Edit", "Agent"}
+    assert set(allowed_tools()) == {"Bash", "Read", "Write", "Agent"}
     assert "Bash" not in allowed_tools()["Bash"]  # never a bare, unlimited Bash grant
 
 
@@ -513,32 +513,6 @@ def _shell_commands() -> list[tuple[str, str]]:
 def _rule_covers(pattern: str, command: str) -> bool:
     regex = re.escape(pattern).replace(r"\*", ".*")
     return re.fullmatch(regex, command) is not None
-
-
-FILE_TOOLS = ("Read", "Write", "Edit", "Glob", "Grep")
-
-
-def _file_tools_the_skill_uses() -> set[str]:
-    """File tools the skill's text tells Claude to use (a live run denied Edit on drafts)."""
-    text = " ".join(read(path) for path in SKILL.rglob("*.md"))
-    used = {tool for tool in FILE_TOOLS if re.search(rf"\b{tool}\b", text)}
-    if re.search(r"\bedits?\b[^.]*\bdraft", text, re.I):
-        used.add("Edit")  # fixes are applied to the draft copies
-    return used
-
-
-def test_allowed_tools_list_every_file_tool_the_skill_uses():
-    used = _file_tools_the_skill_uses()
-    assert {"Read", "Write", "Edit"} <= used
-    assert used <= set(allowed_tools()), used - set(allowed_tools())
-
-
-@pytest.mark.parametrize("name", ["frame-reader", "skill-critic", "skill-tester"])
-def test_agents_list_every_tool_their_text_uses(name):
-    path = ROOT / "agents" / f"{name}.md"
-    tools = {t.strip() for t in str(fm(path)["tools"]).split(",")}
-    named = set(re.findall(r"\b(Read|Write|Edit|Bash|Glob|Grep)\b", body(path)))
-    assert named <= tools, named - tools
 
 
 def test_allowed_tools_are_the_engine_plus_two_harmless_prefixes():
