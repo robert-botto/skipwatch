@@ -210,8 +210,14 @@ Run, each timed as above:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
    - When `route.fallbacks` in `ingest.json` has `treg: cost cap reached`, add
      `, treg cost cap reached` to the progress line; the review screen says it again.
-   - Exit 8 under `--provider treg`: stop with the engine's line (treg missing or not
-     logged in). Under `auto` a missing provider is skipped silently by the engine.
+   - Exit 8 under `--provider treg`: stop with
+     `treg was requested but is not installed or not logged in. Run treg login, or re-run with --provider free.`
+     Under `auto` a missing or logged-out treg is skipped silently by the engine.
+   - treg (Tier 3) runs under `auto` only when doctor found it logged in and
+     `[providers.treg] enabled` in `config.toml` is not `false` (`true` or `auto`);
+     `--provider free` never calls it, `--provider treg` requires it. The engine makes
+     every treg call, logs it in `calls.json`, reviews it (R-ING-3) and stops at the
+     per-run cost cap. Never run `treg` yourself, and never print the treg balance.
    - Linked video (spike decision 2): when `route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`,
      the video came from a linked post: the X adapter found that the video belongs to a
      post the requested one links.

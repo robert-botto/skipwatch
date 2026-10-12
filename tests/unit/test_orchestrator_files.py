@@ -1227,3 +1227,17 @@ def test_cross_check_flags_disagreement_and_is_never_a_step_source():
     assert "`context.thread` and `context.author_replies`" in text
     # the engine warns only when Dice and overlap are both low; never recompute it
     assert "never compute the similarity yourself" in review
+
+
+def test_provider_flag_and_treg_login_message():
+    text = flat(REFS / "run-protocol.md")
+    assert "--provider <the --provider flag, or auto>" in text  # passthrough, unchanged
+    assert (
+        "treg was requested but is not installed or not logged in. Run treg login, or "
+        "re-run with --provider free." in text
+    )
+    # auto uses treg only when doctor found it logged in and config does not disable it
+    assert "`[providers.treg] enabled`" in text and "`false`" in text
+    assert "Never run `treg` yourself" in text
+    skill = flat(SKILL / "SKILL.md")
+    assert "treg calls are paid" in skill and "`--provider free`" in skill
