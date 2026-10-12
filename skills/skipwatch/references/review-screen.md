@@ -94,6 +94,8 @@ each only when it applies:
 ```
   video came from a linked post: <url>
   Fetched with your browser cookies: this skill cannot be packed for sharing.
+  Cross-check: <similarity> against <origin>
+  transcript sources disagree: <similarity>
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
@@ -104,6 +106,14 @@ each only when it applies:
 - **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
   `--cookies-from-browser`, R-ING-5). The skill came from content only the user's login
   could see, so it is never packed or shared (section 10); the manifest records it.
+- **Cross-check:** `transcript.json` has `cross_check` with a `similarity`: print it to 2
+  decimals with its `origin` (for example `treg:anyapi.twitter.tweet_transcript`).
+- **Disagreement:** the transcribe log has the engine's
+  `Transcribe: warning: transcript sources disagree:` line; copy its
+  `transcript sources disagree: <similarity>` part exactly. The engine warns only when
+  two measures are both low, so never compute the similarity yourself or warn without
+  that line. Steps still come from the timed transcript; the line tells the user to check
+  the spoken steps.
 
 ## The prompt line
 

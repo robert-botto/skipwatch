@@ -358,6 +358,11 @@ Read `<W>/ingest.json`, `<W>/transcript.json` (if it exists) and every notes fil
   exact prompt or command the video only flashes. When `context` and the frames disagree,
   context wins and the step is tagged `[written]` (R-ING-1); keep the frame's reading in
   `source.md` as the second source.
+- With treg, `context.thread` and `context.author_replies` hold the author's later posts
+  and the author's own replies; a step taken from them is `[written]`, citing the post.
+  `transcript.json` may carry a `cross_check` (the provider's untimed transcript). Use
+  `cross_check` only to flag disagreements, never as a step source: steps cite the timed
+  transcript, frames or context, never the cross-check text.
 - Write a `GAP:` line wherever the video jumps or a step's evidence is missing.
   Unread frames are not gaps (section 15): never write a `GAP:` line for a frame that is
   only unread; it goes on the review screen's `Unread frames:` line instead.

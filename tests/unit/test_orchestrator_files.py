@@ -1214,3 +1214,16 @@ def test_treg_cost_cap_is_surfaced():
     assert "`[providers.treg] max_cost_usd`" in review
     text = flat(REFS / "run-protocol.md")
     assert "treg cost cap reached" in text  # said in the ingest progress line too
+
+
+def test_cross_check_flags_disagreement_and_is_never_a_step_source():
+    review_raw = read(REFS / "review-screen.md")
+    assert "  Cross-check: <similarity> against <origin>" in review_raw
+    assert "  transcript sources disagree: <similarity>" in review_raw
+    review = flat(REFS / "review-screen.md")
+    assert "`Transcribe: warning: transcript sources disagree:`" in review  # engine's line
+    text = flat(REFS / "run-protocol.md")
+    assert "`cross_check` only to flag disagreements, never as a step source" in text
+    assert "`context.thread` and `context.author_replies`" in text
+    # the engine warns only when Dice and overlap are both low; never recompute it
+    assert "never compute the similarity yourself" in review
