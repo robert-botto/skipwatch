@@ -68,6 +68,13 @@ class CountingBackend:
         return ""
 
 
+def treg_on_config(tmp_path):
+    """Paid providers are opt-in (skill audit fix 15): these runs enable treg explicitly."""
+    path = tmp_path / "treg-on.toml"
+    path.write_text("[providers.treg]\nenabled = true\n", encoding="utf-8")
+    return load_config(path)
+
+
 @pytest.fixture
 def clock(monkeypatch):
     now = {"t": T0}
@@ -230,7 +237,7 @@ def ingest_twice(sw_home, tmp_path, monkeypatch, providers):
     adapter = CountingAdapter()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: providers)
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     first = run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
     second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
     return adapter, first, second
@@ -255,7 +262,7 @@ def test_ingest_cache_keeps_this_runs_captions(sw_home, tmp_path, monkeypatch, c
     adapter = CountingAdapter()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     old = url_bundle(URL, captions=True)
     old_ctx = old.context.model_copy(update={"captions_path": "captions/old.en.vtt"})
     adapter.build = lambda d, w, o: old.model_copy(update={"context": old_ctx})
@@ -272,7 +279,7 @@ def test_ingest_cache_missed_when_a_provider_was_not_used_before(
     provider = CountingProvider()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(provider="free"), cfg=cfg)
     second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
     assert provider.enriched == 1 and second.from_cache is False  # treg now enabled: ask it
@@ -283,7 +290,7 @@ def test_ingest_cache_ignored_after_7_days(sw_home, tmp_path, monkeypatch, clock
     adapter = CountingAdapter()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
     clock["t"] = T0 + timedelta(days=8)
     second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
@@ -314,7 +321,7 @@ def ingest_runs(tmp_path, monkeypatch, provider, *opts_list):
     adapter = CountingAdapter()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     return [
         run_ingest(URL, WorkDir(tmp_path / f"w{i}"), opts, cfg=cfg)
         for i, opts in enumerate(opts_list)
@@ -460,7 +467,7 @@ def test_free_run_entry_never_serves_a_provider_run(sw_home, tmp_path, monkeypat
     )
     assert second.from_cache is False and provider.enriched == 1
     third = run_ingest(
-        URL, WorkDir(tmp_path / "w9"), IngestOptions(), cfg=load_config(tmp_path / "none.toml")
+        URL, WorkDir(tmp_path / "w9"), IngestOptions(), cfg=treg_on_config(tmp_path)
     )
     assert third.from_cache is True and provider.enriched == 1
 
@@ -471,7 +478,7 @@ def test_captions_changed_since_the_cached_run_is_a_miss(sw_home, tmp_path, monk
     adapter = CountingAdapter()
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
-    cfg = load_config(tmp_path / "none.toml")
+    cfg = treg_on_config(tmp_path)
     adapter.build = lambda d, w, o: url_bundle(d.value, captions=True)
     run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
     adapter.build = lambda d, w, o: url_bundle(d.value, captions=False)

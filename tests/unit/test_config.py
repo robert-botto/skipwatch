@@ -25,7 +25,7 @@ def test_defaults_match_section_3_4(tmp_path):
     assert cfg.install.scope == "user"
     assert (cfg.frames.per_minute, cfg.frames.max) == (3, 60)
     assert cfg.transcribe.backend == "auto"
-    assert cfg.providers.treg.enabled == "auto"
+    assert cfg.providers.treg.enabled is False  # paid calls are opt-in (skill audit fix 15)
     assert cfg.style.forbid == ["em-dash"]
     assert cfg.exports.mem0.enabled is False and cfg.exports.notes.enabled is False
 
@@ -64,3 +64,10 @@ def test_install_scope_agents_allowed(tmp_path):
     p = tmp_path / "config.toml"
     p.write_text('[install]\nscope = "agents"\n', encoding="utf-8")
     assert load_config(p).install.scope == "agents"
+
+
+def test_treg_enabled_accepts_true_false_and_auto(tmp_path):
+    p = tmp_path / "config.toml"
+    for raw, expected in (("true", True), ("false", False), ('"auto"', "auto")):
+        p.write_text(f"[providers.treg]\nenabled = {raw}\n", encoding="utf-8")
+        assert load_config(p).providers.treg.enabled == expected

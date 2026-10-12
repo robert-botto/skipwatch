@@ -68,7 +68,7 @@ class TranscribeConfig(_ConfigModel):
 
 
 class TregConfig(_ConfigModel):
-    enabled: Literal["auto", True, False] = "auto"
+    enabled: Literal["auto", True, False] = False  # paid calls are opt-in (skill audit fix 15)
     max_cost_usd: float = Field(default=0.05, ge=0)  # per run (M2-M4 issue 9)
 
 
