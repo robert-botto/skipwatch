@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
 
 from skipwatch.cli import app
 from skipwatch.redact import redact_text
+from skipwatch.workdir import WorkDir
 
 KEY = "sk-proj-FIXTURE0NLY0000000000000000000000000000"
 
@@ -429,3 +432,114 @@ def test_redact_fullwidth_letters_and_zero_width_together():
 def test_redact_nfkc_never_changes_other_text():
     text = "café ＡＢＣ ﬁle ① and sk-learn"
     assert redact_text(text) == (text, [])
+
+
+# ---- --work --in --out: stage 6 staging without a shell redirect (skill audit 5 fix 5) ----
+
+
+def _redact_file(*args: str):
+    return CliRunner().invoke(app, ["redact", *args])
+
+
+@pytest.fixture(params=["work", "packs"])
+def run_folder(request, sw_home) -> Path:
+    path = sw_home / request.param / "demo-20261012-120000"
+    WorkDir(path).ensure()
+    (path / "draft" / "references").mkdir(parents=True)
+    (path / "draft" / "references" / "setup.md").write_text(f"key {KEY}\n", encoding="utf-8")
+    return path
+
+
+def test_redact_in_out_writes_the_redacted_file_and_its_folders(run_folder):
+    src = run_folder / "draft" / "references" / "setup.md"
+    out = run_folder / "staging" / "demo" / "references" / "setup.md"
+    r = _redact_file("--work", str(run_folder), "--in", str(src), "--out", str(out))
+    assert r.exit_code == 0, r.output
+    assert r.stdout == ""
+    text = out.read_text(encoding="utf-8")
+    assert "<OPENAI_API_KEY>" in text and KEY not in text and text.endswith("\n")
+
+
+def test_redact_in_out_respects_home(tmp_path, sw_home):
+    home = tmp_path / "other-home"
+    work = home / "work" / "demo-20261012-120000"
+    WorkDir(work).ensure()
+    (work / "draft").mkdir()
+    (work / "draft" / "SKILL.md").write_text("hi\n", encoding="utf-8")
+    out = work / "staging" / "demo" / "SKILL.md"
+    args = ["--work", str(work), "--in", str(work / "draft" / "SKILL.md"), "--out", str(out)]
+    r = CliRunner().invoke(app, ["--home", str(home), "redact", *args])
+    assert r.exit_code == 0, r.output
+    assert out.read_text(encoding="utf-8") == "hi\n"
+
+
+def _refusals(tmp_path: Path, work: Path) -> list[tuple[Path, Path, Path]]:
+    src = work / "draft" / "references" / "setup.md"
+    out = work / "staging" / "demo" / "setup.md"
+    outside = tmp_path / "outside.md"
+    outside.write_text("keep\n", encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere" / "demo-20261012-120000"
+    WorkDir(elsewhere).ensure()
+    (elsewhere / "draft").mkdir()
+    (elsewhere / "draft" / "a.md").write_text("x\n", encoding="utf-8")
+    cases = [
+        (elsewhere, elsewhere / "draft" / "a.md", elsewhere / "staging" / "a.md"),
+        (work, src, outside),
+        (work, src, work / "staging" / ".." / ".." / "escape.md"),
+        (work, src, work / "draft" / "copy.md"),
+        (work, src, work / "staging"),
+        (work, src, work / "stages.json"),
+        (work, outside, out),
+        (work, work / "stages.json", out),
+        (work, work / "draft" / ".." / "stages.json", out),
+        (work, work / "draft" / "missing.md", out),
+        (work, work / "draft", out),
+    ]
+    try:
+        link_out = work / "staging" / "link.md"
+        link_out.parent.mkdir(parents=True, exist_ok=True)
+        link_out.symlink_to(outside)
+        link_in = work / "draft" / "link.md"
+        link_in.symlink_to(outside)
+        staging_dir_link = work / "staging" / "dirlink"
+        staging_dir_link.symlink_to(tmp_path, target_is_directory=True)
+        cases += [
+            (work, src, link_out),
+            (work, link_in, out),
+            (work, src, staging_dir_link / "evil.md"),
+        ]
+    except OSError:
+        pass
+    return cases
+
+
+def test_redact_in_out_refuses_paths_outside_the_folder_and_writes_nothing(tmp_path, run_folder):
+    for work, src, out in _refusals(tmp_path, run_folder):
+        before = out.read_bytes() if out.is_file() else None
+        r = _redact_file("--work", str(work), "--in", str(src), "--out", str(out))
+        assert r.exit_code == 64, (src, out, r.output)
+        assert (out.read_bytes() if out.is_file() else None) == before, out
+    assert (tmp_path / "outside.md").read_text(encoding="utf-8") == "keep\n"
+    assert not (tmp_path / "escape.md").exists() and not (tmp_path / "evil.md").exists()
+    assert not (run_folder / "draft" / "copy.md").exists()
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("--stdin", "--work", "W", "--in", "I", "--out", "O"),
+        ("--work", "W", "--in", "I"),
+        ("--work", "W", "--out", "O"),
+        ("--in", "I", "--out", "O"),
+        ("--stdin", "--out", "O"),
+    ],
+)
+def test_redact_modes_do_not_mix(run_folder, args):
+    real = {
+        "W": str(run_folder),
+        "I": str(run_folder / "draft" / "references" / "setup.md"),
+        "O": str(run_folder / "staging" / "x.md"),
+    }
+    r = _redact_file(*[real.get(a, a) for a in args])
+    assert r.exit_code == 64
+    assert not (run_folder / "staging").exists()

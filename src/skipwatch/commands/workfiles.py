@@ -49,6 +49,19 @@ def _home_folder(work: Path, area: str) -> Path:
     return resolved
 
 
+def path_under(work: Path, sub: str, path: Path, flag: str) -> Path:
+    """path resolved, refused (exit 64) unless it lies inside <work>/<sub>, with no symlink as
+    its last component and none on the way that leads out. work is an already-checked folder;
+    path itself need not exist yet."""
+    folder = work / sub
+    if path.is_symlink():
+        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} is a symlink")
+    resolved = path.parent.resolve() / path.name
+    if path.name in ("", ".", "..") or not resolved.is_relative_to(folder) or resolved == folder:
+        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} is not inside {folder}")
+    return resolved
+
+
 def remove_path(path: Path) -> None:
     """Delete a file or folder; a symlink is unlinked, never followed."""
     if path.is_symlink() or path.is_file():
