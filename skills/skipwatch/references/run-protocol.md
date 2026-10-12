@@ -1,7 +1,7 @@
 # Run protocol
 
 Follow these stages in order. Each stage either finishes, degrades and continues, or stops
-with one message. The user is asked something only at the review prompt (stage 8) and at
+with one message. The user is asked something only at the review prompt (stage 9) and at
 the one named exception listed under the conventions below. `## Resume` at the end
 continues an interrupted run.
 
@@ -52,7 +52,7 @@ continues an interrupted run.
   below show; `stages.json` then carries their timings and `resume` sees them. On a stop
   inside one of them, mark it with `--status failed` before stopping.
 - A missing optional dependency is never fatal: degrade and say so on the review screen.
-  Keep a list of degradations as you go; stage 8 prints them.
+  Keep a list of degradations as you go; stage 9 prints them.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.
   Draft text reaches the engine only through files (stage 6), so no shell ever parses it.
 - Exit codes come from the engine: 0 success, 1 check failed,
@@ -76,7 +76,7 @@ continues an interrupted run.
 - 127 is `uv` missing (no synced environment yet), from the wrapper.
 - On any stop, keep `<W>` and print its path so the user can inspect it. Also keep
   `<W>/media/` on every stop, so `/skipwatch resume` does not download again.
-  Media is deleted only after a successful install (stage 9).
+  Media is deleted only after a successful install (stage 10).
 
 ## Stage 1: doctor (cached for a day)
 
@@ -393,7 +393,7 @@ Files (paths relative to the skill folder):
 - `references/transcript.md`: the full timed transcript, one `[mm:ss] text` line per
   segment. Omit it over 200 KB and say so in `source.md`. Omit it when there is no
   transcript.
-- `assets/frames/`: Before stage 7, copy each frame the skill references into
+- `assets/frames/`: Before stage 8, copy each frame the skill references into
   `<W>/staging/<name>/assets/frames/`, at most 8, with the engine, in one call
   listing every frame id:
 
@@ -431,7 +431,7 @@ Print `Writing the skill: <n> steps (<n>s)`. Then mark distill done:
 
     <ENGINE> mark --work "<W>" --stage distill --status done 2>>"<W>/logs/mark.log"
 
-## Stage 6b: critique
+## Stage 7: critique
 
 One critic pass over the staged draft, between draft and check, so check's
 confidence sees the critic's score. Mark it:
@@ -490,7 +490,7 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 
        <ENGINE> mark --work "<W>" --stage critique --status done 2>>"<W>/logs/mark.log"
 
-## Stage 7: check
+## Stage 8: check
 
     <ENGINE> check "<W>/staging/<name>" --work "<W>" --json >"<W>/logs/check.json" 2>"<W>/logs/check.log"; echo "rc=$?"; tail -n 8 "<W>/logs/check.log"
 
@@ -513,15 +513,15 @@ applies redaction again over the whole folder.
   `Check failed twice. Draft kept at <W>/staging/<name>/. Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"`,
   with `<ENGINE>` expanded to the full command, since plain `skipwatch` is not on PATH.
 
-## Stage 8: review
+## Stage 9: review
 
-Under `--test`, run the test run (`## Test run` below) after check and before printing the
+Under `--test`, run the test run (stage 9b below) after check and before printing the
 screen, so the screen carries its `Test run:` line.
 
 Print the review screen in the exact format from `review-screen.md`. Take counts from
 `<W>/check-report.json`, safety flags from its safety result, confidence from
 `skipwatch.json`, the source from `ingest.json`, provider calls from `<W>/calls.json`.
-Confidence reasons include `critic not run` only under `--fast`; after stage 6b gave up
+Confidence reasons include `critic not run` only under `--fast`; after stage 7 gave up
 on the critic, only `critic failed twice`, never `critic not run`; and `critic score <s>`
 when the critic scored under 8,
 next to the gap, inferred, transcript and unread-frame reasons in `review-screen.md`.
@@ -548,15 +548,15 @@ screen and wait, even under `--yes`. The answers are handled in
 `review-screen.md`.
 
 On cancel, mark review done at once (`review-screen.md` shows the command). On yes,
-replace or the `--yes` install, mark review done only after install exits 0 (stage 9),
+replace or the `--yes` install, mark review done only after install exits 0 (stage 10),
 so a failed or interrupted install stays resumable.
 
 A transcription offer the user picks (re-run) keeps review running until the new
 screen is answered.
 
-## Test run
+## Stage 9b: test run
 
-On the review answer "test it", or under `--test` (stage 8). The tester follows the skill
+On the review answer "test it", or under `--test` (stage 9). The tester follows the skill
 in a scratch folder and reports where it got stuck. A test run never happens under
 `--yes` unless `--test` was also given.
 
@@ -596,13 +596,13 @@ in a scratch folder and reports where it got stuck. A test run never happens und
 6. `ambiguous at step N`: ask `[repair step N / install as is / cancel]`. Repair edits
    that step in its draft copy, using the tester's detail and only evidence the notes,
    transcript or post already hold (`distill-rules.md`), redacts it into staging, re-runs
-   check (stage 7) and shows the screen again, with the line
+   check (stage 8) and shows the screen again, with the line
    `Test run: ambiguous at step N (<detail>); step N repaired, not re-tested`. There is
    one repair pass only; after it the prompt is the normal one. Under `--yes` an ambiguous
-   result always shows the prompt and waits. `install as is` goes to stage 9;
+   result always shows the prompt and waits. `install as is` goes to stage 10;
    `cancel` is the review screen's cancel.
 
-## Stage 9: install
+## Stage 10: install
 
     <ENGINE> install "<W>/staging/<name>" [--scope project|agents | --to "<absolute dir>"] [--force] 2>"<W>/logs/install.log"; echo "rc=$?"; tail -n 3 "<W>/logs/install.log"
 
@@ -640,7 +640,7 @@ acceptance runs use to keep `draft-pre-critic` for the step diff:
 
     test "$SKIPWATCH_KEEP_DRAFTS" = 1 || rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<P>/.skipwatch/test-run-<name>"
 
-`<P>/.skipwatch/test-run-<name>` is the test run's fallback scratch folder (`## Test run`
+`<P>/.skipwatch/test-run-<name>` is the test run's fallback scratch folder (stage 9b
 step 2), written with the literal current directory; when it was never made, `rm -rf`
 skips it.
 
@@ -681,11 +681,11 @@ done. A stage left `running` by a killed process counts as not done.
    - `transcribe`, `frames`, `plan`: that step of stage 3, then the rest.
    - `read` or `distill`: run `validate-notes` (stage 4) and re-dispatch readers only for
      batches whose notes file is missing or invalid, then stage 5.
-   - `critique`: stage 6b when `<W>/staging/<name>/SKILL.md` exists, then stage 7;
-     otherwise as `read`. `<name>` is the one folder under `<W>/staging/`. Stage 6b
+   - `critique`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, then stage 8;
+     otherwise as `read`. `<name>` is the one folder under `<W>/staging/`. Stage 7
      honours `--fast` from `run.flags`.
-   - `check`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, otherwise stage 5.
-   - `review` or `install`: stage 7 (staging may have been edited by hand), then stage 8.
+   - `check`: stage 8 when `<W>/staging/<name>/SKILL.md` exists, otherwise stage 5.
+   - `review` or `install`: stage 8 (staging may have been edited by hand), then stage 9.
    - a text source never runs transcribe, frames, plan or read, and the engine's
      `next_stage` already skips them: it is the first of distill, critique, check, review
      and install not yet done, handled by the lines above, except that `distill`, and

@@ -949,7 +949,7 @@ def test_check_retry_removes_or_fixes_an_unredactable_file():
 def test_referenced_frames_copied_into_staging_before_check():
     text = flat(REFS / "run-protocol.md")
     assert (
-        "Before stage 7, copy each frame the skill references into "
+        "Before stage 8, copy each frame the skill references into "
         "`<W>/staging/<name>/assets/frames/`" in text
     )
     assert "at most 8, with the engine" in text
@@ -1098,7 +1098,7 @@ def test_claude_stages_are_marked_in_stages_json():
     assert _before(text, "<ENGINE> validate-notes", mark("read", "done"))
     assert _before(text, mark("read", "done"), mark("distill", "running"))
     assert _before(text, mark("distill", "done"), "<ENGINE> check")
-    assert _before(text, mark("review", "running"), "## Stage 9")
+    assert _before(text, mark("review", "running"), "## Stage 10")
 
 
 def test_unread_cue_frames_stay_gaps_and_others_are_informational():
@@ -1148,8 +1148,8 @@ def test_review_running_marked_when_the_screen_is_printed():
     running = '<ENGINE> mark --work "<W>" --stage review --status running'
     assert _before(text, "Print the review screen in the exact format", running)
     assert "as you print the review screen" in text
-    stage8 = read(REFS / "run-protocol.md").split("## Stage 8: review", 1)[1]
-    assert not stage8.lstrip().startswith("<ENGINE> mark")
+    stage9 = read(REFS / "run-protocol.md").split("## Stage 9: review", 1)[1]
+    assert not stage9.lstrip().startswith("<ENGINE> mark")
 
 
 def test_install_is_marked_done_after_it_succeeds():
@@ -1422,6 +1422,18 @@ def test_sharing_reference_is_short_and_clean():
 # ---- M5: critic, tester, frames and confidence (Task M5-F1) ----
 
 
+def test_skill_md_checklist_matches_the_protocol_stages():
+    skill = read(SKILL / "SKILL.md")
+    assert "Copy this checklist and tick it as the run goes" in skill
+    items = re.findall(r"^- \[ \] (\d+) ", skill, re.M)
+    assert items == [str(n) for n in range(1, 11)]
+    protocol = read(REFS / "run-protocol.md")
+    stages = re.findall(r"^## Stage (\d+): ", protocol, re.M)
+    assert stages == items  # one checklist line per numbered stage, same numbers
+    for stale in ("6b", "## Test run\n"):
+        assert stale not in protocol, stale
+
+
 def test_skill_md_routes_sharing_commands_and_m5_flags():
     text = flat(SKILL / "SKILL.md")
     assert "| `list`, `pack`, `install`, `share` | read `references/sharing.md` first" in text
@@ -1443,20 +1455,20 @@ CRITIC_PROMPT = [
 ]
 
 
-def test_stage_6b_dispatches_the_critic_with_the_exact_prompt():
+def test_stage_7_dispatches_the_critic_with_the_exact_prompt():
     raw = read(REFS / "run-protocol.md")
-    assert "## Stage 6b: critique" in raw
-    stage = raw.split("## Stage 6b: critique", 1)[1].split("\n## Stage 7", 1)[0]
+    assert "## Stage 7: critique" in raw
+    stage = raw.split("## Stage 7: critique", 1)[1].split("\n## Stage 8", 1)[0]
     assert "agent type `skipwatch:skill-critic`" in stage
     lines = [line.strip() for line in stage.splitlines()]
     start = lines.index(CRITIC_PROMPT[0])
     assert lines[start : start + len(CRITIC_PROMPT)] == CRITIC_PROMPT
     text = flat(REFS / "run-protocol.md")
-    assert _before(text, "## Stage 6: draft", "## Stage 6b: critique")
-    assert _before(text, "## Stage 6b: critique", "## Stage 7: check")
+    assert _before(text, "## Stage 6: draft", "## Stage 7: critique")
+    assert _before(text, "## Stage 7: critique", "## Stage 8: check")
 
 
-def test_stage_6b_keeps_evidence_validates_and_degrades():
+def test_stage_7_keeps_evidence_validates_and_degrades():
     text = flat(REFS / "run-protocol.md")
     # plan issue 19: the pre-critic draft is the evidence that the critic changed a step
     assert 'cp -R "<W>/draft" "<W>/draft-pre-critic"' in text
@@ -1493,8 +1505,8 @@ TESTER_PROMPT = [
 
 def test_test_run_dispatches_the_tester_and_validates_its_report():
     raw = read(REFS / "run-protocol.md")
-    assert "\n## Test run\n" in raw
-    section = raw.split("\n## Test run\n", 1)[1].split("\n## ", 1)[0]
+    assert "\n## Stage 9b: test run\n" in raw
+    section = raw.split("\n## Stage 9b: test run\n", 1)[1].split("\n## ", 1)[0]
     assert "agent type `skipwatch:skill-tester`" in section
     lines = [line.strip() for line in section.splitlines()]
     start = lines.index(TESTER_PROMPT[0])
@@ -1519,12 +1531,13 @@ def test_test_run_asks_before_flagged_steps_and_repairs_once():
     assert "one repair pass only" in text
 
 
-def test_stage_8_runs_the_test_under_test_flag_and_names_critic_reasons():
+def test_stage_9_runs_the_test_under_test_flag_and_names_critic_reasons():
     raw = read(REFS / "run-protocol.md")
-    stage8 = re.sub(r"\s+", " ", raw.split("## Stage 8: review", 1)[1].split("## Stage 9", 1)[0])
-    assert "Under `--test`" in stage8 and "before printing the screen" in stage8
+    stage9 = raw.split("## Stage 9: review", 1)[1].split("## Stage 9b", 1)[0]
+    stage9 = re.sub(r"\s+", " ", stage9)
+    assert "Under `--test`" in stage9 and "before printing the screen" in stage9
     for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
-        assert reason in stage8, reason
+        assert reason in stage9, reason
 
 
 STAR = (
@@ -1534,9 +1547,10 @@ STAR = (
 )
 
 
-def test_stage_9_star_nudge_share_line_and_draft_cleanup():
+def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     raw = read(REFS / "run-protocol.md")
-    stage9 = re.sub(r"\s+", " ", raw.split("## Stage 9: install", 1)[1].split("\n## Resume", 1)[0])
+    stage10 = raw.split("## Stage 10: install", 1)[1].split("\n## Resume", 1)[0]
+    stage9 = re.sub(r"\s+", " ", stage10)
     # plan issue 23: once per home, after the two install lines
     assert STAR in stage9
     assert _before(stage9, "Then print two lines", ".star-nudged")
@@ -1554,7 +1568,7 @@ def test_stage_9_star_nudge_share_line_and_draft_cleanup():
 def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
     resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
     assert (
-        "`critique`: stage 6b when `<W>/staging/<name>/SKILL.md` exists, then stage 7; "
+        "`critique`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, then stage 8; "
         "otherwise as `read`" in resume
     )
     assert "`read`, `distill` or `critique`: run `validate-notes`" not in resume
@@ -1571,7 +1585,7 @@ def test_review_screen_confidence_and_test_run_line():
     assert "directly after `Confidence:`" in review
     assert "keep the shape above" in review
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
-    assert "`## Test run` of `run-protocol.md`" in answer
+    assert "stage 9b of `run-protocol.md`" in answer
     assert "Test it anyway?" in answer
 
 

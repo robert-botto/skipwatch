@@ -74,7 +74,7 @@ Flags and what they do:
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
 | `--provider free\|treg\|auto` | content providers for a URL (default `auto`: treg too when logged in); treg calls are paid, capped per run and listed on the review screen, so `--provider free` avoids them; ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used |
-| `--fast` | skip the critic (stage 6b of `run-protocol.md`); confidence is then at most `medium` |
+| `--fast` | skip the critic (stage 7 of `run-protocol.md`); confidence is then at most `medium` |
 | `--test` | test run before the review screen (never on a flagged skill without asking) |
 | `--lang source` | accepted; it has no effect in this version (say so in one line if given) |
 
@@ -102,9 +102,20 @@ other references when the protocol reaches them:
 - `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
   text posts) and whenever a source behaves unexpectedly.
 
-Stage order: doctor (cached for a day), work folder and `run.json`, probe, ingest,
-transcribe, frames, plan, read, outline, draft, critique, check, review (with the test
-run when asked), install.
+Copy this checklist and tick it as the run goes; the numbers are the protocol's stages:
+
+```
+- [ ] 1 doctor (cached)
+- [ ] 2 new-work, write probe, run.json
+- [ ] 3 probe, ingest, transcribe, frames, plan
+- [ ] 4 readers, validate-notes, retries
+- [ ] 5 outline
+- [ ] 6 draft, redact into staging, copy-frames
+- [ ] 7 critic (skip under --fast)
+- [ ] 8 check
+- [ ] 9 review screen (9b test run if asked)
+- [ ] 10 install, cleanup
+```
 
 ## resume
 

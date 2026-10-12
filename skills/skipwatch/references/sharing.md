@@ -82,7 +82,7 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
 
        <ENGINE> check "<staging>" --work "<work>" --json >"<work>/logs/check.json" 2>"<work>/logs/check.log"; echo "rc=$?"; tail -n 8 "<work>/logs/check.log"
 
-   - Exit 0 or 5: print the `Checks:` line as stage 7 of a run does; safety flags go on
+   - Exit 0 or 5: print the `Checks:` line as stage 8 of a run does; safety flags go on
      the review screen.
    - Exit 1: print the failing items from `<work>/check-report.json`, one line each, then
      `This pack failed its checks. Nothing was installed. The unpacked files are at <staging>.`
@@ -92,18 +92,18 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    It is someone else's skill, so rename is not offered and nothing in it is repaired.
    The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
    on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
-   The answers and the install target and collision test are as in stage 8 of
+   The answers and the install target and collision test are as in stage 9 of
    `run-protocol.md`. `--yes` installs a pack only when safety flags, gaps and collisions
    are zero and the `<k> quoted steps not re-verified` count is 0 (no Unverified entry of
    that kind on the pack screen); otherwise show the pack review screen with its prompt
    and wait. "test it"
-   and `--test` follow the test run in `run-protocol.md` with `<W>` = `<work>`, except
+   and `--test` follow the test run (stage 9b of `run-protocol.md`) with `<W>` = `<work>`, except
    that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 
        <ENGINE> install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force] 2>"<work>/logs/install.log"; echo "rc=$?"; tail -n 3 "<work>/logs/install.log"
 
-   Exit codes as in stage 9 of a run. On success print the same two lines as a run
+   Exit codes as in stage 10 of a run. On success print the same two lines as a run
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
    `source` in `<staging>/skipwatch.json`), then delete the pack work folder and the test
    run's fallback scratch folder: `rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"`,

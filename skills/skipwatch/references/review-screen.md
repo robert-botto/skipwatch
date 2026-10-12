@@ -56,7 +56,7 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 - **Safety flags:** the safety result's `flags` in `check-report.json`, as
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `<W>/staging/<name>/skipwatch.json`, then its reasons:
-  the engine computes the grade, so never work it out yourself. The reason is `critic not run` only under `--fast`; when stage 6b gave up on
+  the engine computes the grade, so never work it out yourself. The reason is `critic not run` only under `--fast`; when stage 7 gave up on
   the critic it is only `critic failed twice`, never `critic not run`. A critic score under 8 adds
   `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
@@ -206,11 +206,11 @@ still names the install command.
 
 ## Answers
 
-- **yes / replace:** run install (stage 9 of `run-protocol.md`); add `--force` only for
+- **yes / replace:** run install (stage 10 of `run-protocol.md`); add `--force` only for
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
 - **show draft:** print `W/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
-- **test it:** run the test run in `## Test run` of `run-protocol.md` (it asks
+- **test it:** run the test run, stage 9b of `run-protocol.md` (it asks
   `Test it anyway?` first when there are safety flags), then show the whole screen again
   with its `Test run:` line, and the prompt.
 - **rename:** ask for the new name, check it against the naming rule in

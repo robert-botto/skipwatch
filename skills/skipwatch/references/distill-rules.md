@@ -112,7 +112,7 @@ covers. Never a summary of the steps. 1 to 1024 characters.
 
 ## Critic fixes
 
-The critic's fixes (stage 6b of `run-protocol.md`) edit the draft copies in `<W>/draft/`,
+The critic's fixes (stage 7 of `run-protocol.md`) edit the draft copies in `<W>/draft/`,
 which are then redacted into staging; they never edit staging directly. Every rule above
 still holds while you apply them:
 
