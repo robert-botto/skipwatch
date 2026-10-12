@@ -206,3 +206,57 @@ def test_pack_cli_resolves_an_installed_name(tmp_path, monkeypatch):
     result = CliRunner().invoke(app, ["pack", NAME, "--json"])
     assert result.exit_code == 0, result.output
     assert (tmp_path / f"{NAME}.skillpack.zip").is_file()
+
+
+# ---- -o is confined to a .skillpack.zip file (adversarial review REV6 item 3) ----
+
+
+def _pack_to(skill, out):
+    return CliRunner().invoke(app, ["pack", str(skill), "-o", str(out)])
+
+
+def test_pack_out_must_end_in_skillpack_zip(tmp_path):
+    skill = installed_skill(tmp_path)
+    victim = tmp_path / ".zshrc"
+    victim.write_text("keep\n", encoding="utf-8")
+    for out in (victim, tmp_path / "x.zip", tmp_path / ".skillpack.zip", tmp_path / "new.txt"):
+        r = _pack_to(skill, out)
+        assert r.exit_code == ExitCode.USAGE, (out, r.output)
+    assert victim.read_text(encoding="utf-8") == "keep\n"
+    assert not (tmp_path / "x.zip").exists() and not (tmp_path / "new.txt").exists()
+
+
+def test_pack_out_refuses_a_symlink_and_a_non_pack_file(tmp_path):
+    skill = installed_skill(tmp_path)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep\n", encoding="utf-8")
+    link = tmp_path / "link.skillpack.zip"
+    try:
+        link.symlink_to(victim)
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    assert _pack_to(skill, link).exit_code == ExitCode.USAGE
+    assert victim.read_text(encoding="utf-8") == "keep\n" and link.is_symlink()
+    fake = tmp_path / "notes.skillpack.zip"
+    fake.write_text("my notes, not a pack\n", encoding="utf-8")
+    assert _pack_to(skill, fake).exit_code == ExitCode.USAGE
+    assert fake.read_text(encoding="utf-8") == "my notes, not a pack\n"
+    folder = tmp_path / "dir.skillpack.zip"
+    folder.mkdir()
+    assert _pack_to(skill, folder).exit_code == ExitCode.USAGE
+
+
+def test_pack_out_overwrites_an_earlier_pack_and_ignores_a_planted_temp(tmp_path):
+    skill = installed_skill(tmp_path)
+    out = tmp_path / "out.skillpack.zip"
+    assert _pack_to(skill, out).exit_code == 0
+    first = out.read_bytes()
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep\n", encoding="utf-8")
+    try:
+        (tmp_path / "out.skillpack.zip.tmp").symlink_to(victim)
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    assert _pack_to(skill, out).exit_code == 0
+    assert out.read_bytes() == first
+    assert victim.read_text(encoding="utf-8") == "keep\n"

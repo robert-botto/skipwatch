@@ -5,7 +5,7 @@ import typer
 
 from skipwatch.listing import locate
 from skipwatch.output import emit_json, progress
-from skipwatch.pack import pack_skill
+from skipwatch.pack import pack_skill, pack_target
 from skipwatch.runner import run_command
 
 
@@ -15,6 +15,8 @@ def _skill_dir(skill: str) -> Path:
 
 
 def _pack(skill: str, out: Path | None, json_out: bool) -> int:
+    if out is not None:
+        pack_target(out)  # refused before the skill is even read
     result = pack_skill(_skill_dir(skill), out)
     kb = max(1, round(result.bytes / 1024))
     progress(f"Packed {result.name}: {result.files} files, {kb} KB, sha256 {result.sha256[7:19]}")

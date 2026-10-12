@@ -61,7 +61,7 @@ def test_copy_frames_scales_to_960_and_is_idempotent(tmp_path):
 
 def test_copy_frames_never_upscales(tmp_path):
     work = make_work(tmp_path, [(640, 360), (960, 600)])
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     out = copy_frames(work, dest, [frame_id(1), frame_id(2)])
     sizes = []
     for path in out:
@@ -82,7 +82,7 @@ def test_copy_frames_converts_to_rgb(tmp_path):
 
 def test_copy_frames_caps_at_8(tmp_path):
     work = make_work(tmp_path, [(100, 50)] * 9)
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     ids = [frame_id(n) for n in range(1, 10)]
     with pytest.raises(SkipwatchError) as exc:
         copy_frames(work, dest, ids)
@@ -99,7 +99,7 @@ def test_copy_frames_caps_at_8(tmp_path):
 
 def test_copy_frames_unknown_id_is_64(tmp_path):
     work = make_work(tmp_path, [(100, 50)])
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     r = CliRunner().invoke(
         app,
         ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1), "f999999"],
@@ -111,7 +111,7 @@ def test_copy_frames_unknown_id_is_64(tmp_path):
 
 def test_copy_frames_cli_copies(tmp_path):
     work = make_work(tmp_path, [(1280, 720)])
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     r = CliRunner().invoke(
         app, ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1)]
     )
@@ -134,7 +134,7 @@ def test_copy_frames_refuses_paths_outside_the_frames_folder(tmp_path, where):
     frames = FramesFile.model_validate_json((work / "frames.json").read_text("utf-8"))
     frames.frames[1].path = str(outside) if where == "absolute" else "../secret.jpg"
     write_model(work / "frames.json", frames)
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     with pytest.raises(SkipwatchError) as exc:
         copy_frames(work, dest, [frame_id(1), frame_id(2)])
     assert exc.value.code == ExitCode.USAGE
@@ -147,10 +147,57 @@ def test_copy_frames_nul_in_a_frame_path_is_64_naming_the_frame(tmp_path):
     frames = FramesFile.model_validate_json((work / "frames.json").read_text("utf-8"))
     frames.frames[1].path = "frames/bad\x00.jpg"
     write_model(work / "frames.json", frames)
-    dest = tmp_path / "out"
+    dest = work / "staging" / "demo" / "assets" / "frames"
     r = CliRunner().invoke(
         app, ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1), frame_id(2)]
     )
     assert r.exit_code == ExitCode.USAGE, r.stderr
     assert frame_id(2) in r.stderr
     assert not dest.exists()
+
+
+# ---- --to is confined to <work>/staging (adversarial review REV6 item 3) ----
+
+
+def test_copy_frames_to_outside_staging_is_64_and_writes_nothing(tmp_path):
+    work = make_work(tmp_path, [(100, 50)])
+    outside = tmp_path / "outside"
+    targets = [
+        outside,
+        work / "frames",
+        work,
+        work / "staging",
+        work / "staging" / ".." / "elsewhere",
+    ]
+    (work / "staging" / "demo").mkdir(parents=True)
+    try:
+        (work / "staging" / "demo" / "assets").symlink_to(outside, target_is_directory=True)
+        targets.append(work / "staging" / "demo" / "assets" / "frames")
+    except OSError:
+        pass
+    outside.mkdir()
+    for dest in targets:
+        r = CliRunner().invoke(
+            app, ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1)]
+        )
+        assert r.exit_code == ExitCode.USAGE, (dest, r.output)
+    assert not any(outside.rglob("*.jpg")) and not (work / f"{frame_id(1)}.jpg").exists()
+    assert not (work / "frames" / f"{frame_id(1)}.jpg.tmp").exists()
+
+
+def test_copy_frames_ignores_a_planted_temp_symlink(tmp_path):
+    work = make_work(tmp_path, [(100, 50)])
+    dest = work / "staging" / "demo" / "assets" / "frames"
+    dest.mkdir(parents=True)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep\n", encoding="utf-8")
+    try:
+        (dest / f"{frame_id(1)}.jpg.tmp").symlink_to(victim)
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    r = CliRunner().invoke(
+        app, ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1)]
+    )
+    assert r.exit_code == 0, r.output
+    assert victim.read_text(encoding="utf-8") == "keep\n"
+    assert (dest / f"{frame_id(1)}.jpg").is_file()
