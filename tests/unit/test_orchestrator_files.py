@@ -1241,3 +1241,26 @@ def test_provider_flag_and_treg_login_message():
     assert "Never run `treg` yourself" in text
     skill = flat(SKILL / "SKILL.md")
     assert "treg calls are paid" in skill and "`--provider free`" in skill
+
+
+def _platform_section(name: str) -> str:
+    text = read(REFS / "platforms.md")
+    body = text.split(f"\n## {name}\n", 1)[1]
+    return re.sub(r"\s+", " ", body.split("\n## ", 1)[0])
+
+
+def test_platforms_have_a_treg_subsection_each():
+    expected = {
+        "YouTube (M2)": ("timed transcript", "hint only"),
+        "X (M3)": ("context.thread", "context.author_replies", "media fallback"),
+        "TikTok (M3)": ("media fallback", "hint only"),
+        "Instagram (M3)": ("media fallback", "never for post text"),
+        "Facebook (M3)": ("post text", "never a media fallback"),
+    }
+    for name, phrases in expected.items():
+        section = _platform_section(name)
+        assert "### treg (Tier 3)" in section, name
+        treg = section.split("### treg (Tier 3)", 1)[1]
+        assert "Calls:" in treg and "Adds:" in treg, name
+        for phrase in phrases:
+            assert phrase in treg, (name, phrase)

@@ -38,6 +38,13 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
   automatically); errors naming `--cookies` or a private video exit 4: print "Re-run with
   --cookies-from-browser <browser>".
 
+### treg (Tier 3)
+
+- Calls: `anyapi.youtube.video_transcript_full`, only when the video has no captions.
+- Adds: the timed transcript as a hint only (`transcript_hint`, later `cross_check`); it is
+  never the transcript and never a step source (R-ING-2, issue 7). No media fallback:
+  treg has no YouTube media URL.
+
 ## Generic yt-dlp URLs (M2)
 
 - Free route: archive.org and Wikimedia Commons work without cookies. Vimeo needs a login in
@@ -81,6 +88,15 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
   `ERROR: [twitter] <id>: No video could be found in this tweet`; print "This post has no
   video. Enable treg (Tier 3) to read text posts." Protected posts exit 4.
 
+### treg (Tier 3)
+
+- Calls: `anyapi.twitter.thread` (always), `treg.x.post.comments` (author replies) and
+  `anyapi.twitter.tweet_transcript` (video posts); links in the thread are fetched.
+- Adds: the author's later posts in `context.thread`, the author's own replies (never
+  anyone else's) in `context.author_replies`, expanded links, and the untimed transcript
+  as a hint for the cross-check. A text-only post becomes a `text` bundle from the
+  thread. When yt-dlp is blocked, the thread's `videoUrl` is the media fallback.
+
 ## TikTok (M3)
 
 - Free route: **works without cookies** (G3: metadata, formats, 10 s partial download).
@@ -97,6 +113,14 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
   (not a query parameter), about a day ahead.
 - Known failure modes: none seen logged out. `vm.tiktok.com` share links resolve through
   `TikTokVM` (not exercised in the spike).
+
+### treg (Tier 3)
+
+- Calls: `anyapi.tiktok.video_transcript_full` for video posts; `anyapi.tiktok.video_download`
+  only as the media fallback.
+- Adds: the transcript as a hint only (cross-check); a media fallback when yt-dlp is
+  blocked (clean `videoUrl` first, then the watermarked one), downloaded at once because
+  the URL expires.
 
 ## Instagram (M3)
 
@@ -116,6 +140,13 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
 - Known failure modes: login wall exits 4; print "Instagram often needs a login. Re-run with
   --cookies-from-browser <browser>."
 
+### treg (Tier 3)
+
+- Calls: `anyapi.instagram.post.detail`, only as the media fallback.
+- Adds: a media fallback when yt-dlp is blocked (`videoUrl`, downloaded at once), and
+  never for post text: the call returns no caption, so Instagram text always comes from the free
+  route (spike decision 3).
+
 ## Facebook (M3)
 
 - Free route: **works without cookies** for a public organisation page video (gov.sg,
@@ -131,6 +162,12 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
 - Known failure modes: page listings such as `/<page>/videos` are "Unsupported URL"
   (exit 2): ask for one video's URL. Login walls (not seen for a public page) exit 4 with
   the cookie flag.
+
+### treg (Tier 3)
+
+- Calls: `anyapi.facebook.post.detail`, only when the free route found no post text.
+- Adds: the post text in that case, and never a media fallback: the call returns no media URL
+  (spike decision 4), so never offer `--provider treg` for a Facebook download failure.
 
 ## Text posts (M3)
 
