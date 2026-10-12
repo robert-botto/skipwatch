@@ -10,7 +10,7 @@ import typer
 # typer 0.27 vendors click and does not re-export UsageError; test_cli pins this import.
 from typer._click.exceptions import ClickException, UsageError
 
-from skipwatch import __version__, commands, stagelog
+from skipwatch import __version__, commands, config, stagelog
 from skipwatch.errors import ExitCode
 from skipwatch.runner import run_command
 
@@ -30,7 +30,17 @@ def _root(
             help="Send progress to this file; at the end print rc, elapsed and its last 3 lines.",
         ),
     ] = None,
+    home: Annotated[
+        str | None,
+        typer.Option(
+            "--home",
+            help="The SkipWatch home for this call (as SKIPWATCH_HOME; this wins over it).",
+        ),
+    ] = None,
 ) -> None:
+    if home is not None:
+        config.set_home_option(home)
+        ctx.call_on_close(lambda: config.set_home_option(None))
     if log is not None:
         stagelog.start(log)
         ctx.call_on_close(stagelog.stop)
