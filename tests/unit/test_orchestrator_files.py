@@ -1241,10 +1241,10 @@ def test_cross_check_flags_disagreement_and_is_never_a_step_source():
 def test_provider_flag_and_treg_login_message():
     text = flat(REFS / "run-protocol.md")
     assert "--provider <the --provider flag, or auto>" in text  # passthrough, unchanged
-    assert (
-        "treg was requested but is not installed or not logged in. Run treg login, or "
-        "re-run with --provider free." in text
-    )
+    # the engine's own exit 8 line (ingest.py), quoted exactly, then the free-route hint
+    assert "treg is not installed or not logged in: run `treg login`" in text
+    assert _before(text, "run `treg login`", "or re-run with --provider free.")
+    assert "treg was requested but" not in text
     # auto uses treg only when doctor found it logged in and config does not disable it
     assert "`[providers.treg] enabled`" in text and "`false`" in text
     assert "Never run `treg` yourself" in text

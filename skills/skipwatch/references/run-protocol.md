@@ -210,8 +210,9 @@ Run, each timed as above:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
    - When `route.fallbacks` in `ingest.json` has `treg: cost cap reached`, add
      `, treg cost cap reached` to the progress line; the review screen says it again.
-   - Exit 8 under `--provider treg`: stop with
-     `treg was requested but is not installed or not logged in. Run treg login, or re-run with --provider free.`
+   - Exit 8 under `--provider treg`: stop with the engine's line, quoted exactly,
+     `` treg is not installed or not logged in: run `treg login` ``, then
+     `or re-run with --provider free.`
      Under `auto` a missing or logged-out treg is skipped silently by the engine.
    - treg (Tier 3) runs under `auto` only when doctor found it logged in and
      `[providers.treg] enabled` in `config.toml` is not `false` (`true` or `auto`);
