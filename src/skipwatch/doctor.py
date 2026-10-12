@@ -2,8 +2,9 @@
 
 Doctor only looks: `--version` subprocess calls, PATH lookups, importability checks and
 environment variable names. It never installs, upgrades or downloads anything (R-DOC-1), so a
-missing static ffmpeg is reported as "not fetched yet" rather than fetched. treg login needs a
-network call, so M0 reports "on PATH, login not verified" (plan issue 11).
+missing static ffmpeg is reported as "not fetched yet" rather than fetched. The one network call
+is treg's login check, `treg balance --json` (free), made only when treg is on PATH and run by
+providers/content_treg.py (plan issue 11).
 
 Every printed `uv sync` carries `--inexact`: an exact sync uninstalls extras it is not told
 about, so following the yt-dlp advice would remove an installed Whisper extra. skipwatch is not
@@ -26,6 +27,7 @@ import skipwatch
 from skipwatch import media
 from skipwatch.errors import SkipwatchError
 from skipwatch.models import DoctorComponent, DoctorMissing, DoctorReport, Tier
+from skipwatch.providers import content_treg
 from skipwatch.providers.whisper_common import DEFAULT_MODELS, MODEL_SIZES, hf_cached
 
 CLOUD_KEYS = ("OPENAI_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY")
@@ -76,6 +78,7 @@ class Probe:
     apple_silicon: bool
     cloud_keys: list[str] = field(default_factory=list)
     treg_on_path: bool = False
+    treg_logged_in: bool | None = None  # None when treg is not on PATH
     mem0_key: bool = False
     uv_install: UvInstall = "standalone"
     macos: bool = False
@@ -150,9 +153,15 @@ def is_apple_silicon() -> bool:
     return sys.platform == "darwin" and platform.machine() == "arm64"
 
 
+def _treg_on_path() -> bool:
+    return content_treg._treg_path() is not None  # one source of truth, honours the test guard
+
+
 def probe_machine() -> Probe:
-    """Look at the machine. No network, no installs; subprocess `--version` calls only."""
+    """Look at the machine. No installs; subprocess `--version` calls, plus treg's free login
+    check when treg is on PATH (the only network doctor does)."""
     ffmpeg, source = _probe_ffmpeg()
+    treg = _treg_on_path()
     node = _version_output("node")
     uv_line = _version_output("uv")
     probe = Probe(
@@ -167,7 +176,8 @@ def probe_machine() -> Probe:
         whisper_faster=importlib.util.find_spec("faster_whisper") is not None,
         apple_silicon=is_apple_silicon(),
         cloud_keys=[key for key in CLOUD_KEYS if os.environ.get(key)],
-        treg_on_path=shutil.which("treg") is not None,
+        treg_on_path=treg,
+        treg_logged_in=content_treg.logged_in() if treg else None,
         mem0_key=bool(os.environ.get("MEM0_API_KEY")),
         uv_install=uv_install_kind(uv_line, _uv_path()),
         macos=sys.platform == "darwin",
@@ -197,9 +207,10 @@ def _node_ok(version: str | None) -> bool:
 
 
 def compute_tier(p: Probe) -> Tier:
-    """Highest match, not a nested ladder: Tier 3 is Tier 1 plus treg (plan issue 10)."""
+    """Highest match, not a nested ladder: Tier 3 is Tier 1 plus treg logged in (plan issue
+    10, M4-A3)."""
     whisper = p.whisper_mlx or p.whisper_faster
-    if whisper and p.treg_on_path:
+    if whisper and p.treg_logged_in:
         return "3"
     if whisper and (_node_ok(p.node) or p.deno):
         return "2"
@@ -367,6 +378,12 @@ def _whisper_model_component(p: Probe) -> list[DoctorComponent]:
     ]
 
 
+def _treg_detail(p: Probe) -> str:
+    if not p.treg_on_path:
+        return ""
+    return "logged in" if p.treg_logged_in else "on PATH, not logged in: run treg login"
+
+
 def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
     return [
         DoctorComponent(name="uv", found=p.uv is not None, version=p.uv),
@@ -392,11 +409,7 @@ def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
         DoctorComponent(
             name="cloud-keys", found=bool(p.cloud_keys), detail=", ".join(p.cloud_keys)
         ),
-        DoctorComponent(
-            name="treg",
-            found=p.treg_on_path,
-            detail="on PATH, login not verified" if p.treg_on_path else "",
-        ),
+        DoctorComponent(name="treg", found=bool(p.treg_logged_in), detail=_treg_detail(p)),
         DoctorComponent(name="mem0-key", found=p.mem0_key),
     ]
 
@@ -425,6 +438,5 @@ def render_table(r: DoctorReport) -> list[str]:
     for m in r.missing:
         lines.append(f"Missing for Tier {r.next_tier}: {m.name}: {m.install_command}")
     lines.extend(f"Warning: {w}" for w in r.warnings)
-    if any(c.name == "treg" and c.found for c in r.components):
-        lines.append("treg: on PATH, login not verified")
+    lines.extend(f"treg: {c.detail}" for c in r.components if c.name == "treg" and c.detail)
     return lines

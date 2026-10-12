@@ -16,7 +16,15 @@ from skipwatch.config import load_config
 from skipwatch.detect import Detected, detect
 from skipwatch.doctor import ytdlp_upgrade_command
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import CallsFile, Config, IngestBundle, Route, SourceFile, SourceInfo
+from skipwatch.models import (
+    CallsFile,
+    Config,
+    IngestBundle,
+    ProviderCall,
+    Route,
+    SourceFile,
+    SourceInfo,
+)
 from skipwatch.providers.base import ContentProvider
 from skipwatch.providers.registry import content_providers
 from skipwatch.workdir import WorkDir, run_stage, write_model
@@ -79,6 +87,28 @@ def _media_fallback(
     )
 
 
+def _finish(
+    providers: list[ContentProvider], work: WorkDir, bundle: IngestBundle | None
+) -> tuple[IngestBundle | None, list[ProviderCall]]:
+    """Every provider's end-of-run hook. A fresh bundle gets each provider's calls as that
+    provider's entries in provider_calls; the calls are also returned, for calls.json when the
+    run ends on a cache hit or an error."""
+    billed: list[ProviderCall] = []
+    for provider in providers:
+        finish = getattr(provider, "finish", None)
+        calls = list(finish(work, bundle)) if finish is not None else []
+        billed += calls
+        if calls and bundle is not None and not bundle.from_cache:
+            others = [c for c in bundle.provider_calls if c.provider != provider.name]
+            bundle = bundle.model_copy(update={"provider_calls": [*others, *calls]})
+    return bundle, billed
+
+
+def _record(work: WorkDir, calls: list[ProviderCall]) -> None:
+    """calls.json for a run that ends without a fresh bundle: what it billed, nothing else."""
+    write_model(work.file("calls.json"), CallsFile(calls=calls))
+
+
 CacheLookup = Callable[[IngestBundle, list[ContentProvider], IngestOptions], IngestBundle | None]
 
 
@@ -94,6 +124,30 @@ def _build(
         raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"no adapter for {detected.platform}")
     # A local file never consults content providers: no network call for the user's own file.
     providers = [] if detected.platform == "local" else enabled_providers(opts, cfg)
+    try:
+        bundle = _build_with(providers, adapter, detected, work, opts, cached)
+    except BaseException:
+        # whatever ended the run, Ctrl-C included, money already spent is logged and reviewed
+        _, billed = _finish(providers, work, None)
+        if billed:
+            _record(work, billed)
+        raise
+    finished, billed = _finish(providers, work, bundle)
+    if finished is None:  # unreachable: a bundle in gives a bundle out
+        raise SkipwatchError(ExitCode.INTERNAL_ERROR, "a content provider lost the bundle")
+    if finished.from_cache:
+        _record(work, billed)
+    return finished
+
+
+def _build_with(
+    providers: list[ContentProvider],
+    adapter,
+    detected: Detected,
+    work: WorkDir,
+    opts: IngestOptions,
+    cached: CacheLookup | None,
+) -> IngestBundle:
     try:
         bundle = adapter.build(detected, work, opts)
     except NoMediaError as exc:
@@ -133,10 +187,20 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
             path=src.path,
         ),
     )
-    # a cache hit made no calls this run: calls.json stays empty so cost is never counted twice
-    calls = [] if bundle.from_cache else bundle.provider_calls
-    write_model(work.file("calls.json"), CallsFile(calls=calls))
+    # a cache hit: _build already wrote what this run billed (often nothing), never the
+    # cached calls, so cost is never counted twice
+    if not bundle.from_cache:
+        write_model(work.file("calls.json"), CallsFile(calls=bundle.provider_calls))
     write_model(work.file("ingest.json"), bundle)
+
+
+def cache_lookup(
+    bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
+) -> IngestBundle | None:
+    """The run cache, keyed the one way every caller uses (ingest and treg's text-only X): the
+    source, cookies and the sorted names of the enabled providers (runcache.cache_key)."""
+    cookies = opts.cookies_from_browser is not None
+    return runcache.cached_ingest(bundle, [p.name for p in providers], cookies)
 
 
 def run_ingest(
@@ -157,7 +221,7 @@ def run_ingest(
             bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
         ) -> IngestBundle | None:
             enabled[:] = [p.name for p in providers]
-            return runcache.cached_ingest(bundle, enabled, cookies)
+            return cache_lookup(bundle, providers, opts)
 
         bundle = _build(detected, work, opts, cfg or load_config(), lookup)
         _write(work, bundle)

@@ -271,3 +271,8 @@ def test_g_agent_text_only_quoted_under_gotchas(checked: subprocess.CompletedPro
     quoted = [i for i, line in enumerate(gotchas) if AGENT_TEXT in line]
     assert quoted and all(i in fenced for i in quoted), quoted
     assert doc.body.count(AGENT_TEXT) == len(quoted), "agent text appears outside Gotchas"
+
+
+def test_treg_guard_is_in_the_environment_engine_snapshots():
+    """Engine copies os.environ at module scope: the treg guard must already be there."""
+    assert os.environ.get("SKIPWATCH_TREG_DISABLED") == "1"

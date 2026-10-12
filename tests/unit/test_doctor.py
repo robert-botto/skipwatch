@@ -36,8 +36,9 @@ def test_tier_ladder():
     assert doctor.compute_tier(P(whisper_mlx=True, node="25.4.0")) == "2"
     assert doctor.compute_tier(P(whisper_mlx=True, deno="2.1.0")) == "2"
     assert doctor.compute_tier(P(whisper_mlx=True, node="20.1.0")) == "1"  # node below 22
-    assert doctor.compute_tier(P(whisper_faster=True, treg_on_path=True)) == "3"
-    assert doctor.compute_tier(P(treg_on_path=True)) == "0"  # treg without whisper is not Tier 3
+    treg = dict(treg_on_path=True, treg_logged_in=True)
+    assert doctor.compute_tier(P(whisper_faster=True, **treg)) == "3"
+    assert doctor.compute_tier(P(**treg)) == "0"  # treg without whisper is not Tier 3
 
 
 def test_r_tier_1_report_names_next_tier_and_command():
@@ -113,7 +114,9 @@ def test_r_tier_1_every_tier_has_next_step_until_3():
         assert all(m.install_command for m in r.missing)
     node = doctor.build_report(cases["1"], TODAY, "/plug").missing[0]
     assert "https://nodejs.org" in node.install_command
-    top = doctor.build_report(P(whisper_faster=True, treg_on_path=True), TODAY, "/plug")
+    top = doctor.build_report(
+        P(whisper_faster=True, treg_on_path=True, treg_logged_in=True), TODAY, "/plug"
+    )
     assert top.tier == "3" and top.next_tier is None and top.missing == []
 
 
@@ -129,11 +132,16 @@ def test_static_unfetched_ffmpeg_reported_not_fetched():
     assert any("not fetched yet" in line for line in doctor.render_table(r))
 
 
-def test_treg_login_not_verified_and_key_values_never_shown():
-    p = P(whisper_faster=True, treg_on_path=True, cloud_keys=["OPENAI_API_KEY"])
+def test_treg_not_logged_in_and_key_values_never_shown():
+    p = P(
+        whisper_faster=True,
+        treg_on_path=True,
+        treg_logged_in=False,
+        cloud_keys=["OPENAI_API_KEY"],
+    )
     lines = doctor.render_table(doctor.build_report(p, TODAY, "/plug"))
-    assert "treg: on PATH, login not verified" in lines
-    assert sum("login not verified" in line for line in lines) == 1
+    assert "treg: on PATH, not logged in: run treg login" in lines
+    assert sum("not logged in" in line for line in lines) == 1
 
 
 def test_cloud_keys_reported_by_name_only(monkeypatch):

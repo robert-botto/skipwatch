@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -476,3 +477,22 @@ def test_captions_changed_since_the_cached_run_is_a_miss(sw_home, tmp_path, monk
     adapter.build = lambda d, w, o: url_bundle(d.value, captions=False)
     second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
     assert second.from_cache is False and provider.enriched == 2
+
+
+def test_link_fetch_failures_never_block_the_cache(sw_home, tmp_path, clock):
+    """A dead link (link.get, link.resolve) is a content outcome; any other failed call is
+    still a provider failure and a miss."""
+    dead = ProviderCall(provider="free", op="link.get", ok=False, error="HTTP 404")
+    unresolved = ProviderCall(provider="free", op="link.resolve", ok=False, error="HTTP 404")
+    treg = ProviderCall(provider="treg", op="x.thread", ok=True)
+    for calls, hit in (
+        ([dead, unresolved, treg], True),
+        ([treg.model_copy(update={"ok": False})], False),
+    ):
+        bundle = url_bundle().model_copy(update={"provider_calls": calls})
+        src = tmp_path / "ingest.json"
+        write_model(src, bundle)
+        runcache.remember_ingest(bundle, src, False, ["treg"])
+        got = runcache.cached_ingest(url_bundle(), ["treg"], cookies=False)
+        assert (got is not None) is hit, calls
+        shutil.rmtree(sw_home / "cache", ignore_errors=True)
