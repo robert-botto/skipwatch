@@ -56,3 +56,13 @@ def test_record_keeps_other_records(sw_home, tmp_path):
     write_model(sw_home / installs.INSTALLS, InstallsFile(installs=[old]))
     installs.record(result(tmp_path / "new", "new"), "run", now=NOW)
     assert [r.name for r in installs.load().installs] == ["old", "new"]
+
+
+def test_record_skips_logged_paths_that_cannot_be_resolved(sw_home, tmp_path):
+    sw_home.mkdir(parents=True)
+    bad = InstallRecord(
+        name="bad", path="/tmp/bad\x00path", scope="dir", installed_at="2026-01-01T00:00:00Z"
+    )
+    write_model(sw_home / installs.INSTALLS, InstallsFile(installs=[bad]))
+    installs.record(result(tmp_path / "new", "new"), "run", now=NOW)
+    assert [r.name for r in installs.load().installs] == ["bad", "new"]

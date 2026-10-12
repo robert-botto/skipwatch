@@ -16,7 +16,9 @@ from skipwatch.models import (
     CheckReport,
     Counts,
     IngestBundle,
+    InstallRecord,
     InstallResult,
+    InstallsFile,
     Manifest,
     ManifestSource,
     PackOrigin,
@@ -373,4 +375,29 @@ def test_install_still_succeeds_when_log_unwritable(roots, tmp_path, monkeypatch
     r = run_cli(str(make_staging(tmp_path)))
     assert r.exit_code == 0, r.stderr
     assert "could not record the install: read-only file system" in r.stderr
+    assert (home / ".claude/skills" / NAME / "SKILL.md").exists()
+
+
+def test_install_succeeds_with_a_nul_path_in_the_log(roots, tmp_path, sw_home):
+    home, _ = roots
+    sw_home.mkdir(parents=True, exist_ok=True)
+    bad = InstallRecord(
+        name="bad", path="/tmp/bad\x00path", scope="dir", installed_at="2026-01-01T00:00:00Z"
+    )
+    write_model(sw_home / installs.INSTALLS, InstallsFile(installs=[bad]))
+    r = run_cli(str(make_staging(tmp_path)))
+    assert r.exit_code == 0, r.stderr
+    assert [x.name for x in installs.load().installs] == ["bad", NAME]
+
+
+def test_install_still_succeeds_when_log_raises_value_error(roots, tmp_path, monkeypatch):
+    home, _ = roots
+
+    def broken(*args, **kwargs):
+        raise ValueError("embedded null byte")
+
+    monkeypatch.setattr(installs, "record", broken)
+    r = run_cli(str(make_staging(tmp_path)))
+    assert r.exit_code == 0, r.stderr
+    assert "could not record the install: embedded null byte" in r.stderr
     assert (home / ".claude/skills" / NAME / "SKILL.md").exists()

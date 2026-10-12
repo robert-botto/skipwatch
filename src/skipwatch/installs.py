@@ -29,6 +29,14 @@ def load() -> InstallsFile:
         return InstallsFile()
 
 
+def resolved(path: str) -> Path | None:
+    """A logged path resolved, or None when it cannot be (a NUL byte, a broken file system)."""
+    try:
+        return Path(path).resolve()
+    except (OSError, ValueError):
+        return None
+
+
 def record(
     result: InstallResult, origin: Literal["run", "pack"], now: datetime | None = None
 ) -> None:
@@ -43,7 +51,8 @@ def record(
         installed_at=stamp.isoformat(timespec="seconds").replace("+00:00", "Z"),
     )
     log = load()
-    kept = [r for r in log.installs if Path(r.path).resolve() != path]
+    # a record whose path cannot be resolved is kept as is; it can never match this one
+    kept = [r for r in log.installs if resolved(r.path) != path]
     home = skipwatch_home()
     home.mkdir(parents=True, exist_ok=True)
     write_model(home / INSTALLS, InstallsFile(installs=[*kept, entry]))

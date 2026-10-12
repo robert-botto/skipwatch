@@ -141,6 +141,6 @@ def install(
     origin = "pack" if _ingest_pack(staging) else "run"
     try:
         installs.record(result, origin)
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         progress(f"could not record the install: {exc}")
     return result
