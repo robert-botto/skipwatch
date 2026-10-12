@@ -519,8 +519,9 @@ screen, so the screen carries its `Test run:` line.
 Print the review screen in the exact format from `review-screen.md`. Take counts from
 `<W>/check-report.json`, safety flags from its safety result, confidence from
 `skipwatch.json`, the source from `ingest.json`, provider calls from `<W>/calls.json`.
-Confidence reasons include `critic not run` (`--fast`, or no `critique.json`),
-`critic failed twice` (stage 6b), and `critic score <s>` when the critic scored under 8,
+Confidence reasons include `critic not run` only under `--fast`; after stage 6b gave up
+on the critic, only `critic failed twice`, never `critic not run`; and `critic score <s>`
+when the critic scored under 8,
 next to the gap, inferred, transcript and unread-frame reasons in `review-screen.md`.
 Mark review running as you print the review screen, in the same turn, so its timing
 covers the user's decision and not check:

@@ -57,9 +57,9 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   `pipe_to_shell (high) at step 7`. `none` when empty.
 - **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
   no gaps, inferred under 15% of steps and critic score 8 or more; `medium` is one gap or
-  inferred under 30%; otherwise `low`. With no `critique.json` the critic did not run, so
-  confidence is capped at `medium` and the reason says `critic not run` (`--fast`), or
-  `critic failed twice` when stage 6b gave up on it. A critic score under 8 adds
+  inferred under 30%; otherwise `low`. With no `critique.json` confidence is capped at
+  `medium`. The reason is `critic not run` only under `--fast`; when stage 6b gave up on
+  the critic it is only `critic failed twice`, never `critic not run`. A critic score under 8 adds
   `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.

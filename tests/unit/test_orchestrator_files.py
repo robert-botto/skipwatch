@@ -1567,3 +1567,11 @@ def test_share_exit_2_maps_only_the_messages_it_knows():
     assert "Exit 2 whose message contains `made from a local file`" in section
     assert "Any other exit 2: print the engine's line" in section
     assert "Any other exit 2: `This skill came from a local recording" not in section
+
+
+def test_critic_reasons_are_exclusive():
+    for path in (REFS / "run-protocol.md", REFS / "review-screen.md"):
+        text = flat(path)
+        assert "`critic not run` only under `--fast`" in text, path
+        assert "only `critic failed twice`, never `critic not run`" in text, path
+        assert "or no `critique.json`" not in text, path
