@@ -39,8 +39,14 @@ def test_home_option_does_not_leak_into_later_calls(tmp_path, sw_home):
 
 
 def test_home_option_works_with_log_in_either_order(tmp_path, sw_home):
-    home = tmp_path / "h"
-    log = tmp_path / "logs" / "new-work.log"
-    assert _new_work("--home", str(home), "--log", str(log)).parent == home / "work"
-    assert _new_work("--log", str(log), "--home", str(home)).parent == home / "work"
-    assert "Work folder:" in log.read_text(encoding="utf-8")
+    home = tmp_path / "h" / ".skipwatch"
+    work = _new_work("--home", str(home))
+    log = work / "logs" / "note.log"
+    note = ["note", "--work", str(work), "--degradation"]
+    for value, root_opts in (
+        ("home first", ("--home", str(home), "--log", str(log))),
+        ("log first", ("--log", str(log), "--home", str(home))),
+    ):
+        r = CliRunner().invoke(app, [*root_opts, *note, value])
+        assert r.exit_code == 0, r.output
+        assert f"Noted: {value}" in log.read_text(encoding="utf-8")

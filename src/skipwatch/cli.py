@@ -11,7 +11,8 @@ import typer
 from typer._click.exceptions import ClickException, UsageError
 
 from skipwatch import __version__, commands, config, stagelog
-from skipwatch.errors import ExitCode
+from skipwatch.commands.workfiles import log_path
+from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.runner import run_command
 
 __all__ = ["app", "main", "run_command"]
@@ -42,6 +43,11 @@ def _root(
         config.set_home_option(home)
         ctx.call_on_close(lambda: config.set_home_option(None))
     if log is not None:
+        try:
+            log = log_path(log)  # after --home, before the file is opened or the command runs
+        except SkipwatchError as exc:
+            print(f"--log refused: {exc.message}", file=sys.stderr)
+            raise typer.Exit(ExitCode.USAGE) from None
         stagelog.start(log)
         ctx.call_on_close(stagelog.stop)
     if version:

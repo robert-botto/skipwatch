@@ -62,6 +62,23 @@ def path_under(work: Path, sub: str, path: Path, flag: str) -> Path:
     return resolved
 
 
+def log_path(log: Path) -> Path:
+    """--log resolved, refused (exit 64) unless it lies under <W>/logs of a work or pack folder
+    W as home_work_or_pack_folder checks it, with no symlink as its last component."""
+    resolved = log.parent.resolve() / log.name
+    for area in ("work", "packs"):
+        root = (skipwatch_home() / area).resolve()
+        if not resolved.is_relative_to(root):
+            continue
+        parts = resolved.relative_to(root).parts
+        if len(parts) >= 2:
+            work = _home_folder(root / parts[0], area)
+            return path_under(work, "logs", log, "--log")
+    raise SkipwatchError(
+        ExitCode.USAGE, f"--log {log} is not inside the logs/ folder of a work folder"
+    )
+
+
 def remove_path(path: Path) -> None:
     """Delete a file or folder; a symlink is unlinked, never followed."""
     if path.is_symlink() or path.is_file():
