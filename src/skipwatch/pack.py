@@ -63,13 +63,14 @@ def valid_name(name: str) -> bool:
 
 
 WINDOWS_DEVICES = frozenset(
-    {"CON", "PRN", "AUX", "NUL"} | {f"{kind}{n}" for kind in ("COM", "LPT") for n in "123456789"}
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"{kind}{n}" for kind in ("COM", "LPT") for n in "123456789\u00b9\u00b2\u00b3"}
 )
 WINDOWS_FORBIDDEN = frozenset('<>"|?*')
 
 
 def _unportable(part: str) -> bool:
-    device = part.split(".")[0].upper() in WINDOWS_DEVICES
+    device = part.split(".")[0].rstrip(" ").upper() in WINDOWS_DEVICES
     return device or part.endswith((".", " ")) or any(c in WINDOWS_FORBIDDEN for c in part)
 
 

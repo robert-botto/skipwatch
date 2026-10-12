@@ -101,6 +101,12 @@ def refused(pack: Path, home: Path) -> SkipwatchError:
         "run-x/a<b>.md",
         "run-x/trailing.",
         "run-x/trailing ",
+        "run-x/CON .md",  # Windows ignores spaces before the dot
+        "run-x/conin$",
+        "run-x/CONOUT$.txt",
+        "run-x/COM\u00b9.md",  # superscript digits are device names too
+        "run-x/lpt\u00b2",
+        "run-x/references/LPT\u00b3.txt",
     ],
 )
 def test_unpack_rejects_unsafe_entries(tmp_path, sw_home, name):
