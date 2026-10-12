@@ -469,7 +469,7 @@ def test_allowed_tools_cover_every_command_the_skill_runs():
     engine = '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *'
     assert engine in rules  # the quoted wrapper form every engine call uses
     commands = _shell_commands()
-    assert len(commands) >= 8
+    assert len(commands) >= 3  # housekeeping moved into the engine
     for name, command in commands:
         assert any(_rule_covers(r, command) for r in rules), (name, command)
     # and no rule for a command the skill no longer runs
@@ -1051,7 +1051,9 @@ def test_run_json_and_probe_come_before_ingest():
     assert "use the Write tool to write `<W>/run.json`" in text
     assert '"schema": "skipwatch/run/1"' in text
     # Claude has no clock: the time comes from `date`, never made up
-    assert "Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call." in text
+    # Claude has no clock: new-work prints started_at with the work folder
+    assert "`started_at` is the value `new-work` printed with `work`." in text
+    assert "date -u" not in text
     assert _before(text, "`<W>/run.json`", logged("ingest") + ' "<input>"')
     # the long-video warning needs the duration before anything downloads (plan issue 4)
     assert logged("probe") + ' "<input>" --json' in text
