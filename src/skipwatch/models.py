@@ -183,7 +183,7 @@ class IngestBundle(_Tagged):
 
 # ---- transcript.json (7.2) ----
 TranscriptOrigin = Literal[
-    "captions", "mlx-whisper", "faster-whisper", "openai", "groq", "deepgram"
+    "captions", "mlx-whisper", "faster-whisper", "openai", "groq", "deepgram", "pack"
 ]
 
 

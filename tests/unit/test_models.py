@@ -16,6 +16,7 @@ from skipwatch.models import (
     ProviderCall,
     ResumeResult,
     RunFile,
+    Segment,
     Transcript,
 )
 
@@ -364,3 +365,12 @@ def test_cache_entry_round_trip():
         files=["ingest.json"],
     )
     assert CacheEntry.model_validate_json(e.model_dump_json(by_alias=True)) == e
+
+
+# ---- M5-A: model amendments for M5 and M6 ----
+
+
+def test_transcript_origin_accepts_pack():
+    t = Transcript(origin="pack", segments=[Segment(start=1.0, end=2.0, text="hi there you")])
+    assert t.origin == "pack"
+    assert Transcript.model_validate_json(t.model_dump_json(by_alias=True)) == t
