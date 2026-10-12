@@ -141,6 +141,13 @@ def test_run_protocol_logs_per_stage():
     assert "run.log" not in text
 
 
+def test_skill_md_says_note_not_list():
+    skill = flat(SKILL / "SKILL.md")
+    assert '`<ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"`' in skill
+    assert "note `no transcript: <the engine's message>` (`note --degradation`)" in skill
+    assert "list it under Unverified" not in skill and "under Unverified;" not in skill
+
+
 def test_degradations_are_noted_not_remembered():
     # degradations and unread frames persist in the work folder, so resume keeps them
     import typer

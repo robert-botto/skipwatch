@@ -120,8 +120,9 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 
 - The only question in a run is the review prompt, with one named exception, never asked
   under `--yes`: a video over 60 minutes gets one "continue?" question after probe.
-- A missing optional dependency never fails a run: degrade, continue, and list it under
-  Unverified on the review screen.
+- A missing optional dependency never fails a run: degrade, continue, and note it
+  (`<ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"`,
+  run-engine.md conventions); the review screen shows it under Unverified.
 - Cloud transcription sends audio only after the user said yes to that provider by name;
   `--yes` is never that consent.
 - Never Read a frame image yourself. You read each notes file and the transcript once.
@@ -146,7 +147,7 @@ retry a failed stage with different inputs to get past it.
 | 3 | probe, ingest | `Download failed:` then every route line and its reason, then the fix the engine names. |
 | 4 | probe, ingest | `This content is private or needs a login: <engine message>.` then `Re-run with --cookies-from-browser <browser> if you can open it logged in.` |
 | 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message `run-engine.md` gives for that stage (ingest, frames, or no transcript and no frames) |
-| 3, 7 or 8 | transcribe | do not stop: continue from frames only and list `no transcript: <the engine's message>` under Unverified; exit 8 also puts the transcription offers on the review screen. |
+| 3, 7 or 8 | transcribe | do not stop: continue from frames only and note `no transcript: <the engine's message>` (`note --degradation`); exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then the `Check failed twice.` line from stage 8 in `run-distill.md` |
 | 6 | install | show the review screen again with the collision prompt. |
