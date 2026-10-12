@@ -45,6 +45,7 @@ says `ingest.log`; nothing was downloaded.
 - Exit 7: stop with `No usable content in <input>: no video, audio or text.` A
   text-only X post says so itself; quote it:
   `This post has no video. Enable treg (Tier 3) to read text posts.`
+- Any other exit: the failure table in SKILL.md.
 
 ## Sources
 

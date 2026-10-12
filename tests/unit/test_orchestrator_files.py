@@ -2115,6 +2115,12 @@ def _install_step(n: int) -> str:
     return re.sub(r"\s+", " ", step)
 
 
+def test_probe_and_ingest_exits_end_with_the_failure_table():
+    branches = read(REFS / "run-branches.md")
+    section = branches.split("\n## Probe and ingest exits\n", 1)[1].split("\n## ", 1)[0]
+    assert "- Any other exit: the failure table in SKILL.md." in section
+
+
 def test_resume_takes_the_staged_name_from_run_json_first():
     resume = protocol_flat().split("## Resume", 1)[1]
     assert (
