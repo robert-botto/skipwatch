@@ -42,6 +42,11 @@ def target_dir(
     return home / ".claude" / "skills" / name, "user"
 
 
+def scope_target(scope: Scope | None, name: str, cwd: Path, home: Path) -> tuple[Path, TargetScope]:
+    """Where a skill named `name` goes without --to: --scope, else config.toml [install] scope."""
+    return target_dir(scope or load_config().install.scope, None, name, cwd, home)
+
+
 def _walk(root: Path) -> Iterator[Path]:
     """root and everything under it, without following symlinks."""
     yield root
@@ -120,12 +125,12 @@ def install(
     name = staging.name
     _require_passed_check(staging)
 
-    if to is None and scope is None:
-        scope = load_config().install.scope
     cwd = cwd or Path.cwd()
+    home = home or Path.home()
     if to is not None:
-        to = _install_root(cwd / to)
-    target, resolved = target_dir(scope, to, name, cwd, home or Path.home())
+        target, resolved = target_dir(scope, _install_root(cwd / to), name, cwd, home)
+    else:
+        target, resolved = scope_target(scope, name, cwd, home)
 
     backup: Path | None = None
     if target.exists() or target.is_symlink():
