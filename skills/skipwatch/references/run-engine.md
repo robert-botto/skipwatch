@@ -47,9 +47,10 @@ degrades and continues, or stops with one message.
 - Long stages: run ingest, transcribe, frames and any install with the Bash tool's
   `timeout: 600000`. When the expected time exceeds 500 s (probe's `estimated_run_s`, or
   for transcribe the duration times mlx 0.25, faster 0.6, cloud about 0.1, captions about
-  0), run that stage with `run_in_background` and poll `<W>/stages.json` every 30 to 60 s
-  (a `sleep 45` call, then Read the file) until the stage is `done` or `failed`. Each
-  poll prints one progress line, for example `Transcribing: still running (240s)`.
+  0), run that stage with `run_in_background`. You are notified when it exits, and its
+  output ends with the `rc=` line. Never call `sleep`. If you get a turn before then,
+  Read `<W>/stages.json` once and print one progress line, for example
+  `Transcribing: still running (240s)`.
 - Stages that run in this session (read, distill, critique, review) are recorded with
   `<ENGINE> mark` at their start and end, as shown below, so `resume` sees them. On a
   stop inside one, mark it `--status failed` first. A non-zero `mark` rc stops the run

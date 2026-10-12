@@ -1053,8 +1053,10 @@ def test_long_stages_avoid_the_bash_timeout():
     assert "exceeds 500 s" in text
     for factor in ("mlx 0.25", "faster 0.6", "cloud about 0.1", "captions about 0"):
         assert factor in text, factor
-    assert "poll `<W>/stages.json` every 30 to 60 s" in text
-    assert "Each poll prints one progress line" in text  # R-UX-2
+    # a foreground sleep can be blocked; the background run notifies when it exits
+    assert "You are notified when it exits" in text and "Never call `sleep`" in text
+    assert "sleep 45" not in text
+    assert "Read `<W>/stages.json` once and print one progress line" in text
 
 
 def test_transcribe_exit_3_and_7_quote_the_engine():
