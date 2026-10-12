@@ -54,3 +54,26 @@ def test_make_demo_gif_is_deterministic():
     make.render(lines, second)
     assert first.getvalue() == second.getvalue()
     assert first.getvalue()[:6] == b"GIF89a"
+
+
+def _svg(name: str) -> str:
+    import xml.etree.ElementTree as ET
+
+    text = (ASSETS / name).read_text(encoding="utf-8")
+    ET.fromstring(text)  # well-formed
+    lowered = text.lower()
+    assert "<image" not in lowered and "@import" not in lowered and "@font-face" not in lowered
+    assert "href=\"http" not in lowered.replace("xmlns=\"http", "")
+    return text
+
+
+def _without_style(svg: str) -> str:
+    start, end = svg.index("<style>"), svg.index("</style>")
+    return svg[:start] + svg[end:]
+
+
+def test_hero_svgs_share_one_drawing_and_differ_only_in_colours():
+    light, dark = _svg("hero.svg"), _svg("hero-dark.svg")
+    assert "Paste a video. Claude knows kung fu." in light
+    assert _without_style(light) == _without_style(dark)
+    assert light != dark
