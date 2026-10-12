@@ -25,7 +25,7 @@ def test_treg_lines_say_logged_in_or_how_to_log_in():
         (True, "treg: logged in"),
         (False, "treg: on PATH, not logged in: run treg login"),
     ):
-        p = P(whisper_faster=True, treg_on_path=True, treg_logged_in=logged_in)
+        p = P(whisper_faster=True, treg_on_path=True, treg_logged_in=logged_in, treg_enabled=True)
         report = doctor.build_report(p, TODAY, "/plug")
         lines = doctor.render_table(report)
         assert expected in lines
@@ -34,6 +34,32 @@ def test_treg_lines_say_logged_in_or_how_to_log_in():
         assert treg.found is logged_in and treg.detail == expected.removeprefix("treg: ")
     absent = doctor.render_table(doctor.build_report(P(), TODAY, "/plug"))
     assert not any(line.startswith("treg: ") for line in absent)
+
+
+def test_treg_logged_in_but_not_enabled_is_tier_3_and_says_how_to_turn_it_on():
+    """Skill audit fix 15: paid calls are opt-in, so a logged-in treg is available but off."""
+    p = P(whisper_faster=True, treg_on_path=True, treg_logged_in=True)
+    assert p.treg_enabled is False  # the Probe default matches the config default
+    report = doctor.build_report(p, TODAY, "/plug")
+    assert report.tier == "3"
+    treg = next(c for c in report.components if c.name == "treg")
+    assert treg.found is True
+    assert (
+        "treg: logged in, off: set [providers.treg] enabled = true in config.toml, "
+        "or pass --provider treg"
+    ) in doctor.render_table(report)
+
+
+def test_probe_reads_treg_enabled_from_config(monkeypatch, sw_home):
+    monkeypatch.setattr(doctor, "_treg_on_path", lambda: False)
+    assert doctor.probe_machine().treg_enabled is False
+    sw_home.mkdir(parents=True, exist_ok=True)
+    config = sw_home / "config.toml"
+    for raw, expected in (("true", True), ('"auto"', True), ("false", False)):
+        config.write_text(f"[providers.treg]\nenabled = {raw}\n", encoding="utf-8")
+        assert doctor.probe_machine().treg_enabled is expected
+    config.write_text("[providers.treg]\nenabled = 3\n", encoding="utf-8")
+    assert doctor.probe_machine().treg_enabled is False  # a bad config never stops doctor
 
 
 def test_probe_checks_login_only_when_treg_is_on_path(monkeypatch):
@@ -71,7 +97,7 @@ def test_r_doc_1_doctor_still_never_installs(monkeypatch, sw_home):
     for cmd in calls:
         if cmd not in treg:
             assert cmd[-1] in ("--version", "-version"), cmd  # ffmpeg uses one dash
-    assert "treg: logged in" in r.stderr
+    assert "treg: logged in, off: " in r.stderr
 
 
 def test_doctor_finds_treg_where_content_treg_does():

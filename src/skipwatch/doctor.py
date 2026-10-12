@@ -25,6 +25,7 @@ from typing import Literal
 
 import skipwatch
 from skipwatch import media
+from skipwatch.config import load_config
 from skipwatch.errors import SkipwatchError
 from skipwatch.models import DoctorComponent, DoctorMissing, DoctorReport, Tier
 from skipwatch.providers import content_treg
@@ -36,6 +37,9 @@ NODE_MIN_MAJOR = 22
 UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
 GIT_SOURCE = "git+https://github.com/robert-botto/skipwatch"
+TREG_OFF = (
+    "logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg"
+)
 
 UvInstall = Literal["homebrew", "pipx", "pip", "standalone"]
 UV_UPGRADE: dict[UvInstall, str] = {
@@ -79,6 +83,7 @@ class Probe:
     cloud_keys: list[str] = field(default_factory=list)
     treg_on_path: bool = False
     treg_logged_in: bool | None = None  # None when treg is not on PATH
+    treg_enabled: bool = False  # [providers.treg] enabled is true or "auto" (paid calls opt-in)
     mem0_key: bool = False
     uv_install: UvInstall = "standalone"
     macos: bool = False
@@ -157,6 +162,13 @@ def _treg_on_path() -> bool:
     return content_treg._treg_path() is not None  # one source of truth, honours the test guard
 
 
+def _treg_enabled() -> bool:
+    try:
+        return load_config().providers.treg.enabled is not False
+    except (ValueError, OSError):
+        return False  # a broken config never stops doctor; ingest reports it
+
+
 def probe_machine() -> Probe:
     """Look at the machine. No installs; subprocess `--version` calls, plus treg's free login
     check when treg is on PATH (the only network doctor does)."""
@@ -178,6 +190,7 @@ def probe_machine() -> Probe:
         cloud_keys=[key for key in CLOUD_KEYS if os.environ.get(key)],
         treg_on_path=treg,
         treg_logged_in=content_treg.logged_in() if treg else None,
+        treg_enabled=_treg_enabled(),
         mem0_key=bool(os.environ.get("MEM0_API_KEY")),
         uv_install=uv_install_kind(uv_line, _uv_path()),
         macos=sys.platform == "darwin",
@@ -381,7 +394,9 @@ def _whisper_model_component(p: Probe) -> list[DoctorComponent]:
 def _treg_detail(p: Probe) -> str:
     if not p.treg_on_path:
         return ""
-    return "logged in" if p.treg_logged_in else "on PATH, not logged in: run treg login"
+    if not p.treg_logged_in:
+        return "on PATH, not logged in: run treg login"
+    return "logged in" if p.treg_enabled else TREG_OFF
 
 
 def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
