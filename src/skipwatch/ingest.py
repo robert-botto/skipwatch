@@ -194,6 +194,15 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
     write_model(work.file("ingest.json"), bundle)
 
 
+def cache_lookup(
+    bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
+) -> IngestBundle | None:
+    """The run cache, keyed the one way every caller uses (ingest and treg's text-only X): the
+    source, cookies and the sorted names of the enabled providers (runcache.cache_key)."""
+    cookies = opts.cookies_from_browser is not None
+    return runcache.cached_ingest(bundle, [p.name for p in providers], cookies)
+
+
 def run_ingest(
     value: str,
     work: WorkDir,
@@ -212,7 +221,7 @@ def run_ingest(
             bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
         ) -> IngestBundle | None:
             enabled[:] = [p.name for p in providers]
-            return runcache.cached_ingest(bundle, enabled, cookies)
+            return cache_lookup(bundle, providers, opts)
 
         bundle = _build(detected, work, opts, cfg or load_config(), lookup)
         _write(work, bundle)

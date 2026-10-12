@@ -36,7 +36,7 @@ from urllib.parse import urlsplit
 import requests
 import urllib3
 
-from skipwatch import media, runcache
+from skipwatch import media
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.localfile import media_info
 from skipwatch.adapters.x import canonical, post_id
@@ -498,14 +498,16 @@ class TregProvider:
         if wanted is None:
             return None
         url = canonical(wanted)
-        cookies = opts.cookies_from_browser is not None
         placeholder = IngestBundle(
             source=SourceInfo(kind="text", platform="x", url=detected.value, canonical_url=url),
             route=Route(context="treg", media=None),
         )
         # a text post has no media to fetch first, so a fresh cached run answers before any
         # call: the thread is never billed twice within the cache window (R-TR-3)
-        hit = runcache.cached_ingest(placeholder, [self.name], cookies)
+        from skipwatch import ingest  # ingest imports the provider registry: import late
+
+        enabled = ingest.enabled_providers(opts, load_config())
+        hit = ingest.cache_lookup(placeholder, enabled, opts)
         if hit is not None:
             return hit
         client = self._client(work)

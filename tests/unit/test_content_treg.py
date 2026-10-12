@@ -955,3 +955,30 @@ def test_genuine_errors_stay_failures_and_are_asked_again(tmp_path, treg_on, mon
     billed = len(runner.calls())
     assert not run(G2_URL, work(tmp_path / "2"), provider, monkeypatch).from_cache
     assert len(runner.calls()) > billed
+
+
+def test_text_x_cache_lookup_uses_the_same_key_as_ingest(tmp_path, treg_on, monkeypatch, sw_home):
+    """A second enabled provider with no cached answer: ingest would not serve the cache, so
+    build_text_x must not either (both use ingest.cache_lookup)."""
+    adapters(monkeypatch, x=NoVideo())
+    runner = FakeRunner()
+    provider = TregProvider(runner=runner)
+    run(G2_URL, work(tmp_path / "1"), provider, monkeypatch)
+    billed = len(runner.calls())
+
+    class Other:
+        name = "zzz"
+
+        def available(self):
+            return True
+
+        def enrich(self, bundle, work_, opts):
+            return bundle
+
+        def fetch_media(self, bundle, work_, opts):
+            return None
+
+    monkeypatch.setattr(ingest, "content_providers", lambda: [provider, Other()])
+    got = ingest.run_ingest(G2_URL, work(tmp_path / "2"), IngestOptions(), cfg=Config())
+    assert not got.from_cache
+    assert len(runner.calls()) > billed
