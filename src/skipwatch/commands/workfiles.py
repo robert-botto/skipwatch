@@ -64,21 +64,20 @@ def _inside(work: Path, path: Path) -> bool:
 
 
 def _scratch_folder(work: Path, scratch: Path) -> Path:
-    """--scratch resolved: this project's <cwd>/.skipwatch/test-run-<name>, or a folder under
-    work. Never a symlink, never another project's folder, never one holding work."""
+    """--scratch resolved: this project's <cwd>/.skipwatch/test-run-<name> only. Never a
+    symlink, never another project's folder, never one holding the work folder."""
     resolved = scratch.resolve()
     tester = (
         resolved.parent == Path.cwd().resolve() / ".skipwatch"
         and resolved.name.startswith(SCRATCH_PREFIX)
         and len(resolved.name) > len(SCRATCH_PREFIX)
     )
-    inside = resolved != work and resolved.is_relative_to(work)
-    if (tester or inside) and not scratch.is_symlink() and not work.is_relative_to(resolved):
+    if tester and not scratch.is_symlink() and not work.is_relative_to(resolved):
         return resolved
     raise SkipwatchError(
         ExitCode.USAGE,
-        f"--scratch must be ./.skipwatch/{SCRATCH_PREFIX}<name> in this project or inside the "
-        f"work folder, not a symlink, not {scratch}",
+        f"--scratch must be ./.skipwatch/{SCRATCH_PREFIX}<name> in this project and not a "
+        f"symlink, not {scratch}",
     )
 
 

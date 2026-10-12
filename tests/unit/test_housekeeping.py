@@ -171,12 +171,13 @@ def test_cleanup_twice_is_harmless(tmp_path):
     assert r.exit_code == 0, r.output
 
 
-def test_cleanup_scratch_under_the_work_folder_is_allowed(tmp_path):
+def test_cleanup_refuses_a_scratch_inside_the_work_folder(tmp_path):
     work = full_run(tmp_path)
-    scratch = write(work / "scratch-here" / "a.txt").parent
-    r = invoke("cleanup", "--work", str(work), "--scratch", str(scratch))
-    assert r.exit_code == 0, r.output
-    assert not scratch.exists()
+    for inside in (work / "stages.json", work / "run.json", work / "logs", work / "staging"):
+        r = invoke("cleanup", "--work", str(work), "--scratch", str(inside))
+        assert r.exit_code == ExitCode.USAGE, inside
+        assert inside.exists(), inside
+    assert (work / "draft" / "SKILL.md").is_file()
 
 
 def test_cleanup_refuses_a_scratch_outside_the_pattern_and_deletes_nothing(tmp_path):
