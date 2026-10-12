@@ -444,9 +444,12 @@ class TregProvider:
     def __init__(self, runner: Runner = subprocess.run):
         self.runner = runner
         self._runs: dict[str, TregClient] = {}
+        self._available: bool | None = None  # one login check per run; finish resets it
 
     def available(self) -> bool:
-        return _treg_path() is not None and logged_in(self.runner)
+        if self._available is None:
+            self._available = _treg_path() is not None and logged_in(self.runner)
+        return self._available
 
     def _client(self, work: WorkDir) -> TregClient:
         """One client per run (work folder): fetch_media or build_text_x, then enrich, share
@@ -605,6 +608,7 @@ class TregProvider:
     def finish(self, work: WorkDir, bundle: IngestBundle | None) -> list[ProviderCall]:
         """End of run, on every exit path: review every call (R-ING-3) and hand the log to
         ingest, which writes it to provider_calls and calls.json; then forget the run."""
+        self._available = None
         client = self._runs.pop(str(work.path), None)
         if client is None:
             return []

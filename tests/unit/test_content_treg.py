@@ -853,3 +853,10 @@ def test_an_exception_mid_enrich_still_logs_the_calls(tmp_path, treg_on, monkeyp
         run(G2_URL, w, provider, monkeypatch)
     assert [c["op"] for c in calls_json(w)] == ["x.thread", "x.comments"]
     assert provider._runs == {}
+
+
+def test_availability_is_checked_once_per_run(tmp_path, treg_on, monkeypatch, sw_home):
+    adapters(monkeypatch, x=NoVideo())
+    runner = FakeRunner()
+    run(G2_URL, work(tmp_path), TregProvider(runner=runner), monkeypatch)
+    assert [a[1] for a in runner.argvs].count("balance") == 1
