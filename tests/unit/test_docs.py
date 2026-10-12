@@ -2,6 +2,8 @@
 
 import importlib.util
 import io
+import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import ModuleType
 
@@ -11,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "docs/demo"
 ASSETS = ROOT / "docs/assets"
 EM_DASH = chr(0x2014)
+README = ROOT / "README.md"
 
 
 def _script(name: str) -> ModuleType:
@@ -57,8 +60,6 @@ def test_make_demo_gif_is_deterministic():
 
 
 def _svg(name: str) -> str:
-    import xml.etree.ElementTree as ET
-
     text = (ASSETS / name).read_text(encoding="utf-8")
     ET.fromstring(text)  # well-formed
     lowered = text.lower()
@@ -99,3 +100,75 @@ def test_social_preview_is_1280x640_and_deterministic():
     make.render(first)
     make.render(second)
     assert first.getvalue() == second.getvalue()
+
+
+# README (plan Task M6-B1)
+
+
+def _readme() -> str:
+    return README.read_text(encoding="utf-8")
+
+
+def _code(markdown: str) -> list[str]:
+    """Every inline code span and every line of every fenced block."""
+    fence = re.compile(r"^```[^\n]*\n(.*?)^```", flags=re.M | re.S)
+    lines = [line for block in fence.findall(markdown) for line in block.splitlines()]
+    return lines + re.findall(r"`([^`\n]+)`", fence.sub("", markdown))
+
+
+def _skill_md_flags() -> set[str]:
+    text = (ROOT / "skills/skipwatch/SKILL.md").read_text(encoding="utf-8")
+    return set(re.findall(r"^\| `(--[a-z-]+)", text, flags=re.M))
+
+
+SLASH_WORDS = {"doctor", "resume", "list", "pack", "install", "share"}  # SKILL.md first tokens
+
+
+def test_readme_has_tagline_and_install_lines():
+    text = _readme()
+    assert "Paste a video. Claude knows kung fu." in text
+    for line in (
+        "/plugin marketplace add robert-botto/skipwatch",
+        "/plugin install skipwatch@skipwatch",
+        "claude plugin install skipwatch --marketplace robert-botto/skipwatch",
+        "claude plugin marketplace add robert-botto/skipwatch#v0.1.0",
+    ):
+        assert line in text, line
+
+
+def test_readme_relative_links_and_images_resolve():
+    text = _readme()
+    targets = re.findall(r"\]\(([^)\s]+)\)", text)
+    targets += re.findall(r'(?:src|srcset|href)="([^"]+)"', text)
+    relative = [t for t in targets if not re.match(r"[a-z]+:|#", t)]
+    assert relative, "the README links no local files"
+    for target in relative:
+        assert (ROOT / target.split("#")[0]).exists(), target
+
+
+def test_readme_slash_command_words_and_flags_are_in_skill_md():
+    flags = _skill_md_flags()
+    seen = 0
+    for code in _code(_readme()):
+        for match in re.finditer(r"/skipwatch(?: (.*))?", code):
+            args = match.group(1) or ""
+            words = args.split()
+            if words and re.fullmatch(r"[a-z]+", words[0]):
+                assert words[0] in SLASH_WORDS, words[0]
+            for flag in re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", args):
+                assert flag in flags, flag
+            seen += 1
+    assert seen >= 3
+
+
+def test_readme_flags_table_matches_skill_md():
+    readme_flags = set(re.findall(r"^\| `(--[a-z-]+)", _readme(), flags=re.M))
+    assert readme_flags == _skill_md_flags()
+
+
+def test_docs_have_no_em_dash_personal_paths_or_emails():
+    paths = [README, *ASSETS.glob("*.svg"), *DEMO.glob("*.txt")]
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for bad in (EM_DASH, "/Users/", "@gmail.com", "/private/tmp"):
+            assert bad not in text, (path.name, bad)
