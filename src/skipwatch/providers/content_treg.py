@@ -111,14 +111,14 @@ def _treg_path() -> str | None:
     return shutil.which("treg")
 
 
-def logged_in(runner: Runner = subprocess.run) -> bool:
+def logged_in(runner: Runner | None = None) -> bool:
     """`treg balance --json` answers (plan issue 11): a free call that needs a valid login.
     The output is parsed only to prove it is JSON and then dropped; nothing is kept."""
     exe = _treg_path()
     if exe is None:
         return False
     try:
-        out = runner(
+        out = (runner or subprocess.run)(
             [exe, "balance", "--json", "--limit", "1"],
             capture_output=True,
             text=True,
