@@ -728,9 +728,18 @@ def test_work_folder_falls_back_inside_the_workspace():
     # eval sandboxes confine writes to the workspace, so $HOME/.skipwatch may be read-only
     text = protocol_flat()
     assert "If `new-work` fails" in text
-    assert 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work --slug <slug> --json' in text
-    assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
-    assert "as an env prefix to every `<ENGINE>` call" in text
+    assert '<ENGINE> --home "<P>/.skipwatch" new-work --slug <slug> --json' in text
+    # an env prefix never matches a narrowed allow rule; --home is a root option
+    assert "SKIPWATCH_HOME=" not in text.replace("SKIPWATCH_HOME=` prefix", "")
+    assert 'Pass `--home "<P>/.skipwatch"` to every `<ENGINE>` call' in text
+    import typer
+
+    from skipwatch.cli import app
+
+    root = typer.main.get_command(app)
+    assert any("--home" in p.opts for p in root.params)  # the engine has the option
+    for path in PROMPT_FILES:  # no env-prefixed engine call anywhere
+        assert not re.search(r'SKIPWATCH_HOME="[^"]*" <ENGINE>', read(path)), path
     review = flat(REFS / "review-screen.md")
     assert "work folder moved into the project" in review
 
@@ -812,7 +821,7 @@ def test_stage_2_probes_the_write_tool():
     # mkdir through Bash can succeed where the Write tool is denied (eval sandboxes)
     assert "use the Write tool to write `<W>/logs/.write-probe` with the content `ok`" in text
     assert "If that Write is denied or fails" in text
-    assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
+    assert '--home "<P>/.skipwatch"' in text
 
 
 def test_later_write_denial_switches_once_then_stops():
@@ -1460,7 +1469,7 @@ def test_fallback_removes_the_abandoned_work_folder():
     text = protocol_flat()
     assert 'rm -rf "<W>"' in text
     assert "only the exact path `new-work` printed" in text
-    assert _before(text, 'rm -rf "<W>"', 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work')
+    assert _before(text, 'rm -rf "<W>"', '<ENGINE> --home "<P>/.skipwatch" new-work')
 
 
 def test_text_resume_continues_from_the_first_missing_late_stage():

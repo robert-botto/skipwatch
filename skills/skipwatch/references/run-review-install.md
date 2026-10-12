@@ -118,8 +118,8 @@ The user's original file is never inside `<W>` and is never moved or deleted.
        <ENGINE> resume "<dir>" --json
 
    Without a folder, leave out `"<dir>"`; the engine picks the newest incomplete run. If
-   that finds nothing and `<P>/.skipwatch/work` exists, run it once more with the
-   `SKIPWATCH_HOME="<P>/.skipwatch"` prefix.
+   that finds nothing and `<P>/.skipwatch/work` exists, run it once more as
+   `<ENGINE> --home "<P>/.skipwatch" resume --json`.
 2. Read `work`, `next_stage`, `completed`, `run`, `media_present`.
    - `next_stage` is null: print `SkipWatch: nothing to resume.` and stop.
    - Exit 2: print `SkipWatch: <dir> is not a SkipWatch work folder.` and stop.
@@ -127,7 +127,7 @@ The user's original file is never inside `<W>` and is never moved or deleted.
      and stop.
    - `run` is null: print
      `SkipWatch: <work> has no run.json; start a new run with the original source.` and stop.
-3. Set `<W>` to `work` (under `<P>/.skipwatch`: use the prefix as in stage 2). `<input>`
+3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in stage 2). `<input>`
    is `run.input`; read `run.flags` as if the user had typed them and `run.name` as
    `--name`. Print `Resuming <W> at <next_stage> (<k> stages done)`.
 4. Rebuild the degradation list: no `transcript.json` gives the no-transcript line, an
