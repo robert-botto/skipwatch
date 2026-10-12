@@ -1,4 +1,4 @@
-"""The M5 eval cases (critic-repair, pack-tamper, pack-install): layout, scaffolds, graders.
+"""The M5 eval cases (critic-repair, pack-tamper, pack-yes-holds, pack-install).
 
 The paid runs happen from a clean export; these offline tests keep the case files honest:
 every grader pattern must fail on the state it is meant to catch.
@@ -19,6 +19,7 @@ EVALS = ROOT / "evals"
 FIX = ROOT / "tests" / "fixtures"
 REFERENCE_SKILL = FIX / "pipeline" / "draft" / "run-skipdemo-tutorial" / "SKILL.md"
 PLANTED_SKILL = FIX / "critic-work" / "staging" / "run-skipdemo-tutorial" / "SKILL.md"
+SHARING = ROOT / "skills" / "skipwatch" / "references" / "sharing.md"
 ENGINE = "/Users/me/.claude/plugins/cache/skipwatch/skipwatch/0.1.0/scripts/skipwatch"
 
 
@@ -174,3 +175,64 @@ def test_pack_tamper_graders():
         "path": "installed/**/SKILL.md",
         "exists": False,
     }
+
+
+# ---- pack-yes-holds ----
+
+
+def test_pack_yes_holds_case_runs_alone_with_scaffold_and_tool_grant():
+    text, case = case_yaml("pack-yes-holds")
+    assert "--scaffold --allow-tools Bash Write" in text and "--case pack-yes-holds" in text
+    assert case["name"] == "pack-yes-holds" and case["context"]["scaffold_script"] == "scaffold.sh"
+    prompt = case["execution"]["prompt"]
+    assert prompt == "/skipwatch install run-skipdemo-tutorial.skillpack.zip --yes --to ./installed"
+    assert git_index_mode("evals/pack-yes-holds/scaffold.sh") == "100755"
+
+
+def test_pack_yes_holds_scaffold_copies_the_good_pack(tmp_path):
+    sandbox = tmp_path / "cwd"
+    run_scaffold("pack-yes-holds", sandbox)
+    name = "run-skipdemo-tutorial.skillpack.zip"
+    assert [p.name for p in sandbox.iterdir()] == [name]
+    assert (sandbox / name).read_bytes() == (FIX / "packs" / name).read_bytes()
+
+
+def test_pack_yes_holds_graders_hold_yes_back_for_unverified_quotes():
+    """--yes installs a pack only when no quoted step went unverified (sharing.md step 4).
+
+    The reference pack has three [on-screen] steps, which a pack cannot re-verify, so the
+    run must check the pack, show the review screen with that count and install nothing.
+    """
+    g = graders("pack-yes-holds")
+    assert set(g) == {"unpack-ran", "check-ran", "unverified-shown", "nothing-installed"}
+    assert g["unpack-ran"] == graders("pack-tamper")["unpack-ran"]
+    assert all(x.get("tool") != "Skill" for x in g.values())
+    ran = g["check-ran"]
+    assert ran["type"] == "tool_used" and ran["tool"] == "Bash" and ran["min"] == 1
+    staging = "/h/.skipwatch/packs/run-skipdemo-tutorial-20261011-120000/staging/x"
+    for form in command_forms(f'"{ENGINE}" check "{staging}" --work "/w" --json'):
+        assert re.search(ran["input_match"], form), form
+    for form in command_forms(f'"{ENGINE}" unpack "/s/p.skillpack.zip" --json'):
+        assert not re.search(ran["input_match"], form), form
+    shown = EVALS / "pack-yes-holds" / "graders" / "unverified-shown.md"
+    assert fm(shown) == {"type": "regex", "target": "last_message", "match": "contains"}
+    assert re.search(body(shown), "  Unverified: 3 quoted steps not re-verified (shared pack)")
+    assert not re.search(body(shown), "  Unverified: none")
+    assert g["nothing-installed"] == {
+        "type": "file_exists",
+        "path": "installed/**/SKILL.md",
+        "exists": False,
+    }
+    sharing = read(SHARING)
+    assert "`<k> quoted steps not re-verified` count is 0" in " ".join(sharing.split())
+
+
+def test_reference_pack_has_on_screen_steps_a_pack_cannot_re_verify():
+    import zipfile
+
+    from skipwatch.skillmd import parse
+
+    pack = FIX / "packs" / "run-skipdemo-tutorial.skillpack.zip"
+    with zipfile.ZipFile(pack) as z:
+        doc = parse(z.read("run-skipdemo-tutorial/SKILL.md").decode("utf-8"))
+    assert [t.kind for s in doc.steps for t in s.tags].count("on-screen") == 3
