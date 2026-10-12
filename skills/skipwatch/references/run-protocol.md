@@ -221,9 +221,8 @@ Run, each timed as above:
      per-run cost cap. Never run `treg` yourself, and never print the treg balance.
    - Linked video: when `notes` in `ingest.json` has `video came from a linked post: <url>`,
      the video came from a linked post: the X adapter found that the video belongs to a
-     post the requested one links. A bundle cached before that change carries the same
-     line in `route.fallbacks` instead; read it there only when `notes` does not hold it.
-     `source` then describes the linked post and the requested post's text is in
+     post the requested one links (an older cache keeps it elsewhere: "Old patterns" at
+     the end). `source` then describes the linked post and the requested post's text is in
      `context.thread`. Copy that line to the review screen exactly; the attribution names
      `source.author`, the video's creator.
    - Text source: when `source.kind` is `"text"` in `<W>/ingest.json` (a post or page
@@ -703,3 +702,8 @@ done. A stage left `running` by a killed process counts as not done.
 
 From there the run is an ordinary run: same progress lines, same review prompt, same
 install rules.
+
+## Old patterns
+
+- A bundle cached by an older engine carries `video came from a linked post: <url>` in
+  `route.fallbacks` instead of `notes`. Read it there only when `notes` does not hold it.

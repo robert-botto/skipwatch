@@ -110,9 +110,8 @@ each only when it applies:
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
-  `run-protocol.md`): the line is copied exactly from `notes` in `<W>/ingest.json`,
-  falling back to `route.fallbacks` only for a bundle cached before the engine moved the
-  note there (its `notes` does not hold the line). `source` describes the linked
+  `run-protocol.md`): the line is copied exactly from `notes` in `<W>/ingest.json`
+  (an older cache keeps it elsewhere: "Old patterns" at the end). `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
 - **Cookies:** `<W>/ingest.json` has `fetched_with_cookies` true (the user passed
@@ -225,3 +224,8 @@ still names the install command.
   Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
   installed and `<W>` is kept.
 - Anything else: re-show the prompt line once with the five answers.
+
+## Old patterns
+
+- A bundle cached by an older engine carries `video came from a linked post: <url>` in
+  `route.fallbacks` instead of `notes`. Read it there only when `notes` does not hold it.
