@@ -123,6 +123,8 @@ The user's original file is never inside `<W>` and is never moved or deleted.
 2. Read `work`, `next_stage`, `completed`, `run`, `media_present`.
    - `next_stage` is null: print `SkipWatch: nothing to resume.` and stop.
    - Exit 2: print `SkipWatch: <dir> is not a SkipWatch work folder.` and stop.
+   - Exit 7: print the engine's line, then `Start a new run with the original source.`
+     and stop.
    - `run` is null: print
      `SkipWatch: <work> has no run.json; start a new run with the original source.` and stop.
 3. Set `<W>` to `work` (under `<P>/.skipwatch`: use the prefix as in stage 2). `<input>`

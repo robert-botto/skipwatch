@@ -1102,6 +1102,10 @@ def test_resume_command():
     assert "re-dispatch readers only for batches whose notes file is missing or invalid" in text
     assert "`media_present` is false" in text
     assert "SkipWatch: nothing to resume." in text
+    # resume exits 7 when stages.json is unreadable
+    assert (
+        "Exit 7: print the engine's line, then `Start a new run with the original source.`" in text
+    )
 
 
 def test_media_kept_for_resume_on_failure():
