@@ -72,7 +72,7 @@ Flags and what they do:
 | `--yes` | install without the prompt only when safety flags, gaps and collisions are all zero |
 | `--keep-media` | keep `<W>/media/` after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
-| `--provider free\|treg\|auto` | content providers for a URL (default `auto`: treg too when logged in); treg calls are paid, capped per run and listed on the review screen, so `--provider free` avoids them; ignored for a local file |
+| `--provider free\|treg\|auto` | content providers for a URL. Default `auto` is the free route; it adds treg only when `config.toml` has `[providers.treg] enabled = true`. `treg` forces treg. treg calls are paid, capped per run and listed on the review screen; `--provider free` never makes one. Ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used |
 | `--fast` | skip the critic (stage 7 of `run-protocol.md`); confidence is then at most `medium` |
 | `--test` | test run before the review screen (never on a flagged skill without asking) |

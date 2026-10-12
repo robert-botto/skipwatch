@@ -117,7 +117,7 @@ Flags:
 | `--yes` | install without the prompt, but only when safety flags, gaps and name collisions are all zero |
 | `--keep-media` | keep the downloaded media after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (the readers still read frames) |
-| `--provider free\|treg\|auto` | content providers for a URL; `auto` uses treg too when you are logged in; `free` never makes a paid call |
+| `--provider free\|treg\|auto` | content providers for a URL; `auto` is the free route unless you set `[providers.treg] enabled = true` in `config.toml`; `treg` forces the paid provider; `free` never makes a paid call |
 | `--cookies-from-browser <browser>` | read private or login-only content you can open in that browser; the only way cookies are ever used |
 | `--fast` | skip the critic; confidence is then at most `medium` |
 | `--test` | test-run the skill before the review screen |
@@ -235,7 +235,7 @@ SkipWatch is not affiliated with the creators whose videos it reads. Every skill
 | 1 | Tier 0 plus a Whisper backend (uv extra `whisper` or `mlx`) | Any video or audio without captions: X, TikTok, Instagram, Facebook, screen recordings, podcasts |
 | 1c | Tier 0 plus a cloud transcription key (OpenAI, Groq or Deepgram) | Same as Tier 1 without local compute |
 | 2 | Tier 1 plus node 22+ or deno | Full YouTube format list, fewer YouTube failures |
-| 3 | Tier 1 plus treg logged in | X thread continuations and replies, expanded link content, provider transcripts for cross-check, downloads when yt-dlp is blocked |
+| 3 | Tier 1 plus treg logged in and turned on (`[providers.treg] enabled = true`) | X thread continuations and replies, expanded link content, provider transcripts for cross-check, downloads when yt-dlp is blocked |
 
 ## Without Claude Code
 
@@ -304,7 +304,7 @@ No telemetry, no analytics, no update pings. The engine runs on your machine. Cl
 - the platform your link points to, through yt-dlp;
 - the pages a post links to (at most 5 per post, public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
-- treg, only at Tier 3. Its calls are paid, capped at $0.05 per run by default, and listed on the review screen. `--provider free` turns it off;
+- treg, only at Tier 3 and only after you turn it on (`[providers.treg] enabled = true` in `config.toml`, or `--provider treg` for one run). Its calls are paid, capped at $0.05 per run by default, and listed on the review screen;
 - cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
 
 ## What gets installed where
