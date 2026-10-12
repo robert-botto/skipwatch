@@ -8,10 +8,21 @@ import pytest
 from typer.testing import CliRunner
 
 from skipwatch import install as install_mod
+from skipwatch import installs
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.install import install, target_dir
-from skipwatch.models import CheckReport, Counts, InstallResult, Manifest, ManifestSource
+from skipwatch.models import (
+    CheckReport,
+    Counts,
+    IngestBundle,
+    InstallResult,
+    Manifest,
+    ManifestSource,
+    PackOrigin,
+    Route,
+    SourceInfo,
+)
 from skipwatch.workdir import write_model
 
 NAME = "deploy-astro"
@@ -315,3 +326,51 @@ def test_install_relative_to_gives_absolute_path(roots, tmp_path):
     assert Path(result.path).is_absolute()
     assert Path(result.path) == (cwd / "out" / NAME).resolve()
     assert (cwd / "out" / NAME / "SKILL.md").exists()
+
+
+# ---- install log (M5-M6 issue 10) ----
+
+
+def _write_ingest(staging: Path, pack: bool) -> None:
+    manifest = Manifest.model_validate_json((staging / "skipwatch.json").read_text("utf-8"))
+    bundle = IngestBundle(
+        source=SourceInfo(kind="video", platform="youtube"),
+        route=Route(context="pack"),
+        pack=PackOrigin(file="x.skillpack.zip", sha256="sha256:00", manifest=manifest)
+        if pack
+        else None,
+    )
+    write_model(staging.parent.parent / "ingest.json", bundle)
+
+
+def test_install_records_run_and_pack_origin(roots, tmp_path, sw_home):
+    _, cwd = roots
+    run_staging = make_staging(tmp_path / "run")
+    _write_ingest(run_staging, pack=False)
+    pack_staging = make_staging(tmp_path / "pack")
+    _write_ingest(pack_staging, pack=True)
+    first = install(run_staging, None, None, force=False)
+    second = install(pack_staging, None, tmp_path / "elsewhere", force=False)
+    records = installs.load().installs
+    assert [(Path(r.path), r.scope, r.origin) for r in records] == [
+        (Path(first.path).resolve(), "user", "run"),
+        (Path(second.path).resolve(), "dir", "pack"),
+    ]
+
+
+def test_install_without_ingest_records_run(roots, tmp_path, sw_home):
+    install(make_staging(tmp_path), None, None, force=False)
+    assert [r.origin for r in installs.load().installs] == ["run"]
+
+
+def test_install_still_succeeds_when_log_unwritable(roots, tmp_path, monkeypatch):
+    home, _ = roots
+
+    def broken(*args, **kwargs):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(installs, "record", broken)
+    r = run_cli(str(make_staging(tmp_path)))
+    assert r.exit_code == 0, r.stderr
+    assert "could not record the install: read-only file system" in r.stderr
+    assert (home / ".claude/skills" / NAME / "SKILL.md").exists()

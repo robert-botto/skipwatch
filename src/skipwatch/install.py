@@ -14,10 +14,12 @@ from typing import Literal
 
 from pydantic import ValidationError
 
+from skipwatch import installs
 from skipwatch.config import load_config, skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.manifest import finalize_manifest
-from skipwatch.models import CheckReport, InstallResult
+from skipwatch.models import CheckReport, IngestBundle, InstallResult
+from skipwatch.output import progress
 from skipwatch.workdir import read_model
 
 Scope = Literal["user", "project", "agents"]
@@ -60,6 +62,14 @@ def _require_passed_check(staging: Path) -> None:
     checked_at = path.stat().st_mtime_ns
     if any(entry.lstat().st_mtime_ns > checked_at for entry in _walk(staging)):
         raise SkipwatchError(ExitCode.CHECK_FAILED, STALE)
+
+
+def _ingest_pack(staging: Path) -> bool:
+    """Whether the work folder's ingest.json comes from `unpack`; any error means no."""
+    try:
+        return read_model(staging.parent.parent / "ingest.json", IngestBundle).pack is not None
+    except (OSError, ValidationError, ValueError):
+        return False
 
 
 def _backup_path(name: str, now: datetime) -> Path:
@@ -122,9 +132,15 @@ def install(
             shutil.move(backup, target)
         raise
 
-    return InstallResult(
+    result = InstallResult(
         name=name,
         path=str(target),
         scope=resolved,
         backup=str(backup) if backup is not None else None,
     )
+    origin = "pack" if _ingest_pack(staging) else "run"
+    try:
+        installs.record(result, origin)
+    except OSError as exc:
+        progress(f"could not record the install: {exc}")
+    return result
