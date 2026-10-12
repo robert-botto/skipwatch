@@ -287,6 +287,8 @@ def _read_entries(z: zipfile.ZipFile, infos: list[zipfile.ZipInfo]) -> dict[str,
                 data = f.read(MAX_FILE_BYTES + 1)
         except (zipfile.BadZipFile, zlib.error, OSError, EOFError, ValueError) as exc:
             raise _refuse(f"{_shown(rel)}: cannot be read ({type(exc).__name__})") from exc
+        # A header that lies about the size: the read is capped at MAX_FILE_BYTES + 1 whatever
+        # it claims, and zipfile's CRC and EOF checks also fail a short or padded entry.
         if len(data) != info.file_size:
             raise _refuse(f"{_shown(rel)}: size does not match its header")
         files[rel] = data
