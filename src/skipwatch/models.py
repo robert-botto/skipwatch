@@ -180,6 +180,7 @@ class IngestBundle(_Tagged):
     route: Route
     fetched_with_cookies: bool = False
     from_cache: bool = False
+    pack: "PackOrigin | None" = None  # set only by unpack; the one switch for pack mode
 
 
 # ---- transcript.json (7.2) ----
@@ -342,6 +343,18 @@ class Manifest(_Tagged):
     checks_passed: bool
     safety_flags: list[SafetyFlag] = []
     files: dict[str, str] = {}
+
+
+class PackOrigin(_Model):
+    """Where an unpacked skill came from (M5-M6 issue 1): carried in a pack work folder's
+    ingest.json so check and manifest building know they are looking at a shared pack."""
+
+    file: str  # pack file name or URL as given
+    sha256: str  # "sha256:<hex>" of the pack bytes
+    manifest: Manifest  # the pack's skipwatch.json exactly as received
+
+
+IngestBundle.model_rebuild()
 
 
 # ---- other work-folder files (5.3) ----

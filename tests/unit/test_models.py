@@ -8,15 +8,20 @@ from skipwatch.models import (
     CacheEntry,
     CheckReport,
     Config,
+    Counts,
     FramesFile,
     IngestBundle,
     Manifest,
+    ManifestSource,
     NotesFile,
+    PackOrigin,
     ProbeResult,
     ProviderCall,
     ResumeResult,
+    Route,
     RunFile,
     Segment,
+    SourceInfo,
     Transcript,
 )
 
@@ -60,7 +65,7 @@ INGEST_EXAMPLE = {
 # captions_kind, from_cache and the provider call review fields (M2-A). The dump carries
 # them with their defaults.
 ADDED_CONTEXT_DEFAULTS = {"captions_path": None, "captions_lang": None, "captions_kind": None}
-ADDED_TOP_DEFAULTS = {"from_cache": False}
+ADDED_TOP_DEFAULTS = {"from_cache": False, "pack": None}
 ADDED_CALL_DEFAULTS = {"endpoint": None, "call_id": None, "review": None, "error": None}
 
 
@@ -380,3 +385,50 @@ def test_mem0_user_id_default_empty():
     assert Config().exports.mem0.user_id == "" and Config().exports.mem0.enabled is False
     cfg = Config.model_validate({"exports": {"mem0": {"user_id": "someone"}}})
     assert cfg.exports.mem0.user_id == "someone"
+
+
+def _manifest() -> Manifest:
+    return Manifest(
+        name="run-x",
+        description="d",
+        skipwatch_version="0.1.0",
+        source=ManifestSource(platform="youtube", url="https://youtu.be/x"),
+        extracted_at="2026-10-09T18:20:00Z",
+        counts=Counts(steps=4),
+        confidence="high",
+        critic_score=8.5,
+        checks_passed=True,
+        files={"SKILL.md": "sha256:" + "0" * 64},
+    )
+
+
+def test_ingest_carries_pack_origin_round_trip():
+    bundle = IngestBundle.model_validate(
+        {
+            "schema": "skipwatch/ingest/1",
+            "source": {"kind": "video", "platform": "youtube"},
+            "route": {"context": "pack"},
+            "pack": {
+                "file": "a.skillpack.zip",
+                "sha256": "sha256:" + "1" * 64,
+                "manifest": _manifest().model_dump(by_alias=True),
+            },
+        }
+    )
+    assert bundle.pack is not None and bundle.pack.manifest.confidence == "high"
+    assert bundle.pack.manifest == _manifest()
+    assert IngestBundle.model_validate_json(bundle.model_dump_json(by_alias=True)) == bundle
+
+
+def test_run_ingest_has_no_pack_by_default():
+    bundle = IngestBundle(
+        source=SourceInfo(kind="file", platform="local"), route=Route(context="local")
+    )
+    assert bundle.pack is None
+
+
+def test_pack_origin_manifest_needs_its_schema_tag():
+    raw = _manifest().model_dump(by_alias=True)
+    del raw["schema"]
+    with pytest.raises(ValidationError):
+        PackOrigin.model_validate({"file": "a", "sha256": "sha256:" + "1" * 64, "manifest": raw})
