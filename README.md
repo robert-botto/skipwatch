@@ -121,7 +121,6 @@ Flags:
 | `--cookies-from-browser <browser>` | read private or login-only content you can open in that browser; the only way cookies are ever used |
 | `--fast` | skip the critic; confidence is then at most `medium` |
 | `--test` | test-run the skill before the review screen |
-| `--lang source` | accepted; it has no effect in this version |
 
 ## How it works
 

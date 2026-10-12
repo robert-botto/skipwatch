@@ -54,11 +54,11 @@ Look at the first token of the arguments:
 | `doctor` | the doctor section below |
 | `resume` | the resume section below |
 | `list`, `pack`, `install`, `share` | read `references/sharing.md` first, then do its section for that token |
-| `update` | reply `SkipWatch: update arrives in v1.1.` and stop |
+| `update` | reply `SkipWatch: update is not available yet.` and stop |
 | nothing | reply with the usage line below and stop |
 | anything else | a source (file path or URL), then flags: run the pipeline |
 
-Usage line: `Usage: /skipwatch <url or path> [--project | --agents | --to <dir>] [--name <skill-name>] [--thorough] [--fast] [--test] [--yes] [--keep-media] [--no-frames]`
+Usage line: `Usage: /skipwatch <url or path> [--project | --agents | --to <dir>] [--name <skill-name>] [--provider free|treg|auto] [--cookies-from-browser <browser>] [--thorough] [--fast] [--test] [--yes] [--keep-media] [--no-frames]`
 
 Flags and what they do:
 
@@ -76,7 +76,6 @@ Flags and what they do:
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used |
 | `--fast` | skip the critic (stage 7 of `run-protocol.md`); confidence is then at most `medium` |
 | `--test` | test run before the review screen (never on a flagged skill without asking) |
-| `--lang source` | accepted; it has no effect in this version (say so in one line if given) |
 
 A flag not in this table is a usage error: reply with the usage line and stop. Do not
 guess what the user meant and do not start a run.

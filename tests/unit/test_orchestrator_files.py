@@ -632,6 +632,16 @@ def test_one_placeholder_style_and_two_confidences_kept_apart():
     assert "not the skill's confidence grade" in reader
 
 
+def test_usage_line_lists_every_flag_in_the_table():
+    skill = read(SKILL / "SKILL.md")
+    usage = re.search(r"^Usage line: `(.+)`$", skill, re.M)
+    assert usage
+    table = set(re.findall(r"^\| `(--[a-z-]+)", skill, re.M))
+    assert table == set(re.findall(r"(--[a-z-]+)", usage.group(1)))
+    assert "--lang" not in skill  # a no-op flag costs tokens
+    assert "v1.1" not in skill  # no release promises
+
+
 def test_exit_7_has_one_wording_per_stage():
     # SKILL.md defers to the stage's own message, so the two files never disagree
     skill = read(SKILL / "SKILL.md")
