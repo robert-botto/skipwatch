@@ -45,7 +45,8 @@ def register(app: typer.Typer) -> None:
         work: Annotated[
             Path | None,
             typer.Option(
-                "--work", help="A new or empty pack work folder (default under ~/.skipwatch/packs)."
+                "--work",
+                help="A new folder directly under $SKIPWATCH_HOME/packs/ (default: <name>-<time>).",
             ),
         ] = None,
         json_out: bool = typer.Option(False, "--json", help="Print the result as JSON."),

@@ -269,17 +269,24 @@ def test_unpack_without_transcript_and_local_source(tmp_path, sw_home):
     assert ingest.source.kind == "file" and ingest.source.platform == "local"
 
 
-def test_unpack_work_must_be_new_or_empty(tmp_path, sw_home):
+def test_unpack_work_must_be_a_new_folder_directly_under_packs(tmp_path, sw_home):
     pack = good_pack(tmp_path)
-    busy = tmp_path / "busy"
-    busy.mkdir()
-    (busy / "x").write_text("x", encoding="utf-8")
-    with pytest.raises(SkipwatchError) as err:
-        unpack(pack, busy, now=NOW)
-    assert err.value.code == ExitCode.USAGE
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    assert unpack(pack, empty, now=NOW).work == str(empty.absolute())
+    packs = sw_home / "packs"
+    elsewhere = tmp_path / "elsewhere"
+    nested = packs / "a" / "b"
+    taken = packs / "taken"
+    taken.mkdir(parents=True)
+    for work in (elsewhere, nested, taken, packs, packs / "x" / ".."):
+        with pytest.raises(SkipwatchError) as err:
+            unpack(pack, work, now=NOW)
+        assert err.value.code == ExitCode.USAGE, work
+        assert "--work must be a new folder directly under $SKIPWATCH_HOME/packs/" in (
+            err.value.message
+        )
+    assert not elsewhere.exists() and not nested.exists() and list(taken.iterdir()) == []
+    result = unpack(pack, packs / "mine", now=NOW)
+    assert Path(result.work) == (packs / "mine").resolve()
+    assert Path(result.work).parent == packs.resolve()
 
 
 def test_transcript_from_markdown_parses_and_rejects():

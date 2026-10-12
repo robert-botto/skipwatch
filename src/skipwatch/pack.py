@@ -372,24 +372,39 @@ def transcript_from_markdown(text: str) -> Transcript | None:
     return Transcript(origin="pack", segments=segments)
 
 
+def _packs_dir() -> Path:
+    """$SKIPWATCH_HOME/packs, resolved: check (M5-B) requires a pack work folder whose parent
+    is exactly this path."""
+    return (skipwatch_home() / "packs").resolve()
+
+
 def _claim_work(name: str, now: datetime) -> Path:
-    base = skipwatch_home() / "packs" / f"{name}-{now:%Y%m%d-%H%M%S}"
+    base = _packs_dir() / f"{name}-{now:%Y%m%d-%H%M%S}"
     for n in range(1000):
         path = base if n == 0 else base.with_name(f"{base.name}-{n}")
         try:
             path.mkdir(parents=True, exist_ok=False)
         except FileExistsError:
             continue
-        return path.absolute()
+        return path
     raise SkipwatchError(ExitCode.USAGE, f"too many pack work folders named {base.name}")
 
 
+WORK_RULE = "--work must be a new folder directly under $SKIPWATCH_HOME/packs/"
+
+
 def _given_work(work: Path) -> Path:
+    packs = _packs_dir()
     work = work.absolute()
-    if work.exists() and not (work.is_dir() and not any(work.iterdir())):
-        raise SkipwatchError(ExitCode.USAGE, f"{work} exists and is not empty; pass a new folder")
-    work.mkdir(parents=True, exist_ok=True)
-    return work
+    if work.name in ("", ".", "..") or work.parent.resolve() != packs:
+        raise SkipwatchError(ExitCode.USAGE, f"{WORK_RULE} ({packs}); got {work}")
+    folder = packs / work.name
+    packs.mkdir(parents=True, exist_ok=True)
+    try:
+        folder.mkdir(exist_ok=False)
+    except FileExistsError:
+        raise SkipwatchError(ExitCode.USAGE, f"{WORK_RULE}; {folder} already exists") from None
+    return folder
 
 
 def _write_staging(staging: Path, files: dict[str, bytes]) -> None:
