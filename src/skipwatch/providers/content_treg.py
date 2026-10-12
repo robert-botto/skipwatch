@@ -36,7 +36,7 @@ from urllib.parse import urlsplit
 import requests
 import urllib3
 
-from skipwatch import media
+from skipwatch import media, runcache
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.localfile import media_info
 from skipwatch.adapters.x import canonical, post_id
@@ -469,8 +469,18 @@ class TregProvider:
         wanted = post_id(detected.value)
         if wanted is None:
             return None
-        client = self._client(work)
         url = canonical(wanted)
+        cookies = opts.cookies_from_browser is not None
+        placeholder = IngestBundle(
+            source=SourceInfo(kind="text", platform="x", url=detected.value, canonical_url=url),
+            route=Route(context="treg", media=None),
+        )
+        # a text post has no media to fetch first, so a fresh cached run answers before any
+        # call: the thread is never billed twice within the cache window (R-TR-3)
+        hit = runcache.cached_ingest(placeholder, [self.name], cookies)
+        if hit is not None:
+            return hit
+        client = self._client(work)
         tweets = _tweets(self._thread(client, url))
         root = _root(tweets, wanted)
         if root is None:
@@ -587,15 +597,19 @@ class TregProvider:
         elif platform == "facebook":
             bundle = self._enrich_facebook(bundle, client)
         # instagram: post text only ever comes from the free route (plan decision 3)
-        client.review_all()
-        self._runs.pop(str(work.path), None)
-        others = [c for c in bundle.provider_calls if c.provider != "treg"]
         route = bundle.route
         if client.capped and CAP_REACHED not in route.fallbacks:
             route = route.model_copy(update={"fallbacks": [*route.fallbacks, CAP_REACHED]})
-        return bundle.model_copy(
-            update={"provider_calls": [*others, *client.calls], "route": route}
-        )
+        return bundle.model_copy(update={"route": route})
+
+    def finish(self, work: WorkDir, bundle: IngestBundle | None) -> list[ProviderCall]:
+        """End of run, on every exit path: review every call (R-ING-3) and hand the log to
+        ingest, which writes it to provider_calls and calls.json; then forget the run."""
+        client = self._runs.pop(str(work.path), None)
+        if client is None:
+            return []
+        client.review_all()
+        return list(client.calls)
 
     # ---- media fallback ----
 

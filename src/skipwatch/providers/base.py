@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from skipwatch.adapters.base import IngestOptions
-from skipwatch.models import IngestBundle, MediaInfo, Transcript
+from skipwatch.models import IngestBundle, MediaInfo, ProviderCall, Transcript
 from skipwatch.workdir import WorkDir
 
 
@@ -21,6 +21,12 @@ class ContentProvider(Protocol):
     def fetch_media(
         self, bundle: IngestBundle, work: WorkDir, opts: IngestOptions
     ) -> MediaInfo | None: ...
+
+    def finish(self, work: WorkDir, bundle: IngestBundle | None) -> list[ProviderCall]:
+        """End of the ingest run, on every exit path (bundle None when it failed): the calls
+        this provider made in the run, reviewed, and its per-run state dropped. Optional:
+        ingest treats a provider without it as having made no calls of its own."""
+        return []
 
 
 class TranscriptionBackend(Protocol):

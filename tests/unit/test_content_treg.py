@@ -14,6 +14,7 @@ import pytest
 from skipwatch import ingest
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.detect import Detected
+from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import (
     Config,
     IngestBundle,
@@ -363,6 +364,14 @@ def treg_on(monkeypatch):
     return seen
 
 
+def enrich_run(provider, bundle, w, opts=None) -> IngestBundle:
+    """enrich, then the end-of-run hook ingest calls: the run's treg calls, reviewed."""
+    got = provider.enrich(bundle, w, opts or IngestOptions())
+    finished, _ = ingest._finish([provider], w, got)
+    assert finished is not None
+    return finished
+
+
 def with_author_link_reply() -> dict:
     """The recorded comments plus one more author reply that links a repository."""
     body = recorded("treg.x.post.comments")
@@ -381,7 +390,7 @@ def test_m4_x_enrich_fills_thread_replies_links_and_hint(tmp_path, treg_on):
     runner = FakeRunner({"treg.x.post.comments": stdout_of(with_author_link_reply(), 2)})
     provider = TregProvider(runner=runner)
     w = work(tmp_path)
-    got = provider.enrich(video_bundle("x", G2_URL), w, IngestOptions(provider="treg"))
+    got = enrich_run(provider, video_bundle("x", G2_URL), w)
     assert got.context.thread == [
         "Previous tip:\n\nhttps://x.com/mpocock1/status/1504802045794078723",
         "Next tip:\n\nhttps://x.com/mpocock1/status/1506607945445949446",
@@ -425,9 +434,7 @@ def test_x_replies_never_include_other_people(tmp_path, treg_on):
 def test_treg_cost_cap_records_the_fallback(tmp_path, treg_on, monkeypatch):
     monkeypatch.setattr(content_treg, "_max_cost", lambda: 0.004)
     runner = FakeRunner()
-    got = TregProvider(runner=runner).enrich(
-        video_bundle("x", G2_URL), work(tmp_path), IngestOptions()
-    )
+    got = enrich_run(TregProvider(runner=runner), video_bundle("x", G2_URL), work(tmp_path))
     assert [a[2] for a in runner.calls()] == ["anyapi.twitter.thread"]
     assert got.route.fallbacks.count(content_treg.CAP_REACHED) == 1
     assert sum(c.cost_usd for c in got.provider_calls) <= 0.004
@@ -557,7 +564,7 @@ def test_failed_media_download_returns_none_and_is_logged(tmp_path, treg_on, mon
     w = work(tmp_path)
     bundle = video_bundle("tiktok", TIKTOK_URL)
     assert provider.fetch_media(bundle, w, IngestOptions()) is None
-    got = provider.enrich(bundle, w, IngestOptions())
+    got = enrich_run(provider, bundle, w)
     get = next(c for c in got.provider_calls if c.op == "media.get")
     assert not get.ok and get.error == "HTTP 403" and get.endpoint == "v16m.tiktokcdn-us.com"
     assert not (w.path / "media" / "video.mp4").exists()
@@ -720,3 +727,129 @@ def test_unknown_author_stores_no_replies_and_no_continuations(tmp_path, treg_on
     got = TregProvider(runner=runner).enrich(bundle, work(tmp_path), IngestOptions())
     assert got.context.author_replies == []
     assert got.context.thread == []
+
+
+# ---- the end-of-run hook: every billed call logged and reviewed on every exit path ----
+
+
+def calls_json(w: WorkDir) -> list[dict]:
+    return json.loads(w.file("calls.json").read_text(encoding="utf-8"))["calls"]
+
+
+class NoVideo:
+    def build(self, detected, work_, opts):
+        raise NoMediaError(detected.value, "No video could be found in this tweet")
+
+
+def adapters(monkeypatch, **by_platform):
+    real = ingest.adapter_for
+    monkeypatch.setattr(ingest, "adapter_for", lambda p: by_platform.get(p) or real(p))
+
+
+def run(url: str, w: WorkDir, provider: TregProvider, monkeypatch):
+    monkeypatch.setattr(ingest, "content_providers", lambda: [provider])
+    return ingest.run_ingest(url, w, IngestOptions(provider="treg"), cfg=Config())
+
+
+def test_finish_on_success_logs_and_reviews_every_call(tmp_path, treg_on, monkeypatch, sw_home):
+    fixed = video_bundle("x", G2_URL)
+
+    class Fixed:
+        def build(self, detected, work_, opts):
+            return fixed
+
+    adapters(monkeypatch, x=Fixed())
+    provider = TregProvider(runner=FakeRunner())
+    w = work(tmp_path)
+    run(G2_URL, w, provider, monkeypatch)
+    treg = [c for c in calls_json(w) if c["provider"] == "treg"]
+    assert len(treg) == 3 and all(c["review"] == "useful" for c in treg)
+    assert provider._runs == {}
+
+
+def test_text_only_x_cache_hit_never_rebills_the_thread(tmp_path, treg_on, monkeypatch, sw_home):
+    adapters(monkeypatch, x=NoVideo())
+    runner = FakeRunner()
+    provider = TregProvider(runner=runner)
+    first = work(tmp_path / "1")
+    run(G2_URL, first, provider, monkeypatch)
+    billed = len(runner.calls())
+    second = work(tmp_path / "2")
+    got = run(G2_URL, second, provider, monkeypatch)
+    assert got.from_cache and got.context.post_text == G2_TEXT
+    assert len(runner.calls()) == billed  # nothing billed twice within the cache window
+    assert calls_json(second) == []
+    assert provider._runs == {}
+
+
+def test_cache_hit_after_a_media_fallback_still_logs_the_billed_call(
+    tmp_path, treg_on, monkeypatch, sw_home
+):
+    adapters(monkeypatch, tiktok=blocked("tiktok", TIKTOK_URL))
+    runner = FakeRunner(
+        {
+            "anyapi.tiktok.video_transcript_full": stdout_of(
+                {"costUsd": 0.0176, "output": {"found": True, "data": {"transcript": "words"}}}
+            )
+        }
+    )
+    provider = TregProvider(runner=runner)
+    run(TIKTOK_URL, work(tmp_path / "1"), provider, monkeypatch)
+    second = work(tmp_path / "2")
+    got = run(TIKTOK_URL, second, provider, monkeypatch)
+    assert got.from_cache and got.route.media == "treg"
+    logged = calls_json(second)
+    assert [c["endpoint"] for c in logged if c["op"] != "media.get"] == [
+        "anyapi.tiktok.video_download"
+    ]
+    assert logged[0]["review"] == "useful"
+
+
+def test_exit_3_still_logs_and_reviews_the_billed_call(tmp_path, treg_on, monkeypatch, sw_home):
+    def refuse(url, dest):
+        raise links.Refused("HTTP 403")
+
+    monkeypatch.setattr(content_treg, "download_media", refuse)
+    adapters(monkeypatch, tiktok=blocked("tiktok", TIKTOK_URL))
+    provider = TregProvider(runner=FakeRunner())
+    w = work(tmp_path)
+    with pytest.raises(SkipwatchError) as raised:
+        run(TIKTOK_URL, w, provider, monkeypatch)
+    assert raised.value.code == ExitCode.DOWNLOAD_FAILED
+    logged = calls_json(w)
+    assert [c["op"] for c in logged] == ["tiktok.download", "media.get"]
+    assert logged[0]["review"] == "not_sure" and logged[0]["cost_usd"] > 0
+    assert provider._runs == {}
+
+
+def test_text_x_not_found_still_logs_the_billed_thread(tmp_path, treg_on, monkeypatch, sw_home):
+    adapters(monkeypatch, x=NoVideo())
+    provider = TregProvider(runner=FakeRunner())
+    w = work(tmp_path)
+    with pytest.raises(SkipwatchError) as raised:
+        run("https://x.com/a/status/42", w, provider, monkeypatch)
+    assert raised.value.code == ExitCode.NO_CONTENT
+    [logged] = calls_json(w)
+    assert logged["endpoint"] == "anyapi.twitter.thread" and logged["review"] == "not_sure"
+    assert provider._runs == {}
+
+
+def test_an_exception_mid_enrich_still_logs_the_calls(tmp_path, treg_on, monkeypatch, sw_home):
+    def boom(urls, calls, budget=None):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(links, "fetch_urls", boom)
+    runner = FakeRunner({"treg.x.post.comments": stdout_of(with_author_link_reply(), 2)})
+    fixed = video_bundle("x", G2_URL)
+
+    class Fixed:
+        def build(self, detected, work_, opts):
+            return fixed
+
+    adapters(monkeypatch, x=Fixed())
+    provider = TregProvider(runner=runner)
+    w = work(tmp_path)
+    with pytest.raises(RuntimeError):
+        run(G2_URL, w, provider, monkeypatch)
+    assert [c["op"] for c in calls_json(w)] == ["x.thread", "x.comments"]
+    assert provider._runs == {}
