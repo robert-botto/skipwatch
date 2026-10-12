@@ -262,11 +262,13 @@ def test_skill_md_body():
     assert "frame-reader" in text
     assert INJECTION_1 in text
     assert "Never Read a frame image yourself" in text  # R-DIS-4
-    assert "Agents you dispatch: frame-reader only." in text
-    assert "do not start other agents; time budget 5 minutes" in text
+    assert (
+        "Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch "
+        "says: do not start other agents; and states a time budget." in text
+    )
     assert "<ENGINE> redact --stdin" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
-    assert "arrives in M5" in text
+    assert "arrives in M5" not in text  # list, pack, install and share are real in M5
     assert "arrives in M2" not in text  # URLs and resume are real in M2
     assert ENGINE in text
 
@@ -1324,3 +1326,16 @@ def test_sharing_says_what_checksums_prove():
 def test_sharing_reference_is_short_and_clean():
     assert len(read(SHARING).splitlines()) < 200
     assert "\u2014" not in read(SHARING)
+
+
+# ---- M5: critic, tester, frames and confidence (Task M5-F1) ----
+
+
+def test_skill_md_routes_sharing_commands_and_m5_flags():
+    text = flat(SKILL / "SKILL.md")
+    assert "| `list`, `pack`, `install`, `share` | read `references/sharing.md` first" in text
+    assert "no effect yet" not in text
+    assert "| `--fast` | skip the critic" in text
+    assert "| `--test` | test run before the review screen" in text
+    assert "skipwatch:skill-critic" in text and "skipwatch:skill-tester" in text
+    assert len(read(SKILL / "SKILL.md").splitlines()) < 300
