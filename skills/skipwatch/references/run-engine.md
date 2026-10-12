@@ -31,12 +31,14 @@ degrades and continues, or stops with one message.
   The log is `<W>/logs/<stage>.log`, rewritten on each call. stdout and `--json` output
   are unchanged. At the end the engine prints `rc=<n> elapsed=<s>s` and the log's last 3
   lines on stderr. No `rc=` line means the engine never started or refused the `--log`
-  path (64): take the exit code the Bash tool reports, with its stderr. A command without `--log` (no work folder yet)
-  prints its messages on stderr; its exit code is the one the Bash tool reports.
-- Every engine call is one simple command: the engine, its arguments, `--log` and, where
-  shown, a redirect to a file. Never chain `;`, `&&`, `|` or `2>&1` onto it: permission
-  rules match each piece of a chain on its own, so a chained call is denied. A separate
-  step (`mkdir`, `rm`, reading a file) is its own Bash call.
+  path (64): take the exit code the Bash tool reports, with its stderr. A command without
+  `--log` (no work folder yet) prints its messages on stderr; its exit code is the one the
+  Bash tool reports.
+- Every engine call is one simple command: the engine, its arguments and `--log`. Never
+  add a redirect (`<`, `>`): commands that write files take `--out`, and Claude Code
+  denies a redirect outside the working folders. Never chain `;`, `&&`, `|` or `2>&1` onto
+  it: permission rules match each piece of a chain on its own, so a chained call is
+  denied. Any other step (`mkdir -p`, `test -e`, reading a file) is its own Bash call.
 - Progress output: every line printed during a run is one line naming the stage and the
   elapsed seconds, for example `Sampling frames: 21 kept from 1:00 of video (4s)`. No
   tables, no multi-line status, no echo of engine output.

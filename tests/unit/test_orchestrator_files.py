@@ -219,6 +219,12 @@ def _redirects(command: str) -> list[str]:
 
 def test_no_engine_call_uses_a_shell_redirect():
     # a pre-approved engine rule must never carry a redirect to an arbitrary path
+    conventions = flat(REFS / "run-engine.md")
+    assert "Never add a redirect (`<`, `>`): commands that write files take `--out`" in conventions
+    assert "where shown, a redirect to a file" not in conventions
+    assert "Any other step (`mkdir -p`, `test -e`, reading a file) is its own Bash call" in (
+        conventions
+    )
     for path, command in _engine_command_lines():
         assert not _redirects(command.split("<ENGINE>", 1)[1]), (path.name, command)
     assert _redirects(' redact --stdin < "<W>/draft/x" > "<W>/staging/x"') == ["<", ">"]
@@ -498,7 +504,8 @@ def _shell_commands() -> list[tuple[str, str]]:
         lines = [line.strip() for line in text.splitlines() if line.startswith("    ")]
         for command in [*lines, *re.findall(r"`([^`\n]+)`", text)]:
             word = command.split(" ", 1)[0]
-            if word in SHELL_WORDS and " " in command and not command.startswith("test run"):
+            operands = [w for w in command.split()[1:] if not w.startswith("-")]
+            if word in SHELL_WORDS and operands and not command.startswith("test run"):
                 found.append((path.name, command))
     return found
 
