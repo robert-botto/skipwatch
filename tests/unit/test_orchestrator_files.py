@@ -22,7 +22,12 @@ INJECTION_2 = (
 )
 
 
-RUN_FILES = [REFS / "run-engine.md", REFS / "run-distill.md", REFS / "run-review-install.md"]
+RUN_FILES = [
+    REFS / "run-engine.md",
+    REFS / "run-fallbacks.md",
+    REFS / "run-distill.md",
+    REFS / "run-review-install.md",
+]
 
 
 def protocol() -> str:
@@ -65,6 +70,15 @@ def test_all_references_exist():
     names = ("skill-template", "distill-rules", "review-screen", "platforms", "sharing")
     for name in (*names, "run-engine", "run-distill", "run-review-install"):
         assert (REFS / f"{name}.md").is_file(), name
+
+
+def test_rare_fallbacks_live_out_of_the_main_run():
+    engine = read(REFS / "run-engine.md")
+    assert "### Fallback" not in engine and "## Old patterns" not in engine
+    assert "read\n`run-fallbacks.md`" in engine or "read `run-fallbacks.md`" in flat(
+        REFS / "run-engine.md"
+    )
+    assert "references/run-fallbacks.md" in read(SKILL / "SKILL.md")
 
 
 def test_run_protocol_is_split_into_three_run_files():
@@ -1052,8 +1066,8 @@ def test_offer_picked_resumes_from_transcribe():
     # S2: an in-run install can fail in the sandbox; the user runs it and resumes
     assert "`! <command>`" in review and "/skipwatch resume <W>" in review
     # refresh through the engine so a moved home (--home) gets the right report
-    assert 'refresh the doctor report with `<ENGINE> doctor --json` (with `--home' in review
-    assert "doctor.json\"`" not in review and "rm -f" not in review
+    assert "refresh the doctor report with `<ENGINE> doctor --json` (with `--home" in review
+    assert 'doctor.json"`' not in review and "rm -f" not in review
 
 
 def test_questions_allowed_in_a_run_are_listed():
@@ -1454,7 +1468,8 @@ def test_protocol_matches_the_merged_m3_engine():
     linked = review.split("**Linked post:**", 1)[1].split("- **", 1)[0]
     assert "`notes` in `<W>/ingest.json`" in linked
     # the legacy cache branch lives once, at the end, out of the main flow
-    for path in (REFS / "run-engine.md", REFS / "review-screen.md"):
+    assert "cached before" not in read(REFS / "run-engine.md")
+    for path in (REFS / "run-fallbacks.md", REFS / "review-screen.md"):
         main, old = read(path).split("\n## Old patterns\n", 1)
         assert "route.fallbacks` instead of `notes`" in old, path
         assert "cached before" not in main, path

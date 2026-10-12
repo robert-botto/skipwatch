@@ -86,6 +86,8 @@ Follow the run files in order, reading each when its stage starts:
 stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.md`
 (9 to 10 and resume). Load the other references when a run file reaches them:
 
+- `references/run-fallbacks.md` when the work folder cannot be written, or for an old
+  cache, when a run file says so.
 - `references/distill-rules.md` before writing the outline.
 - `references/skill-template.md` before drafting the skill.
 - `references/review-screen.md` before printing the review screen.

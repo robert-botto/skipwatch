@@ -49,7 +49,7 @@ unless `--test` was also given.
    example, its placeholders filled with harmless sample values (`example.com`, a
    placeholder key), never the user's real names, keys or paths.
 2. Run `mkdir -p "<W>/test-run"` and Write `<W>/test-run/.write-probe` with `ok`. If that
-   Write is denied, use `<P>/.skipwatch/test-run-<name>` (made as in stage 2's fallback).
+   Write is denied, use `<P>/.skipwatch/test-run-<name>` (made as in `run-fallbacks.md`).
    `<scratch>` is the folder in use.
 3. With safety flags, ask once, even under `--test`:
    `Test it anyway? The tester stops before steps <list>. [yes / no]`. No: show the
@@ -129,7 +129,7 @@ The user's original file is never inside `<W>` and is never moved or deleted.
      and stop.
    - `run` is null: print
      `SkipWatch: <work> has no run.json; start a new run with the original source.` and stop.
-3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in stage 2). `<input>`
+3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in `run-fallbacks.md`). `<input>`
    is `run.input`; read `run.flags` as if the user had typed them and `run.name` as
    `--name`. Print `Resuming <W> at <next_stage> (<k> stages done)`.
 4. Rebuild the degradation list: no `transcript.json` gives the no-transcript line, an

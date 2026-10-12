@@ -8,7 +8,6 @@
 - Stage 2: work folder and arguments
 - Stage 3: engine stages
 - Stage 4: read (map, in parallel)
-- Old patterns
 
 A run follows three files in order, each read when its first stage starts: this one
 (stages 1 to 4), `run-distill.md` (5 to 8) and `run-review-install.md` (9, 9b, 10 and
@@ -99,29 +98,8 @@ expand `$HOME` yourself. Exit 64: the slug broke the rule; fix it and run again.
 Then use the Write tool to write `<W>/logs/.write-probe` with the content `ok`, so a
 sandbox that denies Write there is found now.
 
-### Fallback: move the work folder into the project
-
-If `new-work` fails (any exit other than 64), move the home into the project. If that
-Write is denied or fails, do the same:
-
-1. If `new-work` succeeded, remove its folder: `rm -rf "<W>"`, only the exact path
-   `new-work` printed, never a parent, a glob or `$HOME`. Then run
-   `mkdir -p "<P>/.skipwatch"`, then Write `<P>/.skipwatch/.gitignore` with the content
-   `*`, so the `<P>/.skipwatch/.gitignore` file containing `*` keeps work files out of
-   commits.
-2. Create the work folder under the project's home, `--home` before the command:
-   `<ENGINE> --home "<P>/.skipwatch" new-work --slug <slug> --json`. Take the new `<W>`
-   and repeat the Write probe.
-3. Pass `--home "<P>/.skipwatch"` to every `<ENGINE>` call for the rest of the run, before
-   the command (with `--log` in either order), never as a `SKIPWATCH_HOME=` prefix. If
-   doctor failed to write `doctor.json` for the same reason, rerun it once with `--home`.
-4. Record `work folder moved into the project (<path>): home folder not writable`.
-
-If a later Write is denied (notes, `outline.md`, a draft file), apply the same fallback
-there: re-run the engine stages already done into the new `<W>` with `--home`,
-re-dispatch the readers with the new paths, and continue. Switch once; a second denial
-stops the run with `SkipWatch: cannot write the work folder (<path>): <the denial message>.`
-Never work around a denied Write with a shell redirect or heredoc.
+Write probe denied, or `new-work` failed with any exit other than 64: read
+`run-fallbacks.md` and move the work folder into the project.
 
 Resolve the source path and any `--to <dir>` to absolute paths now and use only those.
 Quote every path and URL in commands.
@@ -184,7 +162,7 @@ Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call.
      logs and caps every treg call. Never run `treg` yourself or print its balance.
    - Linked video: when `notes` in `ingest.json` has `video came from a linked post: <url>`,
      the video came from a linked post (an older cache keeps it elsewhere: "Old
-     patterns"). `source` describes the linked post; the requested post's text is in
+     patterns" in `run-fallbacks.md`). `source` describes the linked post; the requested post's text is in
      `context.thread`. Copy that line to the review screen exactly.
    - Text source: when `source.kind` is `"text"` in `<W>/ingest.json`, skip transcribe,
      frames, plan and read and go to stage 5. Print
@@ -280,8 +258,3 @@ record `<frame ids> (reader failed twice)` for the review screen's `Unread frame
 Then:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage read --status done
-
-## Old patterns
-
-- A bundle cached by an older engine carries `video came from a linked post: <url>` in
-  `route.fallbacks` instead of `notes`. Read it there only when `notes` does not hold it.
