@@ -2115,6 +2115,13 @@ def _install_step(n: int) -> str:
     return re.sub(r"\s+", " ", step)
 
 
+def test_resume_takes_the_staged_name_from_run_json_first():
+    resume = protocol_flat().split("## Resume", 1)[1]
+    assert (
+        "`<name>` is `run.name` when set, otherwise the one folder under `<W>/staging/`" in resume
+    )
+
+
 def test_rename_moves_staging_with_the_engine():
     # frames move with the staged skill and run.json keeps the name for resume
     review = flat(REFS / "review-screen.md")

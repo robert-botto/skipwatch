@@ -138,7 +138,8 @@ adding `; may hold a step` as `distill-rules.md` says.
    - `read` or `distill`: run `validate-notes` (stage 4) and re-dispatch readers only for
      batches whose notes file is missing or invalid, then stage 5.
    - `critique`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, then stage 8;
-     otherwise as `read`. `<name>` is the one folder under `<W>/staging/`.
+     otherwise as `read`. `<name>` is `run.name` when set, otherwise the one folder under
+     `<W>/staging/`.
    - `check`: stage 8 when that `SKILL.md` exists, otherwise stage 5.
    - `review` or `install`: stage 8 (staging may have been edited), then stage 9.
    - a text source never runs transcribe, frames, plan or read; the engine's
