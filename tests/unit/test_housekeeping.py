@@ -11,6 +11,14 @@ from skipwatch.errors import ExitCode
 from skipwatch.workdir import WorkDir
 
 
+@pytest.fixture(autouse=True)
+def _in_project(tmp_path, monkeypatch):
+    """The skill runs from the project <P>; its tester scratch is <P>/.skipwatch/test-run-*."""
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+
 def invoke(*args: str):
     return CliRunner().invoke(app, list(args))
 
@@ -366,3 +374,35 @@ def test_the_home_option_moves_the_accepted_work_root(tmp_path):
     r = invoke("--home", str(project_home), "cleanup", "--work", str(work))
     assert r.exit_code == 0, r.output
     assert not (work / "notes").exists()
+
+
+# ---- review round: --scratch is only this project's tester folder ----
+
+
+def test_another_projects_tester_folder_is_refused(tmp_path):
+    work = full_run(tmp_path)
+    other = scratch_dir(tmp_path / "other")
+    r = invoke("cleanup", "--work", str(work), "--scratch", str(other))
+    assert r.exit_code == ExitCode.USAGE
+    assert (other / "SKILL.md").is_file()
+    assert (work / "draft" / "SKILL.md").is_file()
+
+
+def test_a_scratch_symlink_to_a_matching_folder_is_refused(tmp_path):
+    work = full_run(tmp_path)
+    real = scratch_dir(tmp_path, "real")
+    link = real.parent / "test-run-link"
+    symlink(link, real)
+    r = invoke("cleanup", "--work", str(work), "--scratch", str(link))
+    assert r.exit_code == ExitCode.USAGE
+    assert (real / "SKILL.md").is_file() and link.is_symlink()
+
+
+def test_a_scratch_holding_the_work_folder_is_refused(tmp_path):
+    home = tmp_path / "project" / ".skipwatch" / "test-run-home"
+    work = home / "work" / "demo-20261012-120000"
+    WorkDir(work).ensure()
+    write(work / "draft" / "SKILL.md")
+    r = invoke("--home", str(home), "cleanup", "--work", str(work), "--scratch", str(home))
+    assert r.exit_code == ExitCode.USAGE
+    assert (work / "draft" / "SKILL.md").is_file() and (work / "stages.json").is_file()
