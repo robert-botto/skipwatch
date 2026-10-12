@@ -252,6 +252,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "config",
         "probe",
         "run",
+        "degradations",
         "resume",
         "cache-entry",
         "installs",

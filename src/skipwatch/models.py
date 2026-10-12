@@ -435,6 +435,17 @@ class RunFile(_Tagged):
     started_at: str
 
 
+class DegradationsFile(_Tagged):
+    """degradations.json: what `note` recorded during the run, for the review screen.
+
+    Kept in the work folder so a resumed run still shows them (skill audit 4 fix 2).
+    """
+
+    schema_: Literal["skipwatch/degradations/1"] = _tag("skipwatch/degradations/1")
+    degradations: list[str] = []
+    unread: list[str] = []
+
+
 class CacheEntry(_Tagged):
     schema_: Literal["skipwatch/cache-entry/1"] = _tag("skipwatch/cache-entry/1")
     key: str
@@ -667,6 +678,7 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "config": Config,
     "probe": ProbeResult,
     "run": RunFile,
+    "degradations": DegradationsFile,
     "resume": ResumeResult,
     "cache-entry": CacheEntry,
     "installs": InstallsFile,
