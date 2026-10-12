@@ -123,7 +123,8 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 - Cloud transcription sends audio only after the user said yes to that provider by name;
   `--yes` is never that consent.
 - Never Read a frame image yourself. You read each notes file and the transcript once.
-- Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says: do not start other agents; and states a time budget.
+- Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says
+  "Do not start other agents." and states a time budget.
   Use those namespaced agent types with the prompts the run files give.
 - Draft text reaches staging only through `<ENGINE> redact --stdin`, file to file, and
   never appears inside a Bash command.

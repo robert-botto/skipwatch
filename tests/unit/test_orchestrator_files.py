@@ -416,7 +416,7 @@ def test_skill_md_body():
     assert "Never Read a frame image yourself" in text  # R-DIS-4
     assert (
         "Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch "
-        "says: do not start other agents; and states a time budget." in text
+        'says "Do not start other agents." and states a time budget.' in text
     )
     assert "<ENGINE> redact --stdin" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
