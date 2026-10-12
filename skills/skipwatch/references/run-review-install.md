@@ -128,7 +128,8 @@ inside `<W>` and is never moved or deleted.
    `<ENGINE> --home "<P>/.skipwatch" resume --json`.
 2. Read `work`, `next_stage`, `completed`, `run`, `media_present`.
    - `next_stage` is null: print `SkipWatch: nothing to resume.` and stop.
-   - Exit 2: print `SkipWatch: <dir> is not a SkipWatch work folder.` and stop.
+   - Exit 2, or exit 64 with a message naming `<dir>` (a folder outside the home): print
+     `SkipWatch: <dir> is not a SkipWatch work folder.` and stop.
    - Exit 7: print the engine's line, then `Start a new run with the original source.`
      and stop.
    - `run` is null: print

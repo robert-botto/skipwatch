@@ -901,6 +901,16 @@ def test_check_hint_uses_the_full_engine_command():
         assert "run skipwatch check" not in text and "run: skipwatch check" not in text, path
 
 
+def test_exit_64_covers_refused_folders_log_paths_and_homes():
+    skill = read(SKILL / "SKILL.md")
+    [row] = [line for line in skill.splitlines() if line.startswith("| 64 |")]
+    for refusal in ("invalid `--work` folder", "outside `<W>/logs/`", "not ending in `.skipwatch`"):
+        assert refusal in row, refusal
+    resume = protocol_flat().split("## Resume", 1)[1]
+    assert "Exit 2, or exit 64 with a message naming `<dir>`" in resume
+    assert "`SkipWatch: <dir> is not a SkipWatch work folder.`" in resume
+
+
 def test_exit_127_and_78_each_have_one_row():
     skill = read(SKILL / "SKILL.md")
     doctor = [line for line in skill.splitlines() if line.startswith("| 127 | doctor |")]

@@ -30,8 +30,8 @@ degrades and continues, or stops with one message.
 
   The log is `<W>/logs/<stage>.log`, rewritten on each call. stdout and `--json` output
   are unchanged. At the end the engine prints `rc=<n> elapsed=<s>s` and the log's last 3
-  lines on stderr. No `rc=` line means the engine never started: take the exit code the
-  Bash tool reports, with its stderr. A command without `--log` (no work folder yet)
+  lines on stderr. No `rc=` line means the engine never started or refused the `--log`
+  path (64): take the exit code the Bash tool reports, with its stderr. A command without `--log` (no work folder yet)
   prints its messages on stderr; its exit code is the one the Bash tool reports.
 - Every engine call is one simple command: the engine, its arguments, `--log` and, where
   shown, a redirect to a file. Never chain `;`, `&&`, `|` or `2>&1` onto it: permission
