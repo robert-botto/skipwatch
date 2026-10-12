@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from skipwatch.cli import app
+from skipwatch.config import skipwatch_home
 from skipwatch.errors import ExitCode
 from skipwatch.workdir import WorkDir
 
@@ -15,6 +16,15 @@ def invoke(*args: str):
 
 
 def work_folder(root: Path) -> Path:
+    """A work folder under the engine's home, where the commands accept one."""
+    del root  # the home is per test (conftest), so the folder never leaks between tests
+    work = skipwatch_home() / "work" / "demo-20261012-120000"
+    WorkDir(work).ensure()
+    return work
+
+
+def outside_folder(root: Path) -> Path:
+    """A folder with a valid stages.json that is not under the home's work/."""
     work = root / "work" / "demo-20261012-120000"
     WorkDir(work).ensure()
     return work
@@ -67,10 +77,10 @@ def test_snapshot_without_a_draft_is_exit_7(tmp_path):
     assert (work / "draft-pre-critic" / "SKILL.md").read_text() == "old"  # nothing removed
 
 
-def test_snapshot_outside_a_work_folder_is_exit_2(tmp_path):
+def test_snapshot_outside_a_work_folder_is_exit_64(tmp_path):
     write(tmp_path / "draft" / "SKILL.md")
     r = invoke("snapshot-draft", "--work", str(tmp_path))
-    assert r.exit_code == ExitCode.UNSUPPORTED_SOURCE
+    assert r.exit_code == ExitCode.USAGE
     assert not (tmp_path / "draft-pre-critic").exists()
 
 
@@ -208,10 +218,10 @@ def test_cleanup_never_follows_a_symlink_out_of_the_work_folder(tmp_path):
     assert not (work / "notes").exists() and not (work / "outline.md").exists()
 
 
-def test_cleanup_outside_a_work_folder_is_exit_2(tmp_path):
+def test_cleanup_outside_a_work_folder_is_exit_64(tmp_path):
     write(tmp_path / "draft" / "SKILL.md")
     r = invoke("cleanup", "--work", str(tmp_path))
-    assert r.exit_code == ExitCode.UNSUPPORTED_SOURCE
+    assert r.exit_code == ExitCode.USAGE
     assert (tmp_path / "draft" / "SKILL.md").is_file()
 
 
@@ -281,7 +291,7 @@ def test_discard_refuses_a_folder_with_later_stages_done(sw_home):
 
 
 def test_discard_refuses_folders_not_directly_in_the_home_work_folder(tmp_path, sw_home):
-    elsewhere = work_folder(tmp_path / "elsewhere")
+    elsewhere = outside_folder(tmp_path / "elsewhere")
     nested = sw_home / "work" / "a" / "b"
     WorkDir(nested).ensure()
     no_stages = sw_home / "work" / "plain-20261012-120000"
@@ -294,10 +304,65 @@ def test_discard_refuses_folders_not_directly_in_the_home_work_folder(tmp_path, 
 
 
 def test_discard_refuses_a_symlink_into_the_work_folder(tmp_path, sw_home):
-    outside = work_folder(tmp_path / "elsewhere")
+    outside = outside_folder(tmp_path / "elsewhere")
     (sw_home / "work").mkdir(parents=True)
     link = sw_home / "work" / "demo-20261012-120000"
     symlink(link, outside)
     r = invoke("discard-work", "--work", str(link))
     assert r.exit_code == ExitCode.USAGE
     assert (outside / "stages.json").is_file()
+
+
+# ---- review round: only a real work folder under the home is ever cleaned ----
+
+
+def victim(path: Path, stages: str | None = "") -> Path:
+    """A folder that looks like a work folder: notes, frames and media, plus stages.json."""
+    for name in ("notes/keep.txt", "frames/keep.jpg", "media/keep.mp4", "draft/SKILL.md"):
+        write(path / name)
+    if stages is not None:
+        write(path / "stages.json", stages)
+    return path
+
+
+def assert_untouched(path: Path) -> None:
+    for name in ("notes/keep.txt", "frames/keep.jpg", "media/keep.mp4", "draft/SKILL.md"):
+        assert (path / name).is_file(), name
+    assert not (path / "draft-pre-critic").exists()
+
+
+@pytest.mark.parametrize("command", ["cleanup", "snapshot-draft"])
+def test_an_arbitrary_folder_with_a_stages_json_is_refused(command, tmp_path):
+    valid = (outside_folder(tmp_path) / "stages.json").read_text()
+    for target in (
+        victim(tmp_path / "anywhere", stages=""),
+        victim(tmp_path / "valid-elsewhere", stages=valid),
+        victim(skipwatch_home() / "work" / "empty-20261012-120000", stages=""),
+        victim(skipwatch_home() / "work" / "a" / "nested-20261012-120000", stages=valid),
+    ):
+        r = invoke(command, "--work", str(target))
+        assert r.exit_code == ExitCode.USAGE, (target, r.output)
+        assert_untouched(target)
+
+
+@pytest.mark.parametrize("command", ["cleanup", "snapshot-draft"])
+def test_a_symlink_in_the_home_work_folder_is_refused(command, tmp_path):
+    real = work_folder(tmp_path)
+    victim(real, stages=None)
+    link = skipwatch_home() / "work" / "link-20261012-120000"
+    symlink(link, real)
+    r = invoke(command, "--work", str(link))
+    assert r.exit_code == ExitCode.USAGE
+    assert_untouched(real)
+
+
+def test_the_home_option_moves_the_accepted_work_root(tmp_path):
+    project_home = tmp_path / "project" / ".skipwatch"
+    work = project_home / "work" / "demo-20261012-120000"
+    WorkDir(work).ensure()
+    victim(work, stages=None)
+    assert invoke("cleanup", "--work", str(work)).exit_code == ExitCode.USAGE
+    assert_untouched(work)
+    r = invoke("--home", str(project_home), "cleanup", "--work", str(work))
+    assert r.exit_code == 0, r.output
+    assert not (work / "notes").exists()

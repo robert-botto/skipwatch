@@ -19,10 +19,17 @@ from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 
 def _work_folder(work: Path) -> Path:
-    """The work folder, resolved; never a path that only looks like one (exit 2, as mark)."""
-    if not (work / "stages.json").is_file():
-        raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"{work} is not a SkipWatch work folder")
-    return work.resolve()
+    """The work folder, resolved: directly under the home's work/ (as --home sets it), not a
+    symlink, with a stages.json that reads. Anything else is exit 64 before any deletion."""
+    root = (skipwatch_home() / "work").resolve()
+    resolved = work.resolve()
+    if work.is_symlink() or resolved.parent != root:
+        raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
+    try:
+        WorkDir(resolved).stages()
+    except (OSError, ValueError) as exc:
+        raise SkipwatchError(ExitCode.USAGE, f"{work} has no readable stages.json") from exc
+    return resolved
 
 
 def _remove(path: Path) -> None:
