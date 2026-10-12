@@ -24,8 +24,15 @@ Write is denied or fails, do the same:
 4. Note `work folder moved into the project (<path>): home folder not writable` in the new
    `<W>` (`note --degradation`, with `--home`).
 
-If a later Write is denied (notes, `outline.md`, a draft file), apply the same fallback
-there: re-run the engine stages already done into the new `<W>` with `--home`,
-re-dispatch the readers with the new paths, and continue. Switch once; a second denial
-stops the run with `SkipWatch: cannot write the work folder (<path>): <the denial message>.`
-Never work around a denied Write with a shell redirect or heredoc.
+If a later Write is denied (notes, `outline.md`, a draft file), do steps 2 to 4 (not step
+1: `discard-work` refuses a folder with finished stages). Read `<old W>/degradations.json`
+once and note each line again in the new `<W>` (`--degradation` or `--unread`, with
+`--home`). Close the old folder so resume never offers it (if this exits non-zero, skip
+it):
+
+    <ENGINE> --log "<old W>/logs/mark.log" mark --work "<old W>" --stage review --status done
+
+Then re-run the engine stages already done into the new `<W>` with `--home`, re-dispatch
+the readers with the new paths, and continue. Switch once; a second denial stops the run
+with `SkipWatch: cannot write the work folder (<path>): <the denial message>.` Never work
+around a denied Write with a shell redirect or heredoc.

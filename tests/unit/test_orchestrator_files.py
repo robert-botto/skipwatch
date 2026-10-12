@@ -944,6 +944,14 @@ def test_later_write_denial_switches_once_then_stops():
     assert "If a later Write is denied" in text
     assert "re-run the engine stages already done" in text
     assert "Switch once; a second denial stops the run" in text
+    # discard-work refuses a folder with finished stages; carry the notes over and close
+    # the old folder, which resume would otherwise pick first
+    assert "do steps 2 to 4 (not step 1" in text
+    assert "Read `<old W>/degradations.json` once and note each line again" in text
+    close = (
+        '<ENGINE> --log "<old W>/logs/mark.log" mark --work "<old W>" --stage review --status done'
+    )
+    assert close in text
 
 
 def test_fallback_home_is_git_ignored():
