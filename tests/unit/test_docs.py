@@ -202,3 +202,11 @@ def test_readme_documents_tiers_the_engine_and_the_skill_layout():
     for tag in ("[spoken 00:58]", "[on-screen 00:33]", "[inferred]"):
         assert tag in text, tag  # the real excerpt shows the provenance tags
     assert "not affiliated" in text
+
+
+def test_readme_covers_sharing_privacy_terms_and_removal():
+    text = _readme()
+    assert "You are responsible for complying with the terms of the platforms" in text
+    assert "A pack's checksums prove the files were not changed by accident." in text
+    assert "No telemetry" in text
+    assert "/plugin uninstall skipwatch@skipwatch" in text and "~/.skipwatch" in text

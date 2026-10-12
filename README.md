@@ -285,3 +285,76 @@ Exit codes are stable:
 | 70 | Internal error; please report it with the run's logs |
 
 Per-platform failures and their fixes are in [platforms.md](skills/skipwatch/references/platforms.md).
+
+## Sharing packs
+
+```text
+/skipwatch pack <skill>
+/skipwatch install ./<name>.skillpack.zip
+/skipwatch install https://example.com/<name>.skillpack.zip
+```
+
+`pack` prints the pack's sha256. Post it next to the pack so people can check they got the same file. `install` verifies every file against the pack's manifest, runs the same checks as a run, and shows you the review screen before anything is written. Packs hold text and at most 8 frames, never video or audio. A skill made with your browser cookies cannot be packed.
+
+A pack's checksums prove the files were not changed by accident. They do not prove who made it. The checks and your review are what protect you.
+
+## Privacy
+
+No telemetry, no analytics, no update pings. The engine runs on your machine. Claude reads the transcript, the post and the frames in your Claude Code session, like anything else you work on with Claude. The engine's own network traffic is:
+
+- the platform your link points to, through yt-dlp;
+- the pages a post links to (at most 5 per post, public addresses only);
+- one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
+- treg, only at Tier 3. Its calls are paid, capped at $0.05 per run by default, and listed on the review screen. `--provider free` turns it off;
+- cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
+
+## What gets installed where
+
+| What | Where |
+|---|---|
+| The plugin and its Python environment | Claude Code's plugin folder |
+| Work folders, cache, backups, settings | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it) |
+| Your skills | `~/.claude/skills/<name>`, or `./.claude/skills` with `--project`, or `./.agents/skills` with `--agents` |
+
+To remove SkipWatch:
+
+```text
+/plugin uninstall skipwatch@skipwatch
+```
+
+Then delete `~/.skipwatch`. Nothing else is left behind. Skills you installed stay in your skills folder until you delete them.
+
+## Platform terms
+
+You are responsible for complying with the terms of the platforms you download from. SkipWatch never redistributes video or audio. Private or login-only content works only for a user who can open it, and a skill made from it cannot be packed for sharing.
+
+## Credit
+
+Attribution is mandatory: a skill without it fails the check. Every skill names its source, its creator and the date, and says the workflow and wording are the creator's. `/skipwatch share <skill>` writes a short thank-you post you can send the creator.
+
+## FAQ
+
+**Does it cost anything?**
+No. The free route makes no paid calls. treg (Tier 3) and cloud transcription are optional, and both are opt-in.
+
+**What if a video has no captions and I have no Whisper?**
+The run continues from the frames alone. The review screen offers to install Whisper and run again.
+
+**Does SkipWatch keep the video?**
+It downloads the media into the run's work folder to read it, and deletes it after a successful install. `--keep-media` keeps it.
+
+**Can I use the skills outside Claude Code?**
+Yes. Generated skills use only the portable Agent Skills frontmatter keys.
+
+**Something failed. Where do I look?**
+Run `/skipwatch doctor` first. Each failure prints one line and keeps the work folder; its `logs/` folder has the details. `/skipwatch resume` picks up where the run stopped.
+
+## Documentation
+
+- [Design spec](docs/superpowers/specs/2026-10-09-skipwatch-design.md): every requirement, file format and decision.
+- [Platform notes](skills/skipwatch/references/platforms.md): what each platform returns and how it fails.
+- [Sharing reference](skills/skipwatch/references/sharing.md): list, pack, install and share in detail.
+
+## License
+
+[MIT](LICENSE).
