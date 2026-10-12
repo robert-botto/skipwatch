@@ -138,7 +138,7 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 3. Validate its file with the engine before you trust it. The engine
    checks the five rubric lines and the step numbers and rewrites `score` as their mean:
 
-       <ENGINE> validate-critique --work "<W>" --skill "<W>/staging/<name>"
+       <ENGINE> --log "<W>/logs/validate-critique.log" validate-critique --work "<W>" --skill "<W>/staging/<name>"
 
    Exit 0 prints `critique valid: score <s>, <n> fixes`. Exit 1 names what is wrong:
    re-dispatch the critic once with the same prompt and validate again. A second exit 1
@@ -170,7 +170,7 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 
 ## Stage 8: check
 
-    <ENGINE> check "<W>/staging/<name>" --work "<W>" --json >"<W>/logs/check.json"
+    <ENGINE> --log "<W>/logs/check.log" check "<W>/staging/<name>" --work "<W>"
 
 The check writes `<W>/check-report.json` and `<W>/staging/<name>/skipwatch.json`, and
 applies redaction again over the whole folder.

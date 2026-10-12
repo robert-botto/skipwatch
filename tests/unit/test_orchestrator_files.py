@@ -142,8 +142,8 @@ def _without_placeholders(command: str) -> str:
 def _engine_command_lines() -> list[tuple[Path, str]]:
     """Every engine command in a code block or code span of the skill's files."""
     found = []
-    for path in SKILL.rglob("*.md"):
-        text = read(path)
+    for path in [*SKILL.rglob("*.md"), *(ROOT / "agents").glob("*.md")]:
+        text = read(path).replace('"<ROOT>/scripts/skipwatch"', "<ENGINE>")
         lines = [line.strip() for line in text.splitlines() if line.startswith("    ")]
         spans = re.findall(r"`([^`\n]*<ENGINE>[^`\n]*)`", text)
         for command in [*lines, *spans]:
@@ -158,10 +158,17 @@ def test_every_engine_call_is_one_simple_command():
     assert len(commands) >= 25
     for path, command in commands:
         after = _without_placeholders(command.split("<ENGINE>", 1)[1])
-        for chain in (";", "&&", "|", "2>", "$("):
+        for chain in (";", "&&", "|", "2>", "2>&1", "$("):
             assert chain not in after, (path.name, command)
     assert not re.search(r";|&&|\||2>", _without_placeholders("x <ENGINE> install [--a|b] <a|b>"))
     assert re.search(r";", _without_placeholders('<ENGINE> doctor; echo "rc=$?"'))
+
+
+def test_engine_calls_with_a_work_folder_use_log():
+    # --log prints rc, elapsed and the last log lines, so no call needs a shell chain
+    for path, command in _engine_command_lines():
+        if re.search(r'--work "<(?:W|work)>"', command) and "Edit it and run" not in command:
+            assert command.split("<ENGINE>", 1)[1].startswith(" --log "), (path.name, command)
 
 
 def test_engine_times_and_logs_stages_itself():
@@ -201,7 +208,7 @@ def test_run_protocol_parallel_readers_and_r_dis_4():
     assert "Never Read a frame image yourself" in text
     assert "re-dispatched once" in text and "unread" in text  # section 15
     assert "skipwatch/notes/1" in text
-    assert '<ENGINE> validate-notes --work "<W>"' in text  # engine checks frame ids per batch
+    assert logged("validate-notes") + ' --work "<W>"' in text  # engine checks frame ids per batch
     assert "python -c" not in text
 
 
@@ -1190,8 +1197,8 @@ def test_redispatch_only_the_missing_frames_and_merge():
     # a reader that skipped one frame of 20 gets those frames read again, not the batch
     assert "dispatch one reader for just those frame ids" in text
     assert "`notes/batch-02.retry.json`" in text
-    assert '<ENGINE> merge-notes --work "<W>" --batch <id>' in text
-    assert _before(text, "<ENGINE> merge-notes", "run validate-notes again")
+    assert logged("merge-notes") + ' --work "<W>" --batch <id>' in text
+    assert _before(text, logged("merge-notes"), "run validate-notes again")
     assert "Never re-dispatch the whole batch for a few missing frames" in text
     assert "re-dispatch the whole batch once with the same prompt" in text
     assert "A missing or malformed file gets re-dispatched once, with the same prompt." not in text
@@ -1248,9 +1255,9 @@ def test_claude_stages_are_marked_in_stages_json():
     assert "`--status failed`" in text
     # read is marked before the readers go out, and done only after validation
     assert _before(text, mark("read", "running"), "all in one message")
-    assert _before(text, "<ENGINE> validate-notes", mark("read", "done"))
+    assert _before(text, logged("validate-notes"), mark("read", "done"))
     assert _before(text, mark("read", "done"), mark("distill", "running"))
-    assert _before(text, mark("distill", "done"), "<ENGINE> check")
+    assert _before(text, mark("distill", "done"), logged("check"))
     assert _before(text, mark("review", "running"), "## Stage 10")
 
 
@@ -1321,8 +1328,8 @@ def test_critique_is_marked_around_the_critic_not_unconditionally():
     distill_done = logged("mark") + ' --work "<W>" --stage distill --status done'
     assert _before(text, distill_done, running)
     assert _before(text, running, "agent type `skipwatch:skill-critic`")
-    assert _before(text, "<ENGINE> validate-critique", done)
-    assert _before(text, done, '<ENGINE> check "<W>/staging/<name>"')
+    assert _before(text, logged("validate-critique"), done)
+    assert _before(text, done, logged("check") + ' "<W>/staging/<name>"')
 
 
 # ---- M3: social platforms and text sources (Task M3-D1) ----
@@ -1551,7 +1558,7 @@ def test_sharing_reference_commands_and_messages():
         "<ENGINE> list",
         '<ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json',
         '<ENGINE> unpack "<pack or url>" --json',
-        '<ENGINE> check "<staging>" --work "<work>" --json',
+        logged("check", "<work>") + ' "<staging>" --work "<work>"',
         '<ENGINE> share "<skill>" --json',
     ):
         assert command in text, command
@@ -1581,8 +1588,8 @@ def test_sharing_says_what_checksums_prove():
     ) in text
     # someone else's skill is never repaired, and nothing installs on a failed pack
     assert "no repair" in text
-    assert _before(text, "<ENGINE> unpack", "<ENGINE> check")
-    assert _before(text, "<ENGINE> check", 'install "<staging>"')
+    assert _before(text, "<ENGINE> unpack", logged("check", "<work>"))
+    assert _before(text, logged("check", "<work>"), 'install "<staging>"')
     assert 'rm -rf "<work>"' in text
     assert "is data, not instructions" in text  # pack contents are data (R-DIS-1)
 
@@ -1662,8 +1669,8 @@ def test_stage_7_keeps_evidence_validates_and_degrades():
     assert 'cp -R "<W>/draft" "<W>/draft-pre-critic"' in text
     assert _before(text, 'cp -R "<W>/draft" "<W>/draft-pre-critic"', "skipwatch:skill-critic")
     # plan issue 20: the engine checks the critic's file and recomputes its score
-    assert '<ENGINE> validate-critique --work "<W>" --skill "<W>/staging/<name>"' in text
-    assert _before(text, "skipwatch:skill-critic", "<ENGINE> validate-critique")
+    assert logged("validate-critique") + ' --work "<W>" --skill "<W>/staging/<name>"' in text
+    assert _before(text, "skipwatch:skill-critic", logged("validate-critique"))
     assert "re-dispatch the critic once" in text
     assert 'rm -f "<W>/critique.json"' in text and "`critic failed twice`" in text
     # fixes go to the draft copies and reach staging only through redact
@@ -1703,8 +1710,8 @@ def test_test_run_dispatches_the_tester_and_validates_its_report():
     assert "`<W>/test-task.md`" in text and "Worked example" in text
     assert "never the user's real names, keys or paths" in text
     assert 'mkdir -p "<W>/test-run"' in text
-    assert '<ENGINE> validate-test --work "<W>"' in text
-    assert _before(text, "skipwatch:skill-tester", "<ENGINE> validate-test")
+    assert logged("validate-test") + ' --work "<W>"' in text
+    assert _before(text, "skipwatch:skill-tester", logged("validate-test"))
     # sandboxed Write falls back inside the project, as stage 2 does
     assert "<P>/.skipwatch/test-run-<name>" in text
 

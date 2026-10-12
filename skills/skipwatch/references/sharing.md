@@ -88,7 +88,7 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
      invent another location.
 3. Check. Pack mode is automatic (the engine sees the pack in `<work>/ingest.json`):
 
-       <ENGINE> check "<staging>" --work "<work>" --json >"<work>/logs/check.json"
+       <ENGINE> --log "<work>/logs/check.log" check "<staging>" --work "<work>"
 
    - Exit 0: print
      `Checks: frontmatter ok, structure ok, provenance ok, redaction ok, safety ok, style ok (<n>s)`.

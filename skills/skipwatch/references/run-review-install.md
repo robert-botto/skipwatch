@@ -85,7 +85,7 @@ in a scratch folder and reports where it got stuck. A test run never happens und
 
 5. Validate the report with the engine and print its line:
 
-       <ENGINE> validate-test --work "<W>"
+       <ENGINE> --log "<W>/logs/validate-test.log" validate-test --work "<W>"
 
    Exit 0 prints exactly one line: `Test run: completed`, `Test run: blocked at step <n> (<detail>)`
    or `Test run: ambiguous at step <n> (<detail>)`. That line goes on the review screen

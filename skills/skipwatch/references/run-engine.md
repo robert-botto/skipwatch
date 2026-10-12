@@ -352,10 +352,11 @@ Validate all notes files with the engine, without reading them into context. A f
 must parse as `skipwatch/notes/1`, carry its batch id, and cover exactly the batch's
 frames (a reader that wrote the wrong batch fails here):
 
-    <ENGINE> validate-notes --work "<W>"
+    <ENGINE> --log "<W>/logs/validate-notes.log" validate-notes --work "<W>"
 
-Exit 0: all valid. Exit 1: one line per bad batch (`batch 2: missing notes/batch-02.json`,
-`batch 3: frames missing f000310`). Exit 7: `batches.json` is missing; re-run stage 3's
+Exit 0: all valid. Exit 1: one line per bad batch, such as
+`batch 2: missing notes/batch-02.json` or `batch 3: frames missing f000310` (the summary
+shows the last 3; Read `<W>/logs/validate-notes.log` when more batches failed). Exit 7: `batches.json` is missing; re-run stage 3's
 plan step.
 
 Each bad batch is re-dispatched once, in the way its line calls for:
@@ -366,7 +367,7 @@ Each bad batch is re-dispatched once, in the way its line calls for:
   with `.json` replaced by `.retry.json`, for example `notes/batch-02.retry.json`. Then
   fold it in and validate again:
 
-      <ENGINE> merge-notes --work "<W>" --batch <id>
+      <ENGINE> --log "<W>/logs/merge-notes.log" merge-notes --work "<W>" --batch <id>
 
   and run validate-notes again. Never re-dispatch the whole batch for a few missing
   frames: the reader would read its other frames twice.
