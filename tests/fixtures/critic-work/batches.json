@@ -1,0 +1,16 @@
+{
+  "schema": "skipwatch/batches/1",
+  "batches": [
+    {
+      "id": 1,
+      "frame_ids": [
+        "f000100",
+        "f000250",
+        "f000400",
+        "f000500",
+        "f000560"
+      ],
+      "notes_path": "notes/batch-01.json"
+    }
+  ]
+}
