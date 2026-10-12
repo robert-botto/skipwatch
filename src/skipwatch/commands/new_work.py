@@ -6,8 +6,8 @@ the same home the engine uses (SKIPWATCH_HOME, else ~/.skipwatch), never a hand-
 
 import json
 import re
-import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -18,6 +18,23 @@ from skipwatch.runner import run_command
 from skipwatch.workdir import WorkDir, new_work_path
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
+MAX_TRIES = 600
+
+
+def _claim(slug: str, now: datetime) -> Path:
+    """Create the folder atomically; a parallel run that got this second moves to the next.
+
+    The name keeps the <slug>-<yyyymmdd-hhmmss> shape resume sorts by, so a collision takes
+    the next second's stamp rather than a suffix.
+    """
+    for offset in range(MAX_TRIES):
+        path = new_work_path(slug, now + timedelta(seconds=offset)).absolute()
+        try:
+            path.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            continue
+        return path
+    raise SkipwatchError(ExitCode.NO_CONTENT, f"no free work folder name for {slug}")
 
 
 def _new_work(slug: str, json_out: bool) -> int:
@@ -26,10 +43,7 @@ def _new_work(slug: str, json_out: bool) -> int:
             ExitCode.USAGE,
             f"bad slug {slug!r}: lowercase letters, digits and hyphens, 1 to 80 characters",
         )
-    path = new_work_path(slug, datetime.now()).absolute()
-    while path.exists():  # two runs in the same second: take the next free second
-        time.sleep(1)
-        path = new_work_path(slug, datetime.now()).absolute()
+    path = _claim(slug, datetime.now())
     work = WorkDir(path)
     work.ensure()
     (path / "logs").mkdir()

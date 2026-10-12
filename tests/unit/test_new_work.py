@@ -63,3 +63,25 @@ def test_new_work_bad_slug_is_usage_error(slug, sw_home, monkeypatch):
         cli.main()
     assert exc.value.code == ExitCode.USAGE
     assert not (sw_home / "work").exists()
+
+
+def test_parallel_new_work_calls_get_distinct_complete_folders(sw_home):
+    import os
+    import subprocess
+
+    cmd = [sys.executable, "-c", "from skipwatch.cli import main; main()"]
+    cmd += ["new-work", "--slug", "demo", "--json"]
+    env = {**os.environ, "SKIPWATCH_HOME": str(sw_home)}
+    procs = [
+        subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        for _ in range(6)
+    ]
+    results = [(p.wait(timeout=60), *p.communicate()) for p in procs]
+    for code, _, err in results:
+        assert code == 0, err
+    works = [Path(json.loads(out)["work"]) for _, out, _ in results]
+    assert len(set(works)) == 6  # never two runs in one folder
+    for work in works:
+        read_model(work / "stages.json", StagesFile)
+        assert (work / "logs").is_dir() and (work / "draft").is_dir()
+        assert re.fullmatch(r"demo-\d{8}-\d{6}", work.name)
