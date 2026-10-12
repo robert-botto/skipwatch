@@ -116,22 +116,17 @@ def skill_tree(skill_dir: Path) -> tuple[dict[str, Path], list[str]]:
     return dict(sorted(files.items())), sorted(ignored)
 
 
+def _read_tree(skill_dir: Path) -> tuple[dict[str, bytes], list[str]]:
+    """Every packable file's bytes, read once, without skipwatch.json; and the ignored names."""
+    files, ignored = skill_tree(skill_dir)
+    files.pop(MANIFEST_NAME, None)
+    return {rel: path.read_bytes() for rel, path in files.items()}, ignored
+
+
 def verify_files(skill_dir: Path, manifest: Manifest) -> list[str]:
     """Problems, one per file: '<rel>: hash mismatch' | '<rel>: not in manifest' | '<rel>: missing'.
     skipwatch.json and IGNORED_NAMES are not compared."""
-    files, _ = skill_tree(skill_dir)
-    files.pop(MANIFEST_NAME, None)
-    problems: dict[str, str] = {}
-    for rel, path in files.items():
-        expected = manifest.files.get(rel)
-        if expected is None:
-            problems[rel] = f"{rel}: not in manifest"
-        elif _sha256(path.read_bytes()) != expected:
-            problems[rel] = f"{rel}: hash mismatch"
-    for rel in manifest.files:
-        if rel not in files:
-            problems[rel] = f"{rel}: missing"
-    return [problems[rel] for rel in sorted(problems)]
+    return _manifest_problems(_read_tree(skill_dir)[0], manifest)
 
 
 def _read_manifest(skill_dir: Path) -> tuple[Manifest, bytes]:
@@ -187,14 +182,13 @@ def pack_skill(skill_dir: Path, out: Path | None) -> PackResult:
         raise SkipwatchError(
             ExitCode.CHECK_FAILED, f"{name} did not pass its checks, so it cannot be packed"
         )
-    problems = verify_files(skill_dir, manifest)
+    entries, ignored = _read_tree(skill_dir)  # hashed and zipped from these same bytes
+    problems = _manifest_problems(entries, manifest)
     if problems:
         raise _integrity(
             f"files changed since install: {'; '.join(problems)}; "
             "reinstall it from its work folder or run check again"
         )
-    files, ignored = skill_tree(skill_dir)
-    entries = {rel: path.read_bytes() for rel, path in files.items() if rel != MANIFEST_NAME}
     entries[MANIFEST_NAME] = manifest_bytes
     _check_limits(entries)
     out = (out if out is not None else Path.cwd() / f"{name}{PACK_SUFFIX}").absolute()

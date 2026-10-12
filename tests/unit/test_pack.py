@@ -1,6 +1,7 @@
 import json
 import os
 import zipfile
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -43,6 +44,26 @@ def test_pack_defaults_to_name_in_cwd(tmp_path, monkeypatch):
     result = pack_skill(skill, None)
     assert result.path == str(tmp_path / f"{NAME}.skillpack.zip")
     assert (tmp_path / f"{NAME}.skillpack.zip").is_file()
+
+
+def test_pack_reads_each_file_once_and_zips_the_bytes_it_hashed(tmp_path, monkeypatch):
+    skill = installed_skill(tmp_path)
+    original = (skill / "SKILL.md").read_bytes()
+    reads: dict[str, int] = {}
+    real = Path.read_bytes
+
+    def read_bytes(self):
+        reads[self.name] = reads.get(self.name, 0) + 1
+        data = real(self)
+        # an edit landing between a hash check and the zip write
+        return data + b"swapped" if self.name == "SKILL.md" and reads[self.name] > 1 else data
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    pack_skill(skill, tmp_path / "a.skillpack.zip")
+    monkeypatch.undo()
+    assert reads["SKILL.md"] == 1 and reads["f000250.jpg"] == 1
+    with zipfile.ZipFile(tmp_path / "a.skillpack.zip") as z:
+        assert z.read(f"{NAME}/SKILL.md") == original
 
 
 def test_pack_refuses_cookie_skill_exit_4(tmp_path):
