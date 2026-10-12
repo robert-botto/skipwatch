@@ -1575,3 +1575,10 @@ def test_critic_reasons_are_exclusive():
         assert "`critic not run` only under `--fast`" in text, path
         assert "only `critic failed twice`, never `critic not run`" in text, path
         assert "or no `critique.json`" not in text, path
+
+
+def test_copy_frames_exit_7_drops_the_links_and_continues():
+    text = flat(REFS / "run-protocol.md")
+    assert "Exit 7 (`frames.json` or a frame file is missing)" in text
+    assert "remove those image links from the draft" in text
+    assert "`frames not copied: <the engine's message>` under Unverified" in text

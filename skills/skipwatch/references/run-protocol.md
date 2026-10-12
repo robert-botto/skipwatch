@@ -403,7 +403,10 @@ Files (paths relative to the skill folder):
   The engine writes each frame as `<id>.jpg` scaled to 960 wide (3.4), before check takes
   the file hashes, so a later pack never changes a byte. Never copy or resize frames with
   `cp` or any other tool, and never Read them. Exit 64 names an unknown frame id or more
-  than 8 frames: fix the id list and run it once more. Every image link in the draft must
+  than 8 frames: fix the id list and run it once more. Exit 7 (`frames.json` or a frame
+  file is missing): copy no frames, remove those image links from the draft (and redact
+  the changed file into staging again), record
+  `frames not copied: <the engine's message>` under Unverified, and continue. Every image link in the draft must
   name a copied file, or the structure check fails on a missing reference. Pick the
   frames that support on-screen steps. `--no-frames` skips this folder and its image
   links.
