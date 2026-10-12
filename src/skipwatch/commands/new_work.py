@@ -21,6 +21,13 @@ SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
 MAX_TRIES = 600
 
 
+def _cannot_create(path: Path, exc: OSError) -> SkipwatchError:
+    # one line for the orchestrator, which then moves the home into the project (stage 2)
+    return SkipwatchError(
+        ExitCode.NO_CONTENT, f"cannot create the work folder {path}: {exc.strerror or exc}"
+    )
+
+
 def _claim(slug: str, now: datetime) -> Path:
     """Create the folder atomically; a parallel run that got this second moves to the next.
 
@@ -33,6 +40,8 @@ def _claim(slug: str, now: datetime) -> Path:
             path.mkdir(parents=True, exist_ok=False)
         except FileExistsError:
             continue
+        except OSError as exc:
+            raise _cannot_create(path, exc) from exc
         return path
     raise SkipwatchError(ExitCode.NO_CONTENT, f"no free work folder name for {slug}")
 
@@ -44,10 +53,12 @@ def _new_work(slug: str, json_out: bool) -> int:
             f"bad slug {slug!r}: lowercase letters, digits and hyphens, 1 to 80 characters",
         )
     path = _claim(slug, datetime.now())
-    work = WorkDir(path)
-    work.ensure()
-    (path / "logs").mkdir()
-    (path / "draft").mkdir()
+    try:
+        WorkDir(path).ensure()
+        (path / "logs").mkdir()
+        (path / "draft").mkdir()
+    except OSError as exc:
+        raise _cannot_create(path, exc) from exc
     progress(f"Work folder: {path}")
     print(json.dumps({"work": str(path)}) if json_out else str(path))
     return 0
