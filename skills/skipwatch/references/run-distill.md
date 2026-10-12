@@ -140,11 +140,18 @@ whole folder again.
 - Exit 5: the same line with `safety <k> flags`; continue.
 - Exit 1: fix only the items in `<W>/check-report.json` by rewriting the draft copies,
   redact them again, and re-run check.
-- When only redaction failed, the single retry removes or fixes that file: an archive,
-  or a binary that is not an image or media file, is deleted from draft and staging with
-  every link to it; a file with a secret in its file name is renamed in the draft and its
-  old staging copy deleted; a key split across lines is joined in the draft so redaction
-  replaces it. A frame that showed a secret is removed by check; drop its image link.
+- When only redaction failed, the single retry removes or fixes that file (`<rel>` is its
+  path inside the skill):
+  - an archive, or a binary that is not an image or media file: delete its draft and
+    staged copies, then rewrite every link to it out of the drafts:
+
+        <ENGINE> --log "<W>/logs/drop.log" drop --work "<W>" --path "<rel>"
+
+  - a file with a secret in its file name: rewrite it under a new name (Read, then Write
+    the draft; `redact --in`/`--out` into staging), update its links, then `drop` the old
+    `<rel>`;
+  - a key split across lines: join it in the draft so redaction replaces it.
+  A frame that showed a secret is removed by check; drop its image link from the draft.
 - A second exit 1 stops: the failing items, one line each, then
   `Check failed twice. Draft kept at <W>/staging/<name>/. Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"`,
   with `<ENGINE>` expanded to the full command, since plain `skipwatch` is not on PATH.

@@ -1368,6 +1368,9 @@ def test_check_retry_removes_or_fixes_an_unredactable_file():
     assert "the single retry removes or fixes that file" in text  # 8.7
     for kind in ("archive", "binary", "secret in its file name", "split across lines"):
         assert kind in text, kind
+    # the engine deletes one draft/staged file, confined; never an rm by hand
+    assert logged("drop") + ' --work "<W>" --path "<rel>"' in text
+    assert "then `drop` the old `<rel>`" in text
 
 
 def test_referenced_frames_copied_into_staging_before_check():
