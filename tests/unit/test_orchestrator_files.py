@@ -239,9 +239,7 @@ def test_no_engine_call_uses_a_shell_redirect():
     conventions = flat(REFS / "run-engine.md")
     assert "Never add a redirect (`<`, `>`): commands that write files take `--out`" in conventions
     assert "where shown, a redirect to a file" not in conventions
-    assert "Any other step (`mkdir -p`, `test -e`, reading a file) is its own Bash call" in (
-        conventions
-    )
+    assert "Any other step (`mkdir -p`, reading a file) is its own Bash call" in (conventions)
     for path, command in _engine_command_lines():
         assert not _redirects(command.split("<ENGINE>", 1)[1]), (path.name, command)
     assert _redirects(' redact --stdin < "<W>/draft/x" > "<W>/staging/x"') == ["<", ">"]
@@ -331,7 +329,10 @@ def test_run_protocol_yes_gate():
         "Under `--yes`, install without asking only if safety flags, gaps and name "
         "collisions are all zero" in text
     )  # R-REV-1
-    assert 'test -e "$HOME/.claude/skills/<name>"' in text  # $HOME, never a quoted tilde
+    # the engine reports the collision as a line, never an exit code to interpret
+    assert '<ENGINE> target-free --to "<dir>" --name "<name>"' in text
+    assert "`target free: <path>` or `target exists: <path>`" in text
+    assert "test -e" not in text
     assert '"~/' not in text
     assert "--to <dir>` to absolute paths" in text
     assert "--keep-media" in text and "<W>/media/" in text
@@ -563,13 +564,12 @@ def test_agents_list_exactly_the_tools_their_text_uses(name):
     assert named == tools, (named, tools)
 
 
-def test_allowed_tools_are_the_engine_plus_two_harmless_prefixes():
+def test_allowed_tools_are_the_engine_plus_mkdir():
     rules = allowed_tools()["Bash"]
     assert rules == [
         '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *',
         "${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch *",
         "mkdir -p *",
-        "test -e *",
     ]
 
 
@@ -578,7 +578,7 @@ def test_allowed_tools_cover_every_command_the_skill_runs():
     engine = '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *'
     assert engine in rules  # the quoted wrapper form every engine call uses
     commands = _shell_commands()
-    assert len(commands) >= 3  # housekeeping moved into the engine
+    assert len(commands) >= 2  # only mkdir -p runs outside the engine
     for name, command in commands:
         assert any(_rule_covers(r, command) for r in rules), (name, command)
     # and no rule for a command the skill no longer runs

@@ -35,7 +35,7 @@ Resume. These placeholders and conventions hold everywhere.
 - Every engine call is one simple command: the engine, its arguments and `--log`. Never
   add a redirect (`<`, `>`): commands that write files take `--out`. Never chain `;`,
   `&&`, `|` or `2>&1` onto it; permission rules deny a chained call. Any other step
-  (`mkdir -p`, `test -e`, reading a file) is its own Bash call.
+  (`mkdir -p`, reading a file) is its own Bash call.
 - Progress output: every line printed during a run is one line naming the stage and the
   elapsed seconds, for example `Sampling frames: 21 kept from 1:00 of video (4s)`. No
   tables, no multi-line status, no echo of engine output.
