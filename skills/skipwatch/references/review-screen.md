@@ -72,9 +72,10 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
   computed from `calls.json`, never from `treg balance`, which you never run or print. For
   example `treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012)`.
-  Rows without a `call_id` are not billed calls: `media.get` rows are the download of a
-  treg media URL (`$0.0000`), and a row whose `error` is `cost cap` never ran: it shows
-  as `<op> refused (cost cap)` and adds nothing to the total. When `route.fallbacks` in
+  Two kinds of treg row add nothing to the total: `media.get` rows, the download of a
+  treg media URL, shown as `media.get $0.0000`; and rows whose `error` is `cost cap`,
+  which never ran, shown as `<op> refused (cost cap)`. Every other treg row counts with
+  its `cost_usd`, even one without a `call_id`. When `route.fallbacks` in
   `W/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
   cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
   `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be

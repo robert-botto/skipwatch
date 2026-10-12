@@ -1205,8 +1205,11 @@ def test_provider_calls_line_lists_each_call_and_the_total():
     assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
     example = "treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012"
     assert example in review
-    # rows without a call id: a media download costs nothing; a cap refusal never ran
+    # a treg call without a stderr call id can still carry cost_usd from its body, so the
+    # exclusions are named, not inferred from a missing call_id
     assert "`media.get` rows" in review and "`<op> refused (cost cap)`" in review
+    assert "rows whose `error` is `cost cap`" in review
+    assert "not billed calls" not in review
     assert "`cost_usd`" in review and "`op`" in review
     # the total is computed from calls.json, never from the treg balance
     assert "never from `treg balance`" in review
