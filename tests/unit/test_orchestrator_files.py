@@ -594,6 +594,14 @@ def test_work_folder_falls_back_inside_the_workspace():
     assert "work folder moved into the project" in review
 
 
+def test_exit_7_has_one_wording_per_stage():
+    # SKILL.md defers to the stage's own message, so the two files never disagree
+    skill = read(SKILL / "SKILL.md")
+    [row] = [line for line in skill.splitlines() if line.startswith("| 7 |")]
+    assert "the message `run-protocol.md` gives for that stage" in row
+    assert "No usable content" not in skill
+
+
 def test_install_exit_1_rechecks_once():
     text = flat(SKILL / "SKILL.md")
     assert "staging changed since check" in text
