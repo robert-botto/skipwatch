@@ -319,3 +319,17 @@ def test_pack_guard_run_transcript_fails(tmp_path):
 def test_pack_guard_allows_the_real_pack_folder(tmp_path):
     staging, work = pack_ctx(tmp_path, _skill(SPOKEN_STEP), transcript=PACK_TRANSCRIPT)
     assert _run(staging, work).ok
+
+
+STAGING = "pack mode refused: the staging folder is not <work>/staging/<name>"
+
+
+def test_pack_guard_run_staging_with_a_legit_pack_work_fails(tmp_path):
+    # `check <run work>/staging/<name> --work <packs/<name>-<stamp>>`: the run's unverified
+    # on-screen quote must not be skipped because a real pack folder was named as --work.
+    _, pack_work = pack_ctx(tmp_path, _skill(SPOKEN_STEP), transcript=PACK_TRANSCRIPT)
+    run_work = skipwatch_home() / "work" / "20261011-120000-run"
+    run_staging = run_work / "staging" / NAME
+    run_staging.mkdir(parents=True)
+    (run_staging / "SKILL.md").write_text(_skill(ONSCREEN_STEP), encoding="utf-8")
+    _refused(_run(run_staging, pack_work), STAGING)

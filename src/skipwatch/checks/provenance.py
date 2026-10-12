@@ -241,6 +241,8 @@ def _pack_refusal(ctx: CheckContext) -> str | None:
     work = ctx.work.resolve()
     if (skipwatch_home() / "packs").resolve() not in work.parents:
         return "the work folder is not under $SKIPWATCH_HOME/packs/"
+    if ctx.staging.resolve().parent != work / "staging":
+        return "the staging folder is not <work>/staging/<name>"
     if (work / "batches.json").exists() or (work / "notes").exists():
         return "the work folder has frame notes (notes/ or batches.json)"
     if ctx.transcript is not None and ctx.transcript.origin != "pack":
