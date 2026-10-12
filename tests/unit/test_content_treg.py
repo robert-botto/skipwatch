@@ -860,3 +860,41 @@ def test_availability_is_checked_once_per_run(tmp_path, treg_on, monkeypatch, sw
     runner = FakeRunner()
     run(G2_URL, work(tmp_path), TregProvider(runner=runner), monkeypatch)
     assert [a[1] for a in runner.argvs].count("balance") == 1
+
+
+# ---- cost parsing (review item 5) ----
+
+ESTIMATE = CATALOG_PRICES["anyapi.twitter.thread"]
+
+
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        (f"treg: charged $0.00375 {DOT} call id abcdef0123456789", 0.00375),
+        (f"treg: charged $1e-05 {DOT} call id abcdef0123456789", 0.00001),
+        (
+            "treg: charged $0.001 · call id aaaaaaaa1\ntreg: charged $0.004 · call id bbbbbbbb2",
+            0.005,
+        ),
+        ("treg: HTTP 502 - the provider answered; call id abcdef01; charged $0.002", 0.002),
+        ("treg: charged $0.01 by the original call (this is a replay, nothing new charged)", 0.0),
+        # unparsable: never trust a partial number, count the estimate
+        (f"treg: charged $0,00375 {DOT} call id abcdef0123456789", ESTIMATE),
+        ("treg: charged $.004 call id abcdef01", ESTIMATE),
+        ("treg: charged US$0.004", ESTIMATE),
+    ],
+)
+def test_cost_comes_from_every_charge_line(stderr, expected):
+    body = recorded("anyapi.twitter.thread") | {"costUsd": 0.002}  # never the fallback here
+    ok = subprocess.CompletedProcess([], 0, stdout=json.dumps(body), stderr=stderr)
+    c = client(FakeRunner({"anyapi.twitter.thread": ok}))
+    c.call("anyapi.twitter.thread", body={"url": G2_URL})
+    assert c.calls[0].cost_usd == pytest.approx(expected)
+    assert c.spent == pytest.approx(expected)
+
+
+def test_failed_call_without_a_charge_line_counts_the_estimate():
+    failed = subprocess.CompletedProcess([], 1, stdout="", stderr="upstream 502 after billing\n")
+    c = client(FakeRunner({"anyapi.twitter.thread": failed}))
+    c.call("anyapi.twitter.thread", body={"url": G2_URL})
+    assert c.spent == pytest.approx(ESTIMATE) and c.calls[0].cost_usd == pytest.approx(ESTIMATE)

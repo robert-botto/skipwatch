@@ -90,7 +90,9 @@ CALL_TIMEOUT_S = 60
 REVIEW_TIMEOUT_S = 20
 LOGIN_TIMEOUT_S = 10
 CAP_REACHED = "treg: cost cap reached"
-_CHARGED = re.compile(r"charged \$(\d+(?:\.\d+)?(?:e-?\d+)?)", re.IGNORECASE)
+# a whole number only: "$0,00375" or "$.004" must not read as a smaller charge
+_CHARGED = re.compile(r"charged \$(\d+(?:\.\d+)?(?:e-?\d+)?)(?![\d.,])", re.IGNORECASE)
+_MENTIONS_CHARGE = re.compile(r"\bcharged\b(?! by the original call)", re.IGNORECASE)
 _CALL_ID = re.compile(r"call id ([0-9a-f]{8,})", re.IGNORECASE)
 _REPLAY = "nothing new charged"
 THREAD = "anyapi.twitter.thread"
@@ -151,11 +153,25 @@ def _first_line(text: str) -> str:
     return line[:200] or "failed"
 
 
+class Unparsable(Exception):
+    """A stderr line speaks of a charge SkipWatch cannot read."""
+
+
 def _charged(stderr: str) -> float | None:
-    if _REPLAY in (stderr or ""):
-        return 0.0
-    match = _CHARGED.search(stderr or "")
-    return float(match.group(1)) if match else None
+    """The sum of every `charged $X` line (a replay is 0), None when no line mentions a
+    charge; Unparsable when one does but its amount is not a plain number."""
+    total, seen = 0.0, False
+    for line in (stderr or "").splitlines():
+        if "charged" not in line.lower():
+            continue
+        seen = True
+        if _REPLAY in line:
+            continue
+        amounts = _CHARGED.findall(line)
+        if len(amounts) != len(_MENTIONS_CHARGE.findall(line)) or not amounts:
+            raise Unparsable(line)
+        total += sum(float(amount) for amount in amounts)
+    return total if seen else None
 
 
 def _body_cost(body: Any) -> float | None:
@@ -269,11 +285,14 @@ class TregClient:
                 data, error = None, "not JSON"
             else:
                 data, error = _payload(parsed)
-        cost = _charged(stderr)
+        try:
+            cost = _charged(stderr)
+        except Unparsable:
+            cost = estimate  # never trust a partial number: count the worst case
         if cost is None:
             cost = _body_cost(parsed)
-        if cost is None:
-            cost = estimate if data is not None else 0.0
+        if cost is None:  # no word on the bill: assume it was paid unless clearly not
+            cost = estimate if data is not None or out.returncode != 0 else 0.0
         self.spent += cost
         self._log(
             endpoint,
