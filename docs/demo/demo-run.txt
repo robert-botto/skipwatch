@@ -1,0 +1,18 @@
+> /skipwatch https://x.com/mattpocockuk/status/1505892984658743300 --yes --name g2-skill
+
+Skill ready for review: g2-skill
+  Triggers: "add a DeepPartial type", "make every nested field optional in my test fixture", "Partial only goes one level deep, how do I mock a nested object"
+  Steps: 4 (1 spoken, 2 on-screen, 0 written, 1 inferred), 0 gaps
+  Unverified: step 3 (DeepPartial<Post> annotation on the mock not in any read frame)
+  Unread frames: none
+  Safety flags: none
+  Confidence: medium (critic not run)
+  Source: "Matt Pocock - 🔥 TypeScript Tip #11 🔥  Deep partials are SUPER useful and not native..." by @mattpocockuk, 2022-03-21
+  Provider calls: treg: 3 calls, $0.0054 (x.thread $0.0038, x.comments $0.0005, x.transcript $0.0012)
+  Draft: ~/.skipwatch/work/g2-skill-20261011-224920/staging/g2-skill/
+  Cross-check: 0.95 against treg:anyapi.twitter.tweet_transcript
+
+Installing (--yes, nothing to review)
+
+Installed to ~/.claude/skills/g2-skill. Try it: "add a DeepPartial type".
+This skill credits @mattpocockuk. Source: https://x.com/mattpocockuk/status/1505892984658743300
