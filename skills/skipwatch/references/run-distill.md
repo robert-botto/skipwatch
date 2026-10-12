@@ -59,14 +59,14 @@ Write the skill from `skill-template.md`; pick `<name>` by the naming rule unles
   `frames not copied: <the engine's message>` (`note --degradation`), and continue. Every image
   link must name a copied file. `--no-frames` skips the folder and its links.
 
-Every prose block goes through `<ENGINE> redact --stdin` before it reaches staging, one
-file at a time:
+Every prose block goes through `<ENGINE> redact` before it reaches staging, one file at a
+time:
 
 1. Write the raw file with the Write tool to `<W>/draft/<path>`.
-2. Make its staging folder once, as its own Bash call (for example
-   `mkdir -p "<W>/staging/<name>/references"`), then:
+2. Redact it into staging; the engine creates the folders and refuses paths outside
+   `<W>/draft` and `<W>/staging` (exit 64):
 
-       <ENGINE> --log "<W>/logs/redact.log" redact --stdin < "<W>/draft/<path>" > "<W>/staging/<name>/<path>"
+       <ENGINE> --log "<W>/logs/redact.log" redact --work "<W>" --in "<W>/draft/<path>" --out "<W>/staging/<name>/<path>"
 
 3. A non-zero rc means the staged file is incomplete: re-run once, then stop with the
    engine's last log line.

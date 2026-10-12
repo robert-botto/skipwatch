@@ -129,7 +129,7 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 - Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says
   "Do not start other agents." and states a time budget.
   Use those namespaced agent types with the prompts the run files give.
-- Draft text reaches staging only through `<ENGINE> redact --stdin`, file to file, and
+- Draft text reaches staging only through `<ENGINE> redact`, file to file, and
   never appears inside a Bash command.
 - Install only after the user's yes, or under `--yes` with zero safety flags, gaps and
   collisions; `--force` only after the user chose replace.

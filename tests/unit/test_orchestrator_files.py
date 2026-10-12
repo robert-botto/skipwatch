@@ -265,12 +265,12 @@ def test_run_protocol_parallel_readers_and_r_dis_4():
 
 def test_run_protocol_redaction_and_check_loop():
     text = protocol_flat()
-    assert "Every prose block goes through `<ENGINE> redact --stdin`" in text  # R-CHK-2
-    # the draft reaches redact through files only: no shell ever parses draft text
-    assert (
-        '<ENGINE> --log "<W>/logs/redact.log" redact --stdin < "<W>/draft/<path>" '
-        '> "<W>/staging/<name>/<path>"' in text
+    assert "Every prose block goes through `<ENGINE> redact`" in text
+    # the draft reaches redact through files only, and no shell redirect is involved
+    redact = (
+        logged("redact") + ' --work "<W>" --in "<W>/draft/<path>" --out "<W>/staging/<name>/<path>"'
     )
+    assert redact in text and "redact --stdin" not in text
     assert "A second exit 1 stops" in text  # 8.7
     assert "Exit 5" in text
 
@@ -302,7 +302,7 @@ def test_distill_rules():
         assert tag in text, tag  # R-DIS-3
     assert "[illegible at mm:ss]" in text  # R-DIS-2
     assert "GAP:" in text
-    assert "<ENGINE> redact --stdin" in text and "<W>/draft/" in text
+    assert "<ENGINE> redact" in text and "<W>/draft/" in text
     assert "heredoc" not in text
     assert "lowercase, hyphenated, verb-led, describe the workflow" in text  # R-DIS-5
     assert "never contain the creator's name" in text
@@ -539,7 +539,7 @@ def test_skill_md_body():
         "Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch "
         'says "Do not start other agents." and states a time budget.' in text
     )
-    assert "<ENGINE> redact --stdin" in text  # R-CHK-2
+    assert "<ENGINE> redact" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
     assert "arrives in M5" not in text  # list, pack, install and share are real in M5
     assert "arrives in M2" not in text  # URLs and resume are real in M2
@@ -895,7 +895,7 @@ def test_one_placeholder_style_and_two_confidences_kept_apart():
     for path in PROMPT_FILES:
         found = re.findall(r"(?<![<\w])W(?:/|`)", read(path))
         assert not found, (path, found)  # always `<W>`, never a bare W
-    assert "skipwatch redact --stdin" not in read(REFS / "skill-template.md")
+    assert "skipwatch redact" not in read(REFS / "skill-template.md").replace("<ENGINE> redact", "")
     reader = flat(ROOT / "agents/frame-reader.md")
     assert "not the skill's confidence grade" in reader
 

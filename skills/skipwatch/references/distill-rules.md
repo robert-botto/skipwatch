@@ -65,7 +65,7 @@ context beats frames (`[written]`). Inferred steps are listed by number under
 
 ## Redaction
 
-Every file reaches staging only through `<ENGINE> redact --stdin`, from its copy in
+Every file reaches staging only through `<ENGINE> redact`, from its copy in
 `<W>/draft/` (stage 6 in `run-distill.md`). The engine replaces keys, tokens and
 passwords with placeholders such as `<OPENAI_API_KEY>`; never hand-redact or re-insert a
 value you saw in a note. A step that shows a secret uses the placeholder.
