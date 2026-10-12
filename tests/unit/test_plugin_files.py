@@ -43,6 +43,9 @@ def test_plugin_skill_frontmatter():
     # Bash is narrowed to rules (verified live), never a bare grant
     assert re.search(r"(^|,)\s*Bash\s*(,|$)", raw) is None
     assert 'Bash("${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *)' in raw
+    # housekeeping moved into the engine: only two harmless prefixes remain
+    for wide in ("rm -rf", "cp -R", "find", "printenv", "touch", "date"):
+        assert f"Bash({wide}" not in raw, wide
 
 
 def test_no_em_dash_in_plugin_files():

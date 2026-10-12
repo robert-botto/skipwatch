@@ -482,6 +482,24 @@ def _rule_covers(pattern: str, command: str) -> bool:
     return re.fullmatch(regex, command) is not None
 
 
+# Commands with no engine equivalent yet: they ask for permission instead of widening
+# allowed-tools (the critic's invalid score file and a pack's work folder under packs/).
+STILL_PROMPTS = {
+    'rm -f "<W>/critique.json"',
+    'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"',
+}
+
+
+def test_allowed_tools_are_the_engine_plus_two_harmless_prefixes():
+    rules = allowed_tools()["Bash"]
+    assert rules == [
+        '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *',
+        "${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch *",
+        "mkdir -p *",
+        "test -e *",
+    ]
+
+
 def test_allowed_tools_cover_every_command_the_skill_runs():
     rules = allowed_tools()["Bash"]
     engine = '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *'
@@ -489,9 +507,12 @@ def test_allowed_tools_cover_every_command_the_skill_runs():
     commands = _shell_commands()
     assert len(commands) >= 3  # housekeeping moved into the engine
     for name, command in commands:
+        if command in STILL_PROMPTS:
+            assert not any(_rule_covers(r, command) for r in rules), command
+            continue
         assert any(_rule_covers(r, command) for r in rules), (name, command)
     # and no rule for a command the skill no longer runs
-    used = {command.split(" ", 1)[0] for _, command in commands} | {"touch"}
+    used = {command.split(" ", 1)[0] for _, command in commands}
     for rule in rules:
         word = rule.split(" ", 1)[0]
         if "scripts/skipwatch" not in word:
