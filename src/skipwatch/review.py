@@ -16,7 +16,14 @@ from pydantic import BaseModel
 from skipwatch.crosscheck import disagreement
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.manifest import MANIFEST_NAME, read_work_file
-from skipwatch.models import CheckReport, IngestBundle, Manifest, PackOrigin, Transcript
+from skipwatch.models import (
+    CheckReport,
+    DegradationsFile,
+    IngestBundle,
+    Manifest,
+    PackOrigin,
+    Transcript,
+)
 from skipwatch.providers.transcribe_cloud import DeepgramBackend, GroqBackend, OpenAIBackend
 from skipwatch.skillmd import SkillDoc, parse
 
@@ -28,6 +35,7 @@ COOKIES_LINE = "Fetched with your browser cookies: this skill cannot be packed f
 CACHED_TRANSCRIPT = "Transcribe: reused cached transcript ("
 CLOUD_KEYS = {b.name: b.env for b in (OpenAIBackend, GroqBackend, DeepgramBackend)}
 PACK_SKIPPED = re.compile(r"^shared pack: (\d+) quoted step")
+DEGRADATIONS_FILE = "degradations.json"
 INFERRED_REASON = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*(.+?)\s*$"
 
 
@@ -63,6 +71,29 @@ def _required(path: Path, cls: type[M]) -> M:
     return read_work_file(path, cls)
 
 
+def read_degradations(work: Path) -> DegradationsFile:
+    """What `note` recorded, or nothing; a broken file is exit 7 with its name."""
+    path = work / DEGRADATIONS_FILE
+    if not path.is_file():
+        return DegradationsFile()
+    try:
+        return read_work_file(path, DegradationsFile)
+    except SkipwatchError as exc:
+        raise SkipwatchError(
+            exc.code, f"{exc.message}; delete {path} and note the degradations again"
+        ) from exc
+
+
+def _with_noted(work: Path, inputs: ReviewInputs) -> ReviewInputs:
+    """The recorded file first, then the command line, without repeats."""
+    noted = read_degradations(work)
+    return ReviewInputs(
+        degradations=_unique(noted.degradations + inputs.degradations),
+        unread=_unique(noted.unread + inputs.unread),
+        test_run=inputs.test_run,
+    )
+
+
 def _load(work: Path, skill: Path, inputs: ReviewInputs) -> _Run:
     report = _required(work / "check-report.json", CheckReport)
     if report.provider_calls_line is None:
@@ -85,7 +116,7 @@ def _load(work: Path, skill: Path, inputs: ReviewInputs) -> _Run:
         ingest=ingest,
         doc=parse(skill_md.read_bytes().decode("utf-8", errors="replace")),
         transcript=transcript,
-        inputs=inputs,
+        inputs=_with_noted(work, inputs),
     )
 
 

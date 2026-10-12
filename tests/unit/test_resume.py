@@ -276,3 +276,11 @@ def test_text_source_resume_skips_the_video_stages(tmp_path):
 def test_video_source_still_resumes_at_transcribe(tmp_path):
     w = work_at(tmp_path / "w", done=("detect", "ingest"), run_json=True)
     assert resume_info(w.path).next_stage == "transcribe"  # no ingest.json: not text
+
+
+def test_a_cleaned_text_run_stays_complete(tmp_path, sw_home):
+    # cleanup deletes ingest.json, which is how resume knew the video stages never ran
+    w = text_run(tmp_path, done=("detect", "ingest", "distill", "critique", "check", "review"))
+    w.mark("install", "done")
+    w.file("ingest.json").unlink()
+    assert resume_info(w.path).next_stage is None

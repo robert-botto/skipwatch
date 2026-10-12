@@ -48,7 +48,10 @@ def register(app: typer.Typer) -> None:
         ] = None,
         json_out: bool = typer.Option(False, "--json", help='Print {"screen": <text>}.'),
     ):
-        """Print the review screen (without the prompt line) from the run's files."""
+        """Print the review screen (without the prompt line) from the run's files.
+
+        Noted degradations and unread frames (degradations.json) come before these flags.
+        """
         run_command(
             lambda: _review(work, skill, degradation or [], unread or [], test_run, json_out)
         )

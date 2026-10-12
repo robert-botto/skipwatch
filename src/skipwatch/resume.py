@@ -80,9 +80,13 @@ def _is_text(work: Path) -> bool:
 def next_stage(work: Path) -> StageName | None:
     """The first stage not done; a run whose only missing stage is export is complete
     unless exports are on, since export never runs before M6. A text source skips the
-    video stages, which never run for it."""
+    video stages, which never run for it. Once install is done only export can remain:
+    cleanup deletes ingest.json, so a finished text run no longer reads as text."""
     stages = _stages(work).stages
     skip: tuple[StageName, ...] = VIDEO_STAGES if _is_text(work) else ()
+    install = stages.get("install")
+    if install is not None and install.status == "done":
+        skip = STAGE_ORDER[: STAGE_ORDER.index("export")]
     stage: StageName | None = None
     for name in STAGE_ORDER:
         if name not in skip and (name not in stages or stages[name].status != "done"):

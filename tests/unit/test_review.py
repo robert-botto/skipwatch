@@ -394,3 +394,54 @@ def test_high_confidence_prints_no_reasons_even_when_some_apply(tmp_path):
     (work / "transcript.json").unlink()
     lines = lines_of(work, staging, "--unread", "f006032 (reader failed twice)")
     assert line(lines, "Confidence:") == "  Confidence: high"
+
+
+def test_noted_degradations_and_unread_frames_reach_the_screen(sw_home):
+    from skipwatch.workdir import WorkDir
+
+    work, staging = run_case(sw_home / "work")  # <home>/work/work: note checks the root
+    WorkDir(work).ensure()  # note needs a work folder's stages.json
+    for args in (
+        ("--degradation", "critic failed twice"),
+        ("--unread", "f006032 (reader failed twice)"),
+    ):
+        r = CliRunner().invoke(app, ["note", "--work", str(work), *args])
+        assert r.exit_code == 0, r.output
+    lines = lines_of(work, staging)
+    assert line(lines, "Confidence:") == "  Confidence: medium (critic failed twice; frames unread)"
+    assert line(lines, "Unread frames:") == "  Unread frames: f006032 (reader failed twice)"
+
+
+def test_noted_items_come_first_and_command_line_repeats_are_dropped(tmp_path):
+    from skipwatch.models import DegradationsFile
+    from skipwatch.workdir import write_model
+
+    work, staging = run_case(tmp_path)
+    noted = DegradationsFile(
+        degradations=["no transcript"], unread=["f000100 (reader failed twice)"]
+    )
+    write_model(work / "degradations.json", noted)
+    lines = lines_of(
+        work,
+        staging,
+        "--degradation",
+        "test run failed twice",
+        "--degradation",
+        "no transcript",
+        "--unread",
+        "f000200 (reader failed twice)",
+        "--unread",
+        "f000100 (reader failed twice)",
+    )
+    assert line(lines, "Unverified:") == "  Unverified: no transcript; test run failed twice"
+    assert line(lines, "Unread frames:") == (
+        "  Unread frames: f000100 (reader failed twice), f000200 (reader failed twice)"
+    )
+
+
+def test_an_invalid_degradations_file_is_exit_7_naming_it(tmp_path):
+    work, staging = run_case(tmp_path)
+    (work / "degradations.json").write_text("{not json", encoding="utf-8")
+    r = review(work, staging)
+    assert r.exit_code == ExitCode.NO_CONTENT
+    assert "degradations.json" in r.stderr and "delete" in r.stderr
