@@ -299,6 +299,22 @@ def test_unpack_work_must_be_a_new_folder_directly_under_packs(tmp_path, sw_home
     assert Path(result.work).parent == packs.resolve()
 
 
+@pytest.mark.parametrize("breaks", ["write_model", "transcript_from_markdown"])
+def test_unpack_failure_leaves_no_work_folder(tmp_path, sw_home, monkeypatch, breaks):
+    pack = good_pack(tmp_path)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(pack_mod, breaks, boom)
+    with pytest.raises(RuntimeError):
+        unpack(pack, None, now=NOW)
+    assert list((sw_home / "packs").iterdir()) == []
+    with pytest.raises(RuntimeError):
+        unpack(pack, sw_home / "packs" / "mine", now=NOW)
+    assert not (sw_home / "packs" / "mine").exists()
+
+
 def test_transcript_from_markdown_parses_and_rejects():
     got = transcript_from_markdown(
         "# Transcript\n\n[00:05] first line\n[01:10] second\nnot a line\n[1:02:03] third\n"
