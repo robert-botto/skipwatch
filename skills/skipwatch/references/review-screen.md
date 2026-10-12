@@ -72,7 +72,11 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   example `treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012)`.
   Rows without a `call_id` are not billed calls: `media.get` rows are the download of a
   treg media URL (`$0.0000`), and a row whose `error` is `cost cap` never ran: it shows
-  as `<op> refused (cost cap)` and adds nothing to the total. When `W/ingest.json` has `from_cache`
+  as `<op> refused (cost cap)` and adds nothing to the total. When `route.fallbacks` in
+  `W/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
+  cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
+  `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be
+  missing and can raise the cap. When `W/ingest.json` has `from_cache`
   true, the metadata came from the 7-day run cache (R-TR-3): append
   `; cached from <date>` (the date from the ingest log's cache line, else
   `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.

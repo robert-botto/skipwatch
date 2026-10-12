@@ -1205,3 +1205,12 @@ def test_provider_calls_line_lists_each_call_and_the_total():
     assert "`cost_usd`" in review and "`op`" in review
     # the total is computed from calls.json, never from the treg balance
     assert "never from `treg balance`" in review
+
+
+def test_treg_cost_cap_is_surfaced():
+    review = flat(REFS / "review-screen.md")
+    assert "`treg: cost cap reached`" in review  # the engine's route.fallbacks entry
+    assert "`; treg cost cap reached ($<max_cost_usd>)`" in review
+    assert "`[providers.treg] max_cost_usd`" in review
+    text = flat(REFS / "run-protocol.md")
+    assert "treg cost cap reached" in text  # said in the ingest progress line too

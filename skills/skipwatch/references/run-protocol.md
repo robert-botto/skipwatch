@@ -208,6 +208,8 @@ Run, each timed as above:
    - Exit 7: stop with `No usable content in <input>: no video, audio or text.` A text-only
      X post on the free route says so itself; quote it:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
+   - When `route.fallbacks` in `ingest.json` has `treg: cost cap reached`, add
+     `, treg cost cap reached` to the progress line; the review screen says it again.
    - Exit 8 under `--provider treg`: stop with the engine's line (treg missing or not
      logged in). Under `auto` a missing provider is skipped silently by the engine.
    - Linked video (spike decision 2): when `route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`,
