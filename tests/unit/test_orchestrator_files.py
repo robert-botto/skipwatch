@@ -1034,6 +1034,8 @@ def test_exit_8_degrades_and_offers_on_the_review_screen():
     assert "Run it only after the user picks it" in review
     assert _before(review, "Run it only after the user picks it", "timeout: 600000")
     # the install's output goes to a log, not into context
+    # uv writes errors to stderr and 2>&1 is banned, so the failure line comes from stderr
+    assert "show the last line of the stderr the Bash tool returned" in review
     assert "redirected to `<W>/logs/whisper-install.log` (one redirect, nothing chained)" in review
     skill = flat(SKILL / "SKILL.md")
     assert "Do not ask to install anything mid-run" not in skill
