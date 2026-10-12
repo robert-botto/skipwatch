@@ -974,6 +974,8 @@ def test_ingest_passes_provider_and_cookies_only_from_flags():
 
 def test_ingest_url_failures_are_explained():
     text = protocol_flat()
+    # probe fails before ingest ran, so its route lines are in probe.log
+    assert "reading `<W>/logs/probe.log` where that says `ingest.log`" in text
     assert "Exit 3: Read `<W>/logs/ingest.log` and print every route line" in text
     assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
     assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text

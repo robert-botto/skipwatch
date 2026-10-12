@@ -142,7 +142,8 @@ so resume can repeat the run. `flags` holds every flag token in order, `--to` ab
    - Print `Checking the source: <m:ss> of video, captions <yes|no> (<n>s)`; with a null
      `duration_s`, `Checking the source: time unknown, captions <yes|no> (<n>s)`, no
      long-video question, and foreground stages.
-   - Exit 2, 3, 4 or 7: as the same ingest exit below.
+   - Exit 2, 3, 4 or 7: as the same ingest exit below, reading `<W>/logs/probe.log` where
+     that says `ingest.log`; nothing was downloaded.
 2. When `long_video` is true, print `Long video: <mm:ss>, about <n> min to process.`
    (`<n>` is `estimated_run_s` / 60 rounded up; if null, `Long video: <mm:ss>, time unknown.`)
    and continue only under `--yes` or after the user says yes: without `--yes`, ask once
