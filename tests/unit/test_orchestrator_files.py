@@ -1765,6 +1765,14 @@ def test_provider_flag_and_treg_login_message():
     assert "--provider <the --provider flag, or auto>" in run  # passthrough, unchanged
     # treg is off by default, so its rules load only when it is on (platforms.md)
     assert "follow `## treg (Tier 3)` in `platforms.md`" in run
+    # Claude learns treg is on from doctor's own line (doctor.py), never by reading config.toml
+    assert "doctor's report shows treg on (`treg: logged in`)" in run
+    from skipwatch import doctor as doctor_module
+
+    assert 'return "logged in" if p.treg_enabled' in Path(doctor_module.__file__).read_text(
+        encoding="utf-8"
+    )
+    assert "`config.toml` enables it" not in run
     assert "Exit 8 under `--provider treg`" not in run
     text = flat(REFS / "platforms.md").split("## treg (Tier 3)", 2)[1]
     # the engine's own exit 8 line (ingest.py), quoted exactly, then the free-route hint

@@ -124,8 +124,8 @@ so resume can repeat the run. `flags` holds every flag token in order, `--to` ab
    - Print `Reading the file: <duration> of video, captions <found|not found> (<n>s)`, or
      for a URL `Fetching video and captions: ...` in the same shape.
    - Any non-zero exit: `## Probe and ingest exits` in `run-branches.md`.
-   - treg is opt-in: when `--provider treg` is given or `config.toml` enables it, follow
-     `## treg (Tier 3)` in `platforms.md`.
+   - treg is opt-in: when `--provider treg` is given or doctor's report shows treg on
+     (`treg: logged in`), follow `## treg (Tier 3)` in `platforms.md`.
    - A local file given `--provider` or the cookie flag, a video from a linked post, or
      `source.kind` `"text"` in `<W>/ingest.json`: `## Sources` in `run-branches.md`.
 4. Transcribe:
