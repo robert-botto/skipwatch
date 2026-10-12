@@ -2,6 +2,8 @@
 
 drop removes one file from <W>/draft and <W>/staging/<name>; every path is checked before
 anything is deleted, with the same guards as redact (home_work_or_pack_folder, path_under).
+rename-staging moves the one staging folder to a new skill name and records it in run.json;
+the draft is name-agnostic (<W>/draft/<path>), so it stays where it is.
 """
 
 import json
@@ -16,6 +18,7 @@ from skipwatch.commands.workfiles import home_work_or_pack_folder, path_under
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.runner import run_command
+from skipwatch.workdir import write_bytes_atomic
 
 # check writes skipwatch.json, and SKILL.md is the skill itself: neither is dropped
 KEPT_FILES = ("SKILL.md", "skipwatch.json")
@@ -94,6 +97,47 @@ def _drop(work: Path, rel: str) -> int:
     return 0
 
 
+def _run_json(work: Path) -> dict[str, object]:
+    run = work / "run.json"
+    if run.is_symlink():
+        raise _usage(f"{run} is a symlink")
+    try:
+        data = json.loads(run.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise _usage(f"{run} does not read: {exc}") from exc
+    if not isinstance(data, dict):
+        raise _usage(f"{run} is not a JSON object")
+    return data
+
+
+def _rename_staging(work: Path, to: str) -> int:
+    work = home_work_or_pack_folder(work)
+    if not is_skill_name(to):
+        raise _usage(f"--to {to!r} must be lowercase letters, digits and single hyphens, 1-64")
+    data = _run_json(work)
+    staging = work / "staging"
+    if staging.is_symlink():
+        raise _usage(f"{staging} is a symlink")
+    name = staging_name(work)
+    old = staging / (name or "")
+    if name is None or old.is_symlink() or not old.is_dir():
+        raise _usage(f"no staging folder to rename in {staging}")
+    target = staging / to
+    if name != to:
+        if os.path.lexists(target):
+            raise SkipwatchError(ExitCode.TARGET_EXISTS, f"{target} exists")
+        os.rename(old, target)
+    data["name"] = to
+    try:
+        write_bytes_atomic(work / "run.json", (json.dumps(data, indent=2) + "\n").encode("utf-8"))
+    except BaseException:
+        if name != to:
+            os.rename(target, old)
+        raise
+    progress(f"Renamed: {old} -> {target}")
+    return 0
+
+
 def register(app: typer.Typer) -> None:
     @app.command("drop")
     def _drop_cmd(
@@ -104,3 +148,11 @@ def register(app: typer.Typer) -> None:
     ):
         """Delete one file from <work>/draft and <work>/staging/<name> (files only)."""
         run_command(lambda: _drop(work, path))
+
+    @app.command("rename-staging")
+    def _rename_cmd(
+        work: Annotated[Path, typer.Option("--work", help="The run's work folder.")],
+        to: Annotated[str, typer.Option("--to", help="The new skill name.")],
+    ):
+        """Move <work>/staging/<name> to <work>/staging/<to> and set run.json's name."""
+        run_command(lambda: _rename_staging(work, to))
