@@ -25,7 +25,7 @@ from typing import TypeVar
 from pydantic import BaseModel, ValidationError
 
 from skipwatch.config import skipwatch_home
-from skipwatch.models import CacheEntry, IngestBundle, SourceInfo, Transcript
+from skipwatch.models import CacheEntry, IngestBundle, ProviderCall, SourceInfo, Transcript
 from skipwatch.output import progress
 from skipwatch.workdir import read_model
 
@@ -165,13 +165,23 @@ def _remember(key: str | None, source: SourceInfo, name: str, path: Path) -> Non
         progress(f"Cache: could not store {name}: {exc.strerror or exc}")
 
 
+LINK_OPS_PREFIX = "link."
+
+
+def _failed(call: ProviderCall) -> bool:
+    """A provider failure that keeps a run out of the cache. A dead link (link.get,
+    link.resolve) is the post's content, not a failure: caching around it is what keeps a rerun
+    from paying the providers again (R-TR-3)."""
+    return not call.ok and not call.op.startswith(LINK_OPS_PREFIX) and call.provider != "links"
+
+
 def remember_ingest(
     bundle: IngestBundle, path: Path, cookies: bool, providers: Sequence[str]
 ) -> None:
     """Store a freshly built ingest.json under the providers that enriched it; never one served
-    from the cache or with a failed provider call (the next run should ask that provider again).
-    Never fails the stage."""
-    if bundle.from_cache or not all(c.ok for c in bundle.provider_calls):
+    from the cache or with a failed provider call (the next run should ask that provider again;
+    a dead link is not a failure). Never fails the stage."""
+    if bundle.from_cache or any(_failed(c) for c in bundle.provider_calls):
         return
     cookies = cookies or bundle.fetched_with_cookies
     _remember(cache_key(bundle.source, cookies, providers), bundle.source, "ingest.json", path)
@@ -201,7 +211,7 @@ def cached_ingest(fresh: IngestBundle, providers: list[str], cookies: bool) -> I
     cached = found[0]
     if cached.fetched_with_cookies and not cookies:
         return None
-    if not all(c.ok for c in cached.provider_calls):
+    if any(_failed(c) for c in cached.provider_calls):
         return None
     if cached.context.captions_available != fresh.context.captions_available:
         return None

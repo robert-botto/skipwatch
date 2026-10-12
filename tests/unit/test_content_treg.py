@@ -997,3 +997,29 @@ def test_ctrl_c_mid_enrich_still_logs_the_billed_calls(tmp_path, treg_on, monkey
         run(G2_URL, w, provider, monkeypatch)
     assert [c["op"] for c in calls_json(w)] == ["x.thread", "x.comments"]
     assert provider._runs == {}
+
+
+def test_rerun_of_a_cached_post_with_a_404_link_bills_nothing(
+    tmp_path, treg_on, monkeypatch, sw_home
+):
+    """A link that 404s is the post's content, not a provider failure: the run is cached and
+    the rerun asks treg nothing."""
+    dead = ProviderCall(provider="free", op="link.get", ok=False, endpoint="gone.example")
+    fixed = video_bundle("x", G2_URL)
+    fixed = fixed.model_copy(
+        update={
+            "provider_calls": [*fixed.provider_calls, dead.model_copy(update={"error": "HTTP 404"})]
+        }
+    )
+
+    class Fixed:
+        def build(self, detected, work_, opts):
+            return fixed
+
+    adapters(monkeypatch, x=Fixed())
+    runner = FakeRunner()
+    provider = TregProvider(runner=runner)
+    run(G2_URL, work(tmp_path / "1"), provider, monkeypatch)
+    billed = len(runner.calls())
+    again = run(G2_URL, work(tmp_path / "2"), provider, monkeypatch)
+    assert again.from_cache and len(runner.calls()) == billed
