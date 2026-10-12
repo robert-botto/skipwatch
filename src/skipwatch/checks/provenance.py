@@ -10,6 +10,10 @@ inside it on word boundaries. The
 [illegible at mm:ss] wildcard covers at most 40 characters on one line and needs a reader
 `illegible` entry within the window. Indented code, <pre> and inline code in the action are
 quotes too. [written] quotes must come from the post, thread or links.
+
+Pack mode (ingest.pack set by unpack, nothing else): every structure rule above still holds and
+[spoken] quotes are checked against the pack transcript; [on-screen] and [written] quotes, and
+[spoken] ones when the pack has no transcript, are counted in one non-failing info item.
 """
 
 import re
@@ -228,6 +232,15 @@ def _listed_in_gaps(ctx: CheckContext, number: int) -> bool:
     return re.search(INFERRED_LINE.format(n=number), gaps) is not None
 
 
+def _pack_skips(ctx: CheckContext, step: Step) -> bool:
+    """In a shared pack, quotes with no shipped evidence are not re-verified (M5-M6 issue 1).
+    Only a step that already has one tag and a quote counts; the structure rules still bite."""
+    if ctx.pack is None or len(step.tags) != 1 or not (step.quotes or step.code_quotes):
+        return False
+    kind = step.tags[0].kind
+    return kind in ("on-screen", "written") or (kind == "spoken" and ctx.transcript is None)
+
+
 def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
     if not step.tags:
         return [CheckItem(step=step.number, msg="step has no provenance tag")]
@@ -248,6 +261,8 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
                 fix="add the exact words as a > quote or fenced block",
             )
         ]
+    if _pack_skips(ctx, step):
+        return []
     if tag.kind == "spoken":
         return _spoken_items(ctx, step, tag)
     if tag.kind == "on-screen":
@@ -266,5 +281,16 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
 
 
 def run(ctx: CheckContext) -> CheckResult:
-    items = [item for step in ctx.doc.steps for item in _step_items(ctx, step)]
-    return CheckResult(check="provenance", ok=not items, items=items)
+    failing = [item for step in ctx.doc.steps for item in _step_items(ctx, step)]
+    skipped = sum(1 for step in ctx.doc.steps if _pack_skips(ctx, step))
+    info = (
+        [
+            CheckItem(
+                msg=f"shared pack: {skipped} quoted step(s) not re-verified "
+                "(packs carry no frame notes or post text)"
+            )
+        ]
+        if skipped
+        else []
+    )
+    return CheckResult(check="provenance", ok=not failing, items=failing + info)
