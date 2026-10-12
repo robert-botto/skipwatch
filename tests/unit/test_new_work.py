@@ -116,3 +116,14 @@ def test_read_only_work_folder_is_one_line_exit_7(sw_home):
     finally:
         (sw_home / "work").chmod(0o700)
     assert_one_line_exit_7(r)
+
+
+def test_ensure_failure_is_one_line_exit_7(sw_home, monkeypatch):
+    # the folder was claimed, but stages.json could not be written (disk full, quota)
+    from skipwatch.commands import new_work as new_work_mod
+
+    def full(self):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(new_work_mod.WorkDir, "ensure", full)
+    assert_one_line_exit_7(new_work("--slug", "demo"))
