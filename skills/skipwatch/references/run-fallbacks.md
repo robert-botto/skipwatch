@@ -8,8 +8,8 @@ Read this only when a run file sends you here. Placeholders and conventions are 
 If `new-work` fails (any exit other than 64), move the home into the project. If that
 Write is denied or fails, do the same:
 
-1. If `new-work` succeeded, remove its folder: `rm -rf "<W>"`, only the exact path
-   `new-work` printed, never a parent, a glob or `$HOME`. Then run
+1. If `new-work` succeeded, remove its folder, the exact path `new-work` printed, with
+   `<ENGINE> discard-work --work "<W>"`. Then run
    `mkdir -p "<P>/.skipwatch"`, then Write `<P>/.skipwatch/.gitignore` with the content
    `*`, so the `<P>/.skipwatch/.gitignore` file containing `*` keeps work files out of
    commits.

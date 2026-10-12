@@ -189,8 +189,9 @@ def test_engine_calls_with_a_work_folder_use_log():
     for path, command in _engine_command_lines():
         if re.search(r'--work "<(?:W|work)>"', command) and "Edit it and run" not in command:
             after = command.split("<ENGINE>", 1)[1]
-            if after.startswith(" review "):
-                # its stdout is the screen to print exactly; an rc= line must not join it
+            if after.startswith((" review ", " discard-work ")):
+                # review's stdout is the screen to print exactly; discard-work deletes the
+                # very folder a log would be written into
                 assert "--log" not in after, (path.name, command)
                 continue
             assert after.startswith(" --log "), (path.name, command)
@@ -1542,9 +1543,11 @@ def test_protocol_matches_the_merged_m3_engine():
 def test_fallback_removes_the_abandoned_work_folder():
     # an orphan folder under the old home would be picked by a no-folder resume
     text = protocol_flat()
-    assert 'rm -rf "<W>"' in text
-    assert "only the exact path `new-work` printed" in text
-    assert _before(text, 'rm -rf "<W>"', '<ENGINE> --home "<P>/.skipwatch" new-work')
+    # the engine refuses anything but a fresh folder directly under work/
+    discard = '<ENGINE> discard-work --work "<W>"'
+    assert discard in text and "the exact path `new-work` printed" in text
+    assert 'rm -rf "<W>"' not in text
+    assert _before(text, discard, '<ENGINE> --home "<P>/.skipwatch" new-work')
 
 
 def test_text_resume_continues_from_the_first_missing_late_stage():
