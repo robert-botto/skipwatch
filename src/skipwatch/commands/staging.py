@@ -8,6 +8,7 @@ the draft is name-agnostic (<W>/draft/<path>), so it stays where it is.
 
 import json
 import os
+import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Annotated
 
@@ -63,6 +64,22 @@ def staging_name(work: Path) -> str | None:
     return folders[0] if folders else None
 
 
+def _folded(name: str) -> str:
+    """A name as a case-insensitive file system (APFS, NTFS) compares it (REV8)."""
+    return unicodedata.normalize("NFC", name).casefold()
+
+
+def _is_kept(copy: Path, roots: list[Path]) -> bool:
+    """Whether copy sits in a skill root and is the same file as a kept one, by any spelling."""
+    if copy.parent not in roots:
+        return False
+    for kept in KEPT_FILES:
+        other = copy.parent / kept
+        if os.path.lexists(other) and os.path.samefile(copy, other):
+            return True
+    return False
+
+
 def _relative(rel: str) -> PurePosixPath:
     """--path as a plain relative POSIX file path inside a skill folder."""
     path = PurePosixPath(rel)
@@ -72,7 +89,7 @@ def _relative(rel: str) -> PurePosixPath:
         or path.is_absolute()
         or ".." in path.parts
         or not path.parts
-        or str(path) in KEPT_FILES
+        or _folded(str(path)) in {_folded(k) for k in KEPT_FILES}
     ):
         raise _usage(f"--path {rel!r} must be a relative file path with no .., not {KEPT_FILES}")
     return path
@@ -82,13 +99,17 @@ def _drop(work: Path, rel: str) -> int:
     work = home_work_or_pack_folder(work)
     path = _relative(rel)
     copies = [path_under(work, "draft", work / "draft" / path, "--path")]
+    roots = [work / "draft"]
     name = staging_name(work)
     if name is not None:
         copies.append(path_under(work, "staging", work / "staging" / name / path, "--path"))
+        roots.append(work / "staging" / name)
     present = [copy for copy in copies if os.path.lexists(copy)]
     for copy in present:
         if copy.is_symlink() or not copy.is_file():
             raise _usage(f"--path {copy} is not a file")
+        if _is_kept(copy, roots):
+            raise _usage(f"--path {copy} is {KEPT_FILES[0]} or {KEPT_FILES[1]}")
     for copy in present:
         copy.unlink()
         progress(f"Dropped: {copy}")

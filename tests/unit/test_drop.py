@@ -2,6 +2,7 @@
 checked before anything is deleted; victims live in a fake $HOME under tmp_path."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -155,3 +156,26 @@ def test_drop_refuses_a_work_folder_outside_the_home(tmp_path, sw_home):
     draft = put(outside / "draft" / "a.zip")
     assert drop(outside, "a.zip").exit_code == ExitCode.USAGE
     assert draft.exists()
+
+
+@pytest.mark.parametrize("rel", ["skill.md", "Skill.MD", "SKIPWATCH.json", "SKILL.MD"])
+def test_drop_refuses_a_case_variant_of_a_kept_file(work, rel):
+    # REV8: APFS and NTFS are case-insensitive, so skill.md is SKILL.md there
+    skill = put(work / "draft" / "SKILL.md")
+    staged = put(work / "staging" / "fix-bugs" / "SKILL.md")
+    manifest = put(work / "staging" / "fix-bugs" / "skipwatch.json")
+    assert drop(work, rel).exit_code == ExitCode.USAGE
+    assert skill.exists() and staged.exists() and manifest.exists()
+
+
+def test_drop_refuses_a_path_that_is_the_same_file_as_a_kept_one(work):
+    # a spelling the name compare misses (NFD, a hard link) still never deletes SKILL.md
+    skill = put(work / "draft" / "SKILL.md")
+    staged = put(work / "staging" / "fix-bugs" / "SKILL.md")
+    other = work / "draft" / "other.md"
+    try:
+        os.link(skill, other)
+    except OSError as exc:
+        pytest.skip(f"cannot create hard links here: {exc}")
+    assert drop(work, "other.md").exit_code == ExitCode.USAGE
+    assert skill.exists() and staged.exists() and other.exists()
