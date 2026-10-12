@@ -1539,7 +1539,11 @@ def test_share_refuses_cookie_skills_without_a_workaround():
     section = re.sub(r"\s+", " ", raw.split("## share `<skill>`", 1)[1])
     assert "Exit 4: print the engine's line exactly" in section
     assert "never offer a workaround" in section
-    assert "cannot be shared" in section
+    # the engine's message as M5-D emits it, quoted whole
+    assert (
+        "`<name> was made from content fetched with your browser cookies, "
+        "so it cannot be shared`" in section
+    )
 
 
 def _install_step(n: int) -> str:
