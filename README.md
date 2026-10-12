@@ -84,6 +84,8 @@ Then run your first video:
 
 The only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time a session starts. You never run pip or create a virtualenv.
 
+Installing the plugin also installs a SessionStart hook. At the start of a session, when the plugin's lockfile changed since its last sync (the first session after an install or update), it runs `uv sync` for the plugin's own environment: that downloads the locked Python dependencies from PyPI and can take up to 300 s. Otherwise it does nothing, and it never fails your session.
+
 To pin a specific version:
 
 ```bash
@@ -301,6 +303,7 @@ A pack's checksums prove the files were not changed by accident. They do not pro
 
 No telemetry, no analytics, no update pings. The engine runs on your machine. Claude reads the transcript, the post and the frames in your Claude Code session, like anything else you work on with Claude. The engine's own network traffic is:
 
+- PyPI, when the SessionStart hook syncs the plugin's Python environment after an install or update;
 - the platform your link points to, through yt-dlp;
 - the pages a post links to (at most 5 per post, public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;

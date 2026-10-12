@@ -220,3 +220,13 @@ def test_readme_claims_match_yes_test_run_and_frame_sampling():
     assert "only if you ask for a test run, and then in a scratch folder" in text
     assert "scene changes" not in text  # frames.py samples 1 fps through mpdecimate
     assert "Frames sampled once a second" in text
+
+
+def test_readme_states_the_session_start_hook_install():
+    # the hook runs `uv sync` (network, dependency install): consent at plugin install
+    text = _readme()
+    install = text.split("## Install", 1)[1].split("\n## ", 1)[0]
+    assert "SessionStart hook" in install and "`uv sync`" in install
+    assert "300 s" in install and "PyPI" in install
+    privacy = text.split("## Privacy", 1)[1].split("\n## ", 1)[0]
+    assert "PyPI" in privacy
