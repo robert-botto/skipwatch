@@ -64,22 +64,13 @@ degrades and continues, or stops with one message.
 
 ## Stage 1: doctor (cached for a day)
 
-Run doctor only when `doctor.json` is missing or older than 24 h (its mtime is the
-timestamp). First, one Bash call:
+One Bash call; the engine reuses a `doctor.json` under 24 h old, else rebuilds it:
 
-    find "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json" -mmin -1440
+    <ENGINE> doctor --json --max-age-hours 24
 
-- It prints the path: cached. Read the tier with
-  `grep -m1 '"tier"' "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`.
-- It prints nothing, or a "No such file" error with exit 1: run doctor as its own Bash
-  call and take `tier` from its JSON:
-
-      <ENGINE> doctor --json
-
-  Exit 127 (no synced environment and `uv` not installed): stop with
-  `SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/`.
-
-Print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
+Take `tier` from its JSON and print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
+Exit 127 (no synced environment and `uv` not installed): stop with
+`SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/`.
 
 ## Stage 2: work folder and arguments
 

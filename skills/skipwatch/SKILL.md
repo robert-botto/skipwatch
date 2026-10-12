@@ -2,7 +2,7 @@
 name: skipwatch
 description: Turns a tutorial video (YouTube, X, TikTok, Instagram, Facebook or any yt-dlp URL) or a local screen recording into an installed Agent Skill whose steps cite timestamps. Use when the user runs /skipwatch, or shares a video link or recording and asks to make, capture or save it as a skill. Also handles /skipwatch doctor, resume, list, pack, install and share. Not for requests to summarize, download or transcribe a video, or to follow its steps right now.
 argument-hint: "<url or path> [flags]"
-allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch *) Bash(test *) Bash(mkdir *) Bash(rm -rf *) Bash(rm -f *) Bash(cp -R *) Bash(grep *) Bash(find *) Bash(touch *) Bash(date *) Bash(printenv *), Read, Write, Agent
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch *) Bash(test *) Bash(mkdir *) Bash(rm -rf *) Bash(rm -f *) Bash(cp -R *) Bash(touch *) Bash(date *) Bash(printenv *), Read, Write, Agent
 ---
 
 # SkipWatch

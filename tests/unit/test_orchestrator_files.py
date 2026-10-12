@@ -121,14 +121,18 @@ def test_run_protocol_stage_commands():
 
 def test_run_protocol_doctor_cached_by_mtime():
     text = protocol_flat()
-    assert "doctor.json" in text and "24 h" in text
-    assert "-mmin -1440" in text  # mtime, since doctor.json has no timestamp field
-    # doctor is its own Bash call, so its exit code (127: uv missing) is the tool's
-    assert "\n      <ENGINE> doctor --json\n" in "\n".join(read(f) for f in RUN_FILES)
+    # the engine applies the 24 h cache; no find/grep test by hand
+    assert "\n    <ENGINE> doctor --json --max-age-hours 24\n" in "\n".join(
+        read(f) for f in RUN_FILES
+    )
     assert "Exit 127 (no synced environment and `uv` not installed)" in text
-    # find on a missing file errors with exit 1 on a first run: that means "run doctor"
-    assert 'or a "No such file" error with exit 1: run doctor' in text
-    assert "err=$(" not in text and "doctor --json >/dev/null 2>&1" not in text
+    assert "-mmin" not in text and "grep -m1" not in text
+    import typer
+
+    from skipwatch.cli import app
+
+    doctor = typer.main.get_command(app).commands["doctor"]  # type: ignore[attr-defined]
+    assert "--max-age-hours" in {o for p in doctor.params for o in p.opts}
 
 
 def test_run_protocol_logs_per_stage():
