@@ -1622,6 +1622,12 @@ def test_sharing_matches_the_m5_c_engine():
     # unpack has no writable-home fallback: an unwritable home is an uncaught error
     step2 = _install_step(2)
     assert "SKIPWATCH_HOME" not in step2
-    assert "`SkipWatch: unpack failed: <last 3 stderr lines>`" in step2
+    # M5-C maps an unwritable pack work folder to exit 7 with this message
+    assert "Exit 7 (`cannot write the pack work folder <folder>: <strerror>`)" in step2
+    assert "print the engine's line and stop" in step2
+    assert "unpack failed: <last 3 stderr lines>" not in step2
+    # unpack picks its own folder under the home's packs/; never a --work of ours
+    assert not re.search(r"<ENGINE> unpack [^\n]*--work", read(SHARING))
+    assert "never pass `--work`" in step2
     pack = text.split("## pack `<skill>`", 1)[1].split("## install", 1)[0]
     assert "Exit 2 whose message contains `no installed SkipWatch skill named`" in pack

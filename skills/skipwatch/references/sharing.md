@@ -74,9 +74,10 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
      Take `name`, `work`, `staging`, `pack_sha256`, `claimed_confidence` and
      `claimed_critic_score` from the JSON. `<work>` and `<staging>` are those values,
      copied exactly; the skill is at `<work>/staging/<name>`.
-   - Exit 1 (for example an unwritable home folder, which ends in an uncaught error):
-     `SkipWatch: unpack failed: <last 3 stderr lines>` and stop. Unpack has no fallback
-     folder; never retry it under another home.
+   - Exit 7 (`cannot write the pack work folder <folder>: <strerror>`): print the engine's line and stop.
+     Unpack picks its own new folder under the home's `packs/` folder, and check accepts
+     a pack only there, so never pass `--work`, never retry under another home and never
+     invent another location.
 3. Check. Pack mode is automatic (the engine sees the pack in `<work>/ingest.json`):
 
        <ENGINE> check "<staging>" --work "<work>" --json >"<work>/logs/check.json" 2>"<work>/logs/check.log"; echo "rc=$?"; tail -n 8 "<work>/logs/check.log"
