@@ -5,6 +5,7 @@ from typing import get_args
 
 from skipwatch import runcache
 from skipwatch.audio import media_has_audio
+from skipwatch.crosscheck import attach, disagreement
 from skipwatch.doctor import extra_command, is_apple_silicon  # one source for install advice
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
@@ -75,6 +76,15 @@ def mark_silence(t: Transcript, duration_s: float | None) -> Transcript:
     return t.model_copy(update={"silent": wpm < SILENT_WPM})
 
 
+def cross_check(transcript: Transcript, bundle: IngestBundle) -> Transcript:
+    """R-ING-2: the provider's untimed text only goes to cross_check; warn when they disagree."""
+    transcript = attach(transcript, bundle.transcript_hint)
+    warning = disagreement(transcript)
+    if warning is not None:
+        progress(f"Transcribe: warning: {warning}")
+    return transcript
+
+
 def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript:
     ingest_json = work.file("ingest.json")
     if not ingest_json.exists():
@@ -86,6 +96,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
         if hit is not None:
             cached, age = hit
             progress(f"Transcribe: reused cached transcript ({cached.origin}, {age}h old)")
+            cached = cross_check(cached, bundle)  # this run's hint, never the cached one
             write_model(work.file("transcript.json"), cached)
             return cached
         chosen = select_backend(backend, bundle)
@@ -93,7 +104,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
         if not transcript.segments:
             # R-TR-1: never write a transcript without timed segments.
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
-        transcript = mark_silence(transcript, bundle.source.duration_s)
+        transcript = cross_check(mark_silence(transcript, bundle.source.duration_s), bundle)
         write_model(work.file("transcript.json"), transcript)
         runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
