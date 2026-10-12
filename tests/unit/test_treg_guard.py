@@ -12,7 +12,7 @@ import pytest
 
 from skipwatch.providers import content_treg
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the fake treg is a sh script")
+needs_sh = pytest.mark.skipif(sys.platform == "win32", reason="the fake treg is a sh script")
 
 
 def _engine() -> str:
@@ -29,6 +29,7 @@ def test_env_guard_hides_treg(monkeypatch):
     assert content_treg._treg_path() == "/opt/bin/treg"
 
 
+@needs_sh
 def test_conftest_puts_a_failing_stub_treg_first_on_path():
     assert os.environ.get(content_treg.DISABLE_ENV) == "1"
     stub = shutil.which("treg")
@@ -37,15 +38,50 @@ def test_conftest_puts_a_failing_stub_treg_first_on_path():
     assert result.returncode != 0
 
 
+def _logging_treg(bin_dir: Path, log: Path) -> None:
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    fake = bin_dir / "treg"
+    fake.write_text(f'#!/bin/sh\necho "$@" >> "{log}"\necho "{{}}"\n', encoding="utf-8")
+    fake.chmod(0o755)
+
+
+@pytest.fixture(scope="module")
+def module_scoped_cli_run(tmp_path_factory):
+    """As test_fixture_pipeline's module fixtures do: snapshot os.environ and run the CLI
+    before any function-scoped fixture has run. The guard must already be in place."""
+    if sys.platform == "win32":
+        pytest.skip("the fake treg is a sh script")
+    root = tmp_path_factory.mktemp("module-guard")
+    log = root / "treg.log"
+    _logging_treg(root / "bin", log)
+    env = {
+        **os.environ,
+        "SKIPWATCH_HOME": str(root / "home"),
+        "PATH": os.pathsep.join([str(root / "bin"), os.environ.get("PATH", "")]),
+    }
+    subprocess.run(
+        [_engine(), "doctor", "--json"],
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+    return log
+
+
+def test_module_scoped_fixtures_never_reach_treg(module_scoped_cli_run):
+    log = module_scoped_cli_run
+    assert not log.exists(), log.read_text(encoding="utf-8")
+
+
+@needs_sh
 def test_cli_subprocesses_never_run_treg(tmp_path):
     """Doctor and an ingest under --provider auto, as the pipeline tests run them, with a
     logging fake treg first on PATH: it is never invoked."""
     bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
     log = tmp_path / "treg.log"
-    fake = bin_dir / "treg"
-    fake.write_text(f'#!/bin/sh\necho "$@" >> "{log}"\necho "{{}}"\n', encoding="utf-8")
-    fake.chmod(0o755)
+    _logging_treg(bin_dir, log)
     env = {
         **os.environ,
         "SKIPWATCH_HOME": str(tmp_path / "home"),
