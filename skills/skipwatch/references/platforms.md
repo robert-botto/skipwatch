@@ -1,10 +1,5 @@
 # Platforms
 
-What each source kind needs without cookies, how it fails, and the exact line to tell the
-user. The engine makes every download and every provider call; you never run yt-dlp or
-`treg` yourself. The `treg (Tier 3)` notes apply only when treg is on: `--provider treg`,
-or `[providers.treg] enabled = true` in `config.toml` (off by default).
-
 ## Contents
 
 - Local files
@@ -15,6 +10,11 @@ or `[providers.treg] enabled = true` in `config.toml` (off by default).
 - Instagram
 - Facebook
 - Text posts
+
+What each source kind needs without cookies, how it fails, and the exact line to tell the
+user. The engine makes every download and every provider call; you never run yt-dlp or
+`treg` yourself. The `treg (Tier 3)` notes apply only when treg is on: `--provider treg`,
+or `[providers.treg] enabled = true` in `config.toml` (off by default).
 
 ## Local files
 

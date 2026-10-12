@@ -1,5 +1,12 @@
 # Run: review, test run, install and resume (stages 9 to 10)
 
+## Contents
+
+- Stage 9: review
+- Stage 9b: test run
+- Stage 10: install
+- Resume
+
 Placeholders (`<W>`, `<ENGINE>`, `<input>`, `<P>`) and the conventions for every stage are
 in `run-engine.md`, read at stage 1. Stage numbers run across the three run files: 1 to 4
 in `run-engine.md`, 5 to 8 in `run-distill.md`, 9 to 10 and Resume in

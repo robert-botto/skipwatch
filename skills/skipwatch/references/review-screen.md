@@ -1,5 +1,16 @@
 # Review screen
 
+## Contents
+
+- Example (the fixture run)
+- Where each line comes from
+- Extra lines
+- Pack variant
+- The prompt line
+- Transcription offers
+- Answers
+- Old patterns
+
 The review screen has a fixed shape so users learn to scan it and tests can parse it.
 Print it exactly in this line order, with these prefixes, every time:
 

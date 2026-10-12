@@ -1,5 +1,14 @@
 # Generated skill template
 
+## Contents
+
+- Frontmatter
+- Body
+- Good step and bad step
+- Section notes
+- references/source.md
+- references/transcript.md
+
 Fill this template to write `<W>/staging/<name>/SKILL.md`. Replace every `<placeholder>`.
 The notes in *italics* after each section are for you; do not copy them into the skill.
 Keep SKILL.md under 500 lines; move long code, prompts and templates into `scripts/` or

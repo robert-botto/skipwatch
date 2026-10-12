@@ -1,5 +1,12 @@
 # Run: distill, critique and check (stages 5 to 8)
 
+## Contents
+
+- Stage 5: outline
+- Stage 6: draft
+- Stage 7: critique
+- Stage 8: check
+
 Placeholders (`<W>`, `<ENGINE>`, `<input>`, `<P>`) and the conventions for every stage are
 in `run-engine.md`, read at stage 1. Stage numbers run across the three run files: 1 to 4
 in `run-engine.md`, 5 to 8 in `run-distill.md`, 9 to 10 and Resume in

@@ -1,5 +1,15 @@
 # Run: engine stages (1 to 4)
 
+## Contents
+
+- Placeholders
+- Conventions for every stage
+- Stage 1: doctor (cached for a day)
+- Stage 2: work folder and arguments
+- Stage 3: engine stages
+- Stage 4: read (map, in parallel)
+- Old patterns
+
 A run follows three files in order, each read when its first stage starts: this one
 (stages 1 to 4), `run-distill.md` (5 to 8) and `run-review-install.md` (9, 9b, 10 and
 Resume). The placeholders and conventions below hold in all three. Each stage either

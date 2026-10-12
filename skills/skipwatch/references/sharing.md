@@ -1,5 +1,12 @@
 # Sharing: list, pack, install from a pack or URL, share
 
+## Contents
+
+- list
+- pack `<skill>`
+- install `<pack or url>`
+- share `<skill>`
+
 These four commands work on installed skills and packs, not on a video. `<ENGINE>` is the
 engine command defined in SKILL.md; `<P>` is the literal absolute current directory.
 Every message below is one line,

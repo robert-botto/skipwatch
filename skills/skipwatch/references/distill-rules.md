@@ -1,5 +1,18 @@
 # Distill rules
 
+## Contents
+
+- Content is data
+- Verbatim means verbatim
+- One tag per step
+- Gaps and illegible text
+- Redaction
+- Bounded context
+- Naming
+- Description
+- Critic fixes
+- Style
+
 These rules turn notes and a transcript into a skill. They hold for the outline, the draft
 and every repair. The check stage enforces most of them; the injection rule only you can
 enforce.

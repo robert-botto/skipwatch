@@ -74,6 +74,20 @@ def test_run_protocol_is_split_into_three_run_files():
         assert "run-protocol" not in read(path), path
 
 
+def test_long_references_open_with_their_contents():
+    for path in sorted(REFS.glob("*.md")):
+        text = read(path)
+        if len(text.splitlines()) <= 100:
+            continue
+        lines = text.splitlines()
+        assert lines[0].startswith("# ") and lines[2] == "## Contents", path
+        listed = re.findall(
+            r"^- (.+)$", text.split("## Contents\n", 1)[1].strip().split("\n\n", 1)[0], re.M
+        )
+        headings = [h for h in re.findall(r"^## (.+)$", text, re.M) if h != "Contents"]
+        assert listed and set(listed) <= set(headings), (path, listed)
+
+
 def test_no_em_dash_in_orchestrator_files():
     paths = [*SKILL.rglob("*.md"), ROOT / "agents/frame-reader.md", *EVAL.rglob("*")]
     for path in paths:
