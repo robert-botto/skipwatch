@@ -15,7 +15,7 @@ def fm(path: Path) -> dict:
 
 
 def test_agents_have_explicit_tools_without_agent():
-    expected = {"frame-reader": "sonnet", "skill-critic": "sonnet", "skill-tester": "inherit"}
+    expected = {"frame-reader": "sonnet", "skill-critic": "sonnet", "skill-tester": "sonnet"}
     for name, model in expected.items():
         meta = fm(ROOT / "agents" / f"{name}.md")
         assert meta["name"] == name and meta["model"] == model
