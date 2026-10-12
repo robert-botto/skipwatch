@@ -11,6 +11,8 @@ from skipwatch.models import (
     Counts,
     FramesFile,
     IngestBundle,
+    InstallRecord,
+    InstallsFile,
     Manifest,
     ManifestSource,
     NotesFile,
@@ -240,6 +242,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "run",
         "resume",
         "cache-entry",
+        "installs",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -432,3 +435,17 @@ def test_pack_origin_manifest_needs_its_schema_tag():
     del raw["schema"]
     with pytest.raises(ValidationError):
         PackOrigin.model_validate({"file": "a", "sha256": "sha256:" + "1" * 64, "manifest": raw})
+
+
+def test_installs_file_round_trip_and_scope():
+    rec = InstallRecord(
+        name="run-x", path="/s/run-x", scope="dir", installed_at="2026-10-09T18:20:00Z"
+    )
+    assert rec.origin == "run"
+    f = InstallsFile(installs=[rec, rec.model_copy(update={"origin": "pack"})])
+    assert InstallsFile.model_validate_json(f.model_dump_json(by_alias=True)) == f
+    assert InstallsFile().installs == []
+    with pytest.raises(ValidationError):
+        InstallRecord.model_validate({**rec.model_dump(), "scope": "global"})
+    with pytest.raises(ValidationError):
+        InstallRecord.model_validate({**rec.model_dump(), "origin": "url"})

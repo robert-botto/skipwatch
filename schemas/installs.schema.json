@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "InstallRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "installed_at": {
+          "title": "Installed At",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "origin": {
+          "default": "run",
+          "enum": [
+            "run",
+            "pack"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "user",
+            "project",
+            "agents",
+            "dir"
+          ],
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "scope",
+        "installed_at"
+      ],
+      "title": "InstallRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "$SKIPWATCH_HOME/installs.json: every install, so list finds --to installs (issue 10).",
+  "properties": {
+    "installs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/InstallRecord"
+      },
+      "title": "Installs",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/installs/1",
+      "default": "skipwatch/installs/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "InstallsFile",
+  "type": "object"
+}

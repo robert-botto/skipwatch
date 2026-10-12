@@ -436,6 +436,21 @@ class CacheEntry(_Tagged):
     files: list[str] = []
 
 
+class InstallRecord(_Model):
+    name: str
+    path: str
+    scope: Literal["user", "project", "agents", "dir"]
+    origin: Literal["run", "pack"] = "run"
+    installed_at: str
+
+
+class InstallsFile(_Tagged):
+    """$SKIPWATCH_HOME/installs.json: every install, so list finds --to installs (issue 10)."""
+
+    schema_: Literal["skipwatch/installs/1"] = _tag("skipwatch/installs/1")
+    installs: list[InstallRecord] = []
+
+
 # ---- command --json outputs ----
 Tier = Literal["none", "0", "1", "1c", "2", "3"]
 
@@ -526,4 +541,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "run": RunFile,
     "resume": ResumeResult,
     "cache-entry": CacheEntry,
+    "installs": InstallsFile,
 }
