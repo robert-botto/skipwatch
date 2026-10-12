@@ -75,14 +75,15 @@ def _note(
     work = home_work_folder(work)
     if clear is not None:
         return _clear(work, value)
+    if critic_failed:
+        # stage 7 continues without the critic, so a half-written critique must not be read,
+        # even when degradations.json below turns out unreadable (exit 7)
+        remove_path(work / "critique.json")
     recorded = read_degradations(work)
     items: list[str] = getattr(recorded, field)
     if value not in items:
         items.append(value)
         write_model(work / DEGRADATIONS_FILE, recorded)
-    if critic_failed:
-        # stage 7 continues without the critic, so a half-written critique must not be read
-        remove_path(work / "critique.json")
     progress(f"Noted: {value}")
     return 0
 

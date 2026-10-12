@@ -203,3 +203,12 @@ def test_clear_outside_a_work_folder_is_exit_64(tmp_path, sw_home):
     r = note(elsewhere, "--clear", "x")
     assert r.exit_code == ExitCode.USAGE
     assert (elsewhere / "degradations.json").read_text() == "{}"
+
+
+def test_critic_failed_deletes_the_critique_even_with_a_corrupt_file(work):
+    (work / "critique.json").write_text("{}", encoding="utf-8")
+    (work / "degradations.json").write_text("{not json", encoding="utf-8")
+    r = note(work, "--critic-failed")
+    assert r.exit_code == ExitCode.NO_CONTENT
+    assert not (work / "critique.json").exists()
+    assert (work / "degradations.json").read_text() == "{not json"
