@@ -105,9 +105,10 @@ If `new-work` fails (any exit other than 64), move the home into the project. If
 Write is denied or fails, do the same:
 
 1. If `new-work` succeeded, remove its folder: `rm -rf "<W>"`, only the exact path
-   `new-work` printed, never a parent, a glob or `$HOME`. Then, as separate Bash calls,
-   `mkdir -p "<P>/.skipwatch"` and `printf '*\n' > "<P>/.skipwatch/.gitignore"`, so the
-   `<P>/.skipwatch/.gitignore` file containing `*` keeps work files out of commits.
+   `new-work` printed, never a parent, a glob or `$HOME`. Then run
+   `mkdir -p "<P>/.skipwatch"`, then Write `<P>/.skipwatch/.gitignore` with the content
+   `*`, so the `<P>/.skipwatch/.gitignore` file containing `*` keeps work files out of
+   commits.
 2. Use `SKIPWATCH_HOME="$PWD/.skipwatch"`, written with `<P>` in place of `$PWD`:
    `SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work --slug <slug> --json`. Take the new
    `<W>` and repeat the Write probe.

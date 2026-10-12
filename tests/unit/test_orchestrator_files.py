@@ -825,7 +825,9 @@ def test_later_write_denial_switches_once_then_stops():
 def test_fallback_home_is_git_ignored():
     text = protocol_flat()
     assert "`<P>/.skipwatch/.gitignore`" in text and "containing `*`" in text
-    assert "printf '*\\n' >" in text  # fixed content, no video text in the shell
+    # the Write tool, not a shell redirect, which the fallback rule forbids
+    assert "then Write `<P>/.skipwatch/.gitignore` with the content `*`" in text
+    assert "printf" not in text
 
 
 def test_readers_get_the_current_work_folder():
