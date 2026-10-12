@@ -1004,7 +1004,9 @@ def test_exit_7_has_one_wording_per_stage():
     # SKILL.md defers to the stage's own message, so the two files never disagree
     skill = read(SKILL / "SKILL.md")
     [row] = [line for line in skill.splitlines() if line.startswith("| 7 |")]
-    assert "the message `run-engine.md` gives for that stage" in row
+    assert "`## Probe and ingest exits` or `## Frames exits` of `references/run-branches.md`" in row
+    branches = read(REFS / "run-branches.md")
+    assert "\n## Probe and ingest exits\n" in branches and "\n## Frames exits\n" in branches
     assert "No usable content" not in skill
 
 

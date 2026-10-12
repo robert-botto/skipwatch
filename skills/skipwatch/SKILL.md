@@ -149,7 +149,7 @@ retry a failed stage with different inputs to get past it.
 | 2 | probe, ingest | `Unsupported source: <engine message>.` It names the platform or the extension tried. |
 | 3 | probe, ingest | `Download failed:` then every route line and its reason, then the fix the engine names. |
 | 4 | probe, ingest | `This content is private or needs a login: <engine message>.` then `Re-run with --cookies-from-browser <browser> if you can open it logged in.` |
-| 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message `run-engine.md` gives for that stage (ingest, frames, or no transcript and no frames) |
+| 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message in `## Probe and ingest exits` or `## Frames exits` of `references/run-branches.md` |
 | 3, 7 or 8 | transcribe | do not stop: continue from frames only and note `no transcript: <the engine's message>` (`note --degradation`); exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then the `Check failed twice.` line from stage 8 in `run-distill.md` |
