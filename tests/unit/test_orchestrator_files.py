@@ -594,6 +594,15 @@ def test_work_folder_falls_back_inside_the_workspace():
     assert "work folder moved into the project" in review
 
 
+def test_check_hint_uses_the_full_engine_command():
+    # `skipwatch` is on PATH only after an optional `uv tool install`
+    hint = 'Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"'
+    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+        text = flat(path)
+        assert hint in text, path
+        assert "run skipwatch check" not in text and "run: skipwatch check" not in text, path
+
+
 def test_exit_127_and_78_each_have_one_row():
     skill = read(SKILL / "SKILL.md")
     doctor = [line for line in skill.splitlines() if line.startswith("| 127 | doctor |")]

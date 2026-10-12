@@ -510,7 +510,8 @@ applies redaction again over the whole folder.
   lines is joined into one line in the draft copy, which is then redacted into staging
   again so the key becomes a placeholder. A frame that showed a secret is removed by
   check itself; drop its image link from the draft. A second exit 1 stops: print the failing items, one line each, then
-  `Check failed twice. Draft kept at <W>/staging/<name>/. Edit it and run: skipwatch check "<W>/staging/<name>" --work "<W>"`.
+  `Check failed twice. Draft kept at <W>/staging/<name>/. Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"`,
+  with `<ENGINE>` expanded to the full command, since plain `skipwatch` is not on PATH.
 
 ## Stage 8: review
 
