@@ -8,6 +8,9 @@ linked frames to 960 wide), then runs `check`, `install --to <scratch>` and `pac
 - run-skipdemo-tutorial.skillpack.zip: the pack as `pack` wrote it.
 - run-skipdemo-tutorial-tampered.skillpack.zip: the same pack with one byte of step 2's
   quoted prompt changed inside run-skipdemo-tutorial/SKILL.md, the manifest untouched.
+- run-skipdemo-spoken.skillpack.zip: the same run with the spoken-only draft in
+  tests/fixtures/packs/spoken-draft/ (no frames). Every quote is in the transcript the pack
+  carries, so pack-mode check re-verifies all of them and `--yes` may install it.
 
 Packs are stored zips with fixed entry dates, so both files are byte-stable for the same
 inputs: the manifest's extracted_at (the mtime of ingest.json) is pinned to EXTRACTED_AT.
@@ -35,6 +38,9 @@ OUT = FIX / "packs"
 NAME = "run-skipdemo-tutorial"
 GOOD = OUT / f"{NAME}.skillpack.zip"
 TAMPERED = OUT / f"{NAME}-tampered.skillpack.zip"
+SPOKEN_NAME = "run-skipdemo-spoken"
+SPOKEN_DRAFT = OUT / "spoken-draft"
+SPOKEN = OUT / f"{SPOKEN_NAME}.skillpack.zip"
 PROMPT = b"Write a four line poem about rivers"
 TAMPERED_PROMPT = b"Write a four line poem about rovers"  # one byte: i -> o
 SKILL_FRAME_WIDTH = 960
@@ -61,14 +67,14 @@ def engine(env: dict[str, str], *args: str, stdin=None, stdout=None) -> None:
         raise SystemExit(f"skipwatch {' '.join(args)} exited {result.returncode}: {result.stderr}")
 
 
-def reference_run(env: dict[str, str], work: Path) -> Path:
-    """The M1 reference run up to a checked staging folder; returns the staging folder."""
+def reference_run(env: dict[str, str], work: Path, drafts: Path, name: str) -> Path:
+    """The M1 reference run with the draft <drafts>/<name>, up to a checked staging folder."""
     engine(env, "ingest", str(FIX / "tutorial-60s.mp4"), "--work", str(work))
     for stage in ("transcribe", "frames", "plan"):
         engine(env, stage, "--work", str(work))
     shutil.copytree(REF / "notes", work / "notes")
-    draft = REF / "draft" / NAME
-    staging = work / "staging" / NAME
+    draft = drafts / name
+    staging = work / "staging" / name
     for src in sorted(p for p in draft.rglob("*") if p.is_file()):
         dst = staging / src.relative_to(draft)
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -105,11 +111,12 @@ def main() -> int:
         scratch = Path(tmp).resolve()
         env = {**os.environ, "SKIPWATCH_HOME": str(scratch / "home")}
         env["SKIPWATCH_TREG_DISABLED"] = "1"
-        staging = reference_run(env, scratch / "work")
-        engine(env, "install", str(staging), "--to", str(scratch / "installed"))
-        engine(env, "pack", str(scratch / "installed" / NAME), "-o", str(GOOD))
+        for drafts, name, out in ((REF / "draft", NAME, GOOD), (SPOKEN_DRAFT, SPOKEN_NAME, SPOKEN)):
+            staging = reference_run(env, scratch / f"work-{name}", drafts, name)
+            engine(env, "install", str(staging), "--to", str(scratch / "installed"))
+            engine(env, "pack", str(scratch / "installed" / name), "-o", str(out))
     tamper(GOOD, TAMPERED)
-    for path in (GOOD, TAMPERED):
+    for path in (GOOD, TAMPERED, SPOKEN):
         print(f"Wrote {path.relative_to(ROOT)}")
     return 0
 
