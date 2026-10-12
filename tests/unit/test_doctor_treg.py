@@ -72,3 +72,11 @@ def test_r_doc_1_doctor_still_never_installs(monkeypatch, sw_home):
         if cmd not in treg:
             assert cmd[-1] in ("--version", "-version"), cmd  # ffmpeg uses one dash
     assert "treg: logged in" in r.stderr
+
+
+def test_doctor_finds_treg_where_content_treg_does():
+    """One source of truth: with SKIPWATCH_TREG_DISABLED=1 (set for every non-live test) doctor
+    sees no treg even though a stub treg is first on PATH."""
+    assert content_treg._treg_path() is None
+    probe = doctor.probe_machine()
+    assert probe.treg_on_path is False and probe.treg_logged_in is None

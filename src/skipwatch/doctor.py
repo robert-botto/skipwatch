@@ -154,7 +154,7 @@ def is_apple_silicon() -> bool:
 
 
 def _treg_on_path() -> bool:
-    return shutil.which("treg") is not None
+    return content_treg._treg_path() is not None  # one source of truth, honours the test guard
 
 
 def probe_machine() -> Probe:
