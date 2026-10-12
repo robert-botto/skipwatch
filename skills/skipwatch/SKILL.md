@@ -1,6 +1,6 @@
 ---
 name: skipwatch
-description: Use when the user runs /skipwatch, or pastes a tutorial video link (YouTube, X, TikTok, Instagram, Facebook, any yt-dlp URL) or a local screen recording and asks Claude to learn it, capture it, turn it into a skill, or do what the video shows. Also handles "/skipwatch doctor". Not for requests to summarize, download, or only transcribe a video.
+description: Turns a tutorial video (YouTube, X, TikTok, Instagram, Facebook or any yt-dlp URL) or a local screen recording into an installed Agent Skill whose steps cite timestamps. Use when the user runs /skipwatch, or shares a video link or recording and asks to make, capture or save it as a skill. Also handles /skipwatch doctor, resume, list, pack, install and share. Not for requests to summarize, download or transcribe a video, or to follow its steps right now.
 argument-hint: "<url or path> [flags]"
 allowed-tools: Bash, Read, Write, Agent
 ---

@@ -256,6 +256,18 @@ def test_skill_md_frontmatter_kept():
     }
 
 
+def test_skill_md_description_says_what_and_when():
+    description = fm(SKILL / "SKILL.md")["description"]
+    # third person, what it does first, then when, then the near misses
+    assert description.startswith("Turns a tutorial video")
+    assert "Use when the user runs /skipwatch" in description
+    assert "Not for requests to summarize, download or transcribe a video" in description
+    assert "follow its steps right now" in description
+    # nothing from the video is executed during a run, so the trigger never promises it
+    assert "do what the video shows" not in description
+    assert len(description) <= 1024
+
+
 def test_skill_md_body():
     text = flat(SKILL / "SKILL.md")
     assert "references/run-protocol.md" in text
