@@ -127,3 +127,16 @@ def test_ensure_failure_is_one_line_exit_7(sw_home, monkeypatch):
 
     monkeypatch.setattr(new_work_mod.WorkDir, "ensure", full)
     assert_one_line_exit_7(new_work("--slug", "demo"))
+
+
+def test_new_work_json_gives_started_at_in_utc_for_run_json(sw_home):
+    from datetime import UTC, datetime, timedelta
+
+    before = datetime.now(UTC).replace(microsecond=0)
+    r = new_work("--slug", "demo", "--json")
+    assert r.exit_code == 0, r.output
+    started = json.loads(r.stdout)["started_at"]
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", started)
+    when = datetime.fromisoformat(started.replace("Z", "+00:00"))
+    assert before <= when <= datetime.now(UTC) + timedelta(seconds=1)
+    RunFile(input="x", started_at=started)  # the skill copies it into run.json as is

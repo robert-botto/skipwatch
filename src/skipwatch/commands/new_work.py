@@ -6,7 +6,7 @@ the same home the engine uses (SKIPWATCH_HOME, else ~/.skipwatch), never a hand-
 
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -63,6 +63,7 @@ def _new_work(slug: str | None, source: str | None, json_out: bool) -> int:
             ExitCode.USAGE,
             f"bad slug {slug!r}: lowercase letters, digits and hyphens, 1 to 80 characters",
         )
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")  # run.json's started_at
     path = _claim(slug, datetime.now())
     try:
         WorkDir(path).ensure()
@@ -71,7 +72,8 @@ def _new_work(slug: str | None, source: str | None, json_out: bool) -> int:
     except OSError as exc:
         raise _cannot_create(path, exc) from exc
     progress(f"Work folder: {path}")
-    print(json.dumps({"work": str(path)}) if json_out else str(path))
+    out = {"work": str(path), "started_at": started_at}
+    print(json.dumps(out) if json_out else str(path))
     return 0
 
 
@@ -85,7 +87,9 @@ def register(app: typer.Typer) -> None:
             str | None,
             typer.Option("--from", help="The run's input (URL or file): derive the slug from it."),
         ] = None,
-        json_out: bool = typer.Option(False, "--json", help='Print {"work": <path>}.'),
+        json_out: bool = typer.Option(
+            False, "--json", help='Print {"work": <path>, "started_at": <UTC ISO time>}.'
+        ),
     ):
         """Create a work folder under the engine's home and print its absolute path."""
         run_command(lambda: _new_work(slug, source, json_out))
