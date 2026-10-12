@@ -21,7 +21,12 @@ from skipwatch.workdir import STAGE_ORDER, WorkDir
 def home_work_folder(work: Path) -> Path:
     """The work folder, resolved: directly under the home's work/ (as --home sets it), not a
     symlink, with a stages.json that reads. Anything else is exit 64 before any deletion."""
-    root = (skipwatch_home() / "work").resolve()
+    return _home_folder(work, "work")
+
+
+def _home_folder(work: Path, area: str) -> Path:
+    """home_work_folder's rule for the home's work/ or packs/ folder."""
+    root = (skipwatch_home() / area).resolve()
     resolved = work.resolve()
     if work.is_symlink() or resolved.parent != root:
         raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
