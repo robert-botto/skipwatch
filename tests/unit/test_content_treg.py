@@ -149,7 +149,7 @@ def test_treg_not_found_and_bad_json_fall_through():
     assert c.call("anyapi.twitter.thread", body={"url": G2_URL}) is None
     assert c.call("anyapi.twitter.tweet_transcript", body={"url": G2_URL}) is None
     assert c.call("anyapi.tiktok.video_download", body={"url": "https://t/v"}) is None
-    assert [call.ok for call in c.calls] == [False, False, False]
+    assert [call.ok for call in c.calls] == [True, False, False]  # not found is an answer
     assert c.calls[0].error == "not found"
     assert c.calls[1].error == "not JSON"
     assert c.calls[2].error == "treg: HTTP 502 bad gateway at https://h/x?"  # first line, cut
@@ -174,7 +174,7 @@ def test_treg_cost_cap_stops_calls(fake_runner):
     )
     assert refused is None
     assert [a[2] for a in fake_runner.calls()] == ["anyapi.twitter.thread"]  # never ran
-    assert c.calls[-1].error == "cost cap" and not c.calls[-1].ok
+    assert c.calls[-1].error == "cost cap" and c.calls[-1].ok  # informational row
     assert sum(call.cost_usd for call in c.calls) <= 0.004
     assert c.capped
 
@@ -898,3 +898,60 @@ def test_failed_call_without_a_charge_line_counts_the_estimate():
     c = client(FakeRunner({"anyapi.twitter.thread": failed}))
     c.call("anyapi.twitter.thread", body={"url": G2_URL})
     assert c.spent == pytest.approx(ESTIMATE) and c.calls[0].cost_usd == pytest.approx(ESTIMATE)
+
+
+# ---- expected misses are outcomes, not failures: a rerun re-bills nothing (R-TR-3) ----
+
+NOT_FOUND = subprocess.CompletedProcess(
+    [], 0, stdout='{"output": {"found": false, "data": null}, "costUsd": 0}', stderr=""
+)
+
+
+def fixed_x(monkeypatch):
+    fixed = video_bundle("x", G2_URL)
+
+    class Fixed:
+        def build(self, detected, work_, opts):
+            return fixed
+
+    adapters(monkeypatch, x=Fixed())
+
+
+def test_rerun_of_a_cached_x_post_without_transcript_bills_nothing(
+    tmp_path, treg_on, monkeypatch, sw_home
+):
+    fixed_x(monkeypatch)
+    runner = FakeRunner({"anyapi.twitter.tweet_transcript": NOT_FOUND})
+    provider = TregProvider(runner=runner)
+    first = run(G2_URL, work(tmp_path / "1"), provider, monkeypatch)
+    missing = next(c for c in first.provider_calls if c.op == "x.transcript")
+    assert missing.ok and missing.error == "not found"  # an answer, not a failure
+    assert missing.review in (None, "not_useful")
+    billed = len(runner.calls())
+    again = run(G2_URL, work(tmp_path / "2"), provider, monkeypatch)
+    assert again.from_cache and len(runner.calls()) == billed
+
+
+def test_rerun_after_the_cost_cap_bills_nothing(tmp_path, treg_on, monkeypatch, sw_home):
+    monkeypatch.setattr(content_treg, "_max_cost", lambda: 0.004)
+    fixed_x(monkeypatch)
+    runner = FakeRunner()
+    provider = TregProvider(runner=runner)
+    first = run(G2_URL, work(tmp_path / "1"), provider, monkeypatch)
+    capped = [c for c in first.provider_calls if c.error == "cost cap"]
+    assert capped and all(c.ok and c.cost_usd == 0 for c in capped)  # informational rows
+    billed = len(runner.calls())
+    assert run(G2_URL, work(tmp_path / "2"), provider, monkeypatch).from_cache
+    assert len(runner.calls()) == billed
+
+
+def test_genuine_errors_stay_failures_and_are_asked_again(tmp_path, treg_on, monkeypatch, sw_home):
+    fixed_x(monkeypatch)
+    broken = subprocess.CompletedProcess([], 1, stdout="", stderr="treg: HTTP 502\n")
+    runner = FakeRunner({"anyapi.twitter.tweet_transcript": broken})
+    provider = TregProvider(runner=runner)
+    first = run(G2_URL, work(tmp_path / "1"), provider, monkeypatch)
+    assert not next(c for c in first.provider_calls if c.op == "x.transcript").ok
+    billed = len(runner.calls())
+    assert not run(G2_URL, work(tmp_path / "2"), provider, monkeypatch).from_cache
+    assert len(runner.calls()) > billed

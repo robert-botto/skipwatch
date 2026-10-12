@@ -95,6 +95,7 @@ _CHARGED = re.compile(r"charged \$(\d+(?:\.\d+)?(?:e-?\d+)?)(?![\d.,])", re.IGNO
 _MENTIONS_CHARGE = re.compile(r"\bcharged\b(?! by the original call)", re.IGNORECASE)
 _CALL_ID = re.compile(r"call id ([0-9a-f]{8,})", re.IGNORECASE)
 _REPLAY = "nothing new charged"
+NOT_FOUND = "not found"
 THREAD = "anyapi.twitter.thread"
 COMMENTS = "treg.x.post.comments"
 COMMENTS_HEADERS = {"X-Treg-Route-Max-Cost": "0.01"}
@@ -191,10 +192,10 @@ def _payload(body: Any) -> tuple[Any, str | None]:
         return None, "unexpected response"
     output = body["output"]
     if output.get("found") is False:
-        return None, "not found"
+        return None, NOT_FOUND
     if "found" in output:
         data = output.get("data")
-        return (data, None) if data else (None, "not found")
+        return (data, None) if data else (None, NOT_FOUND)
     return output, None
 
 
@@ -252,7 +253,9 @@ class TregClient:
             return self._answers[key]
         if self.spent + estimate > self.max_cost_usd + 1e-9:
             self.capped = True
-            self._log(endpoint, None, ok=False, error="cost cap")
+            # informational, like a not-found answer: the run went as configured, so the
+            # bundle stays cacheable and a rerun bills nothing (R-TR-3)
+            self._log(endpoint, None, ok=True, error="cost cap")
             return None
         started = time.monotonic()
         try:
@@ -294,10 +297,13 @@ class TregClient:
         if cost is None:  # no word on the bill: assume it was paid unless clearly not
             cost = estimate if data is not None or out.returncode != 0 else 0.0
         self.spent += cost
+        # A not-found answer is an outcome, not a failure: ok, with the note in error, so the
+        # run cache keeps it and a rerun does not ask (and pay) again. Genuine errors (exit
+        # status, unreadable output, timeouts) stay ok=False and are asked again next run.
         self._log(
             endpoint,
             started,
-            ok=data is not None,
+            ok=data is not None or error == NOT_FOUND,
             cost_usd=cost,
             call_id=call_id,
             error=error,
@@ -310,7 +316,7 @@ class TregClient:
         self._used.add(endpoint)
 
     def _rating(self, call: ProviderCall) -> str:
-        if not call.ok:
+        if not call.ok or call.error == NOT_FOUND:
             return "not_useful"
         return "useful" if call.endpoint in self._used else "not_sure"
 
