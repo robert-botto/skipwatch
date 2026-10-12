@@ -511,6 +511,15 @@ def test_non_engine_exit_codes_mapped():
         assert "W/logs" in text or "<W>/logs" in text, path
 
 
+def test_instructions_without_the_backstory():
+    skill = flat(SKILL / "SKILL.md")
+    assert "Never invoke uv yourself to run the engine" in skill
+    assert "fails inside the Bash sandbox" not in skill
+    protocol = flat(REFS / "run-protocol.md")
+    assert "can have different permissions" not in protocol
+    assert "before check takes the file hashes" not in protocol
+
+
 def test_no_heredoc_in_prompt_files():
     for path in PROMPT_FILES:
         assert "<<'" not in read(path) and '<<"' not in read(path), path
@@ -918,7 +927,7 @@ def test_long_video_question_only_without_yes():
 
 def test_long_stages_avoid_the_bash_timeout():
     text = flat(REFS / "run-protocol.md")
-    assert "120 s" in text  # the Bash tool's default timeout
+    assert "120 s" not in text  # Claude knows the Bash default; only the instruction stays
     assert "timeout: 600000" in text
     assert "run that stage with `run_in_background`" in text
     assert "exceeds 500 s" in text

@@ -34,8 +34,7 @@ continues an interrupted run.
   asked at most once and never under `--yes`: the long-video question (stage 3, step 2).
   A missing transcript source is never a mid-run question; its
   offers wait for the review screen. Flags decide everything else.
-- Long stages and the Bash timeout: the Bash tool stops a call after 120 s by default.
-  Run ingest, transcribe, frames and any install with the Bash tool's `timeout: 600000`.
+- Long stages: run ingest, transcribe, frames and any install with the Bash tool's `timeout: 600000`.
   When the expected stage time exceeds 500 s, run that stage with `run_in_background`.
   The expected time is probe's `estimated_run_s`, or for transcribe the duration times
   the backend factor (mlx 0.25, faster 0.6, cloud about 0.1, captions about 0). Then
@@ -110,10 +109,8 @@ golden runners set it to a scratch folder), otherwise `.skipwatch` in the home f
 only the engine applies that rule. Exit 64 means the slug broke the rule (lowercase
 letters, digits and hyphens, at most 80): fix the slug and run it again.
 
-Then use the Write tool to write `<W>/logs/.write-probe` with the content `ok`. Bash and
-the Write tool can have different permissions: in some sandboxes `mkdir` succeeds in the
-home folder while every Write there is denied, and the run would only find out when a
-reader tries to save its notes.
+Then use the Write tool to write `<W>/logs/.write-probe` with the content `ok`, so a
+sandbox that denies Write there is found now, not when a reader saves its notes.
 
 ### Fallback: move the work folder into the project
 
@@ -406,8 +403,7 @@ Files (paths relative to the skill folder):
 
       <ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ... 2>>"<W>/logs/copy-frames.log"; echo "rc=$?"; tail -n 3 "<W>/logs/copy-frames.log"
 
-  The engine writes each frame as `<id>.jpg` scaled to 960 wide, before check takes
-  the file hashes, so a later pack never changes a byte. Never copy or resize frames with
+  The engine writes each frame as `<id>.jpg`, 960 wide. Never copy or resize frames with
   `cp` or any other tool, and never Read them. Exit 64 names an unknown frame id or more
   than 8 frames: fix the id list and run it once more. Exit 7 (`frames.json` or a frame
   file is missing): copy no frames, remove those image links from the draft (and redact

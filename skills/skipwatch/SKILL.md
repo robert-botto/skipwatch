@@ -27,11 +27,8 @@ The engine command is defined here and nowhere else. Every reference writes
 
 <ENGINE> = `"<ROOT>/scripts/skipwatch"`
 
-That wrapper runs the engine straight from the plugin's synced environment. Running it
-through uv fails inside the Bash sandbox, so never invoke uv yourself to run it; the only uv
-command you ever run is an install the user accepted (doctor, or the Whisper offer in a
-run). A session-start hook
-keeps the environment synced. `<W>` in the references is the absolute work folder of the
+Never invoke uv yourself to run the engine; the only uv command you ever run is an install
+the user accepted (doctor, or the Whisper offer in a run). `<W>` in the references is the absolute work folder of the
 current run, always taken from `<ENGINE> new-work` (or `<ENGINE> resume`) output, never
 built by hand.
 
