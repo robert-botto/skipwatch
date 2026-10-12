@@ -10,6 +10,11 @@ a side has a single word). Bigrams keep local word order, so unrelated speech th
 common words still scores low, while caption line breaks, no-break spaces, case and
 punctuation do not count. difflib's SequenceMatcher over word lists was the first choice but
 is quadratic: about 40 s on an hour of speech against unrelated text.
+
+The disagreement warning also needs the overlap coefficient (shared / min(len(a), len(b)))
+under the threshold, so an excerpt is not flagged; CrossCheck has no field for it, so it is
+used for the warning only and transcript.json records Dice.
+
 """
 
 import re
@@ -30,14 +35,32 @@ def _grams(words: list[str], n: int) -> Counter[tuple[str, ...]]:
     return Counter(tuple(words[i : i + n]) for i in range(len(words) - n + 1))
 
 
-def similarity(a: str, b: str) -> float:
+def _shared(a: str, b: str) -> tuple[int, int, int] | None:
+    """(shared, size of a, size of b) over the n-gram multisets, or None when a side is empty."""
     a_words, b_words = _words(a), _words(b)
     if not a_words or not b_words:
-        return 0.0
+        return None
     n = 2 if min(len(a_words), len(b_words)) >= 2 else 1
     a_grams, b_grams = _grams(a_words, n), _grams(b_words, n)
-    shared = sum((a_grams & b_grams).values())
-    return round(2 * shared / (a_grams.total() + b_grams.total()), 2)
+    return sum((a_grams & b_grams).values()), a_grams.total(), b_grams.total()
+
+
+def similarity(a: str, b: str) -> float:
+    """Dice: 2 * shared / (len(a) + len(b)). This is what transcript.json records."""
+    counts = _shared(a, b)
+    if counts is None:
+        return 0.0
+    shared, a_size, b_size = counts
+    return round(2 * shared / (a_size + b_size), 2)
+
+
+def overlap(a: str, b: str) -> float:
+    """Overlap coefficient: shared / min(len(a), len(b)); 1.0 when one text is an excerpt."""
+    counts = _shared(a, b)
+    if counts is None:
+        return 0.0
+    shared, a_size, b_size = counts
+    return round(shared / min(a_size, b_size), 2)
 
 
 def attach(transcript: Transcript, hint: TranscriptHint) -> Transcript:
@@ -55,8 +78,16 @@ def attach(transcript: Transcript, hint: TranscriptHint) -> Transcript:
 
 
 def disagreement(transcript: Transcript) -> str | None:
-    """The warning line when the two sources disagree (similarity under 0.6), else None."""
+    """The warning line when the two sources disagree, else None.
+
+    Both Dice (the recorded similarity) and the overlap coefficient must be under 0.6, so a
+    provider text that is only an excerpt of the transcript (a caption quoting one line) is
+    not a disagreement even though its Dice score is tiny.
+    """
     check = transcript.cross_check
     if check is None or check.similarity is None or check.similarity >= LOW_SIMILARITY:
+        return None
+    timed_text = " ".join(s.text for s in transcript.segments)
+    if overlap(timed_text, check.text) >= LOW_SIMILARITY:
         return None
     return f"transcript sources disagree: {check.similarity:.2f}"

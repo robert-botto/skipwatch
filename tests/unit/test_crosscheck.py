@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from skipwatch import transcribe as transcribe_module
 from skipwatch.cli import app
-from skipwatch.crosscheck import LOW_SIMILARITY, attach, disagreement, similarity
+from skipwatch.crosscheck import LOW_SIMILARITY, attach, disagreement, overlap, similarity
 from skipwatch.models import (
     CrossCheck,
     IngestBundle,
@@ -147,6 +147,29 @@ def with_check(similarity_value: float) -> Transcript:
 def test_disagreement_threshold_is_0_6():
     assert disagreement(with_check(0.59)) == "transcript sources disagree: 0.59"
     assert disagreement(with_check(0.60)) is None
+
+
+def test_excerpt_of_the_transcript_does_not_warn():
+    # A provider caption that quotes 5 words of a 1000-word talk: Dice is tiny, overlap is 1.
+    words = [f"w{i}" for i in range(1000)]
+    t = attach(timed(" ".join(words)), TranscriptHint(origin="treg", text=" ".join(words[40:45])))
+    assert t.cross_check is not None and t.cross_check.similarity == 0.01  # Dice is kept
+    assert overlap(" ".join(words), " ".join(words[40:45])) == 1.0
+    assert disagreement(t) is None
+
+
+def test_unrelated_short_text_still_warns():
+    words = [f"w{i}" for i in range(1000)]
+    t = attach(
+        timed(" ".join(words)), TranscriptHint(origin="treg", text="nothing alike here at all")
+    )
+    assert disagreement(t) == "transcript sources disagree: 0.00"
+
+
+def test_overlap_is_shared_over_the_smaller_side():
+    assert overlap("a b c d e", "c d e") == 1.0  # 2 shared bigrams of min(4, 2)
+    assert overlap("a b c d e", "c d x") == 0.5
+    assert overlap("", "a b") == 0.0
 
 
 def test_disagreement_message_under_threshold_only():
