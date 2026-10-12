@@ -112,6 +112,8 @@ def test_run_protocol_doctor_cached_by_mtime():
     # doctor is its own Bash call, so its exit code (127: uv missing) is the tool's
     assert "\n      <ENGINE> doctor --json\n" in "\n".join(read(f) for f in RUN_FILES)
     assert "Exit 127 (no synced environment and `uv` not installed)" in text
+    # find on a missing file errors with exit 1 on a first run: that means "run doctor"
+    assert 'or a "No such file" error with exit 1: run doctor' in text
     assert "err=$(" not in text and "doctor --json >/dev/null 2>&1" not in text
 
 

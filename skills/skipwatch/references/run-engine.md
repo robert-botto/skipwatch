@@ -72,7 +72,7 @@ timestamp). First, one Bash call:
 
 - It prints the path: cached. Read the tier with
   `grep -m1 '"tier"' "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`.
-- It prints nothing: run doctor as its own Bash call and take `tier` from its JSON:
+- It prints nothing, or a "No such file" error with exit 1: run doctor as its own Bash call and take `tier` from its JSON:
 
       <ENGINE> doctor --json
 
