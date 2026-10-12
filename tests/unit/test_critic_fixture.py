@@ -73,7 +73,8 @@ def test_the_planted_flaw_passes_check(tmp_path, monkeypatch):
     monkeypatch.setenv("SKIPWATCH_HOME", str(tmp_path / "home"))
     work = tmp_path / "work"
     shutil.copytree(WORK, work)
+    in_json = json.dumps(str(tmp_path))[1:-1]  # native separators, escaped for JSON (Windows)
     for path in (work / "ingest.json", work / "run.json"):
-        path.write_text(path.read_text(encoding="utf-8").replace("__CWD__", str(tmp_path)))
+        path.write_text(path.read_text(encoding="utf-8").replace("__CWD__", in_json))
     report = run_all(work / "staging" / NAME, work)
     assert report.passed, [i for r in report.results for i in r.items]
