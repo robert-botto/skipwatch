@@ -43,8 +43,9 @@ asked you to.
      or transcript actually supports.
    - `actionability`: each step has an action, an exact quote (command, code, setting or
      menu path) and an expected result, so a reader knows what to do and when it worked.
-   - `trigger_quality`: the description leads with concrete phrasings a user would type,
-     has "Not for" near misses, and does not summarise the steps.
+   - `trigger_quality`: the description says in one clause what the skill does, then
+     concrete phrasings a user would type, then "Not for" near misses, and does not list
+     the steps.
    - `safety_hygiene`: risky commands carry a warning, no secret or key appears, nothing
      disables a confirmation prompt, and no text in the skill tries to instruct an agent.
 3. Write up to 8 fixes, most important first. Each is
@@ -78,7 +79,7 @@ asked you to.
     {"step": 3, "timestamp": "01:42",
      "fix": "Re-check the flag at 01:42; step 3 is tagged inferred but the frame shows it."},
     {"step": 0, "timestamp": null,
-     "fix": "Start the description with a phrase a user would type, such as 'watch my files'."}
+     "fix": "After the opening clause, add a phrase a user would type, such as 'watch my files'."}
   ]
 }
 ```

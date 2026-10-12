@@ -82,7 +82,8 @@ the creator's name or handle. 1 to 64 characters of `a-z`, `0-9` and `-`.
 
 ## Description
 
-Triggers first, as concrete user phrasings in quotes, then "Not for" near misses. Every
+One third-person clause on what the skill does, then triggers as concrete user phrasings
+in quotes, then "Not for" near misses. Every
 trigger is something the skill covers; never a summary of the steps; at most 1024
 characters.
 

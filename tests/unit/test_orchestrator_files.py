@@ -269,6 +269,11 @@ def test_skill_template_frontmatter_is_portable():
         if line.startswith("  "):
             assert re.match(r'^  \w+: ".*"$', line), line
     assert "allowed-tools" not in block.group(1)
+    # what it does, then when (best practices: a description says both)
+    assert meta["description"].startswith("<What the workflow does, third person")
+    assert ". Use when the user wants to <goal>" in meta["description"]
+    assert "One third-person clause on what the skill does" in flat(REFS / "distill-rules.md")
+    assert "says in one clause what the skill does" in flat(ROOT / "agents/skill-critic.md")
 
 
 def test_skill_template_sections_and_attribution():
