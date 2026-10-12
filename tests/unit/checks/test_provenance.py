@@ -393,9 +393,20 @@ def test_provenance_passes_one_word_quote_equal_to_whole_item(tmp_path, kind):
     assert r.ok, r.items
 
 
-def test_provenance_whole_item_match_ignores_case_and_width(tmp_path):
-    r = _case_with_note(tmp_path, "Copilot", kind="command", text="ｃopilot")
+def test_provenance_whole_item_match_keeps_case(tmp_path):
+    r = _case_with_note(tmp_path, "ls -r", kind="command", text="ls -R")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
+
+
+def test_provenance_whole_item_match_same_case_passes(tmp_path):
+    r = _case_with_note(tmp_path, "ls -R", kind="command", text="ls  -R")
     assert r.ok, r.items
+
+
+def test_provenance_whole_item_rejects_fullwidth_quote(tmp_path):
+    fullwidth = "\uff43\uff4f\uff50\uff49\uff4c\uff4f\uff54"
+    r = _case_with_note(tmp_path, fullwidth, kind="command", text="copilot")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
 
 
 def test_provenance_fails_short_quote_that_is_part_of_a_command(tmp_path):

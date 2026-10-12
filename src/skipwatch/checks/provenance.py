@@ -3,7 +3,8 @@
 [spoken] quotes match the transcript after NFKC, quote folding, case and whitespace
 normalisation, on word boundaries, and must be at least 3 words or 12 characters. [on-screen]
 quotes follow the same length rule, except a quote equal to a whole command, code, setting or
-ui_path item (same normalisation), which is valid at any length; for commands, settings and
+ui_path item (NFKC and whitespace, case kept; the quote itself already NFKC), which is valid at
+any length; for commands, settings and
 prompts they must be the whole reader item or whole lines of it, for other text they sit
 inside it on word boundaries. The
 [illegible at mm:ss] wildcard covers at most 40 characters on one line and needs a reader
@@ -155,11 +156,19 @@ def _screen_matches(quote: str, item: VerbatimItem) -> bool:
     return _line_matches(" ".join(q_lines), joined, whole=False)
 
 
+def _exact(text: str) -> str:
+    """NFKC and collapsed whitespace, case kept: `ls -r` is not `ls -R`."""
+    return _screen_line(unicodedata.normalize("NFKC", redact_text(text)[0]))
+
+
 def _is_whole_short_item(quote: str, frames: list[FrameNote]) -> bool:
-    """The quote equals a whole command, code, setting or ui_path item (normalised)."""
-    q = _norm(redact_text(quote)[0])
+    """The quote equals a whole command, code, setting or ui_path item, case kept. The quote
+    itself must already be NFKC text, so a full-width lookalike never verifies."""
+    if unicodedata.normalize("NFKC", quote) != quote:
+        return False
+    q = _exact(quote)
     return bool(q) and any(
-        item.kind in SHORT_WHOLE_KINDS and _norm(redact_text(item.text)[0]) == q
+        item.kind in SHORT_WHOLE_KINDS and _exact(item.text) == q
         for frame in frames
         for item in frame.verbatim
     )
