@@ -88,13 +88,31 @@ def test_parallel_new_work_calls_get_distinct_complete_folders(sw_home):
         assert re.fullmatch(r"demo-\d{8}-\d{6}", work.name)
 
 
-def test_unwritable_home_is_one_line_exit_7(sw_home):
+def assert_one_line_exit_7(r):
+    assert r.exit_code == 7
+    assert "cannot create the work folder" in r.output
+    assert isinstance(r.exception, SystemExit)  # no uncaught OSError traceback
+
+
+def test_unwritable_home_is_one_line_exit_7(sw_home, monkeypatch):
+    # OS-independent: chmod cannot make a directory read-only on Windows
+    real_mkdir = Path.mkdir
+
+    def denied(self, *args, **kwargs):
+        if sw_home in self.parents:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", denied)
+    assert_one_line_exit_7(new_work("--slug", "demo"))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod does not make a folder read-only")
+def test_read_only_work_folder_is_one_line_exit_7(sw_home):
     (sw_home / "work").mkdir(parents=True)
     (sw_home / "work").chmod(0o500)  # read-only work/: mkdir fails with PermissionError
     try:
         r = new_work("--slug", "demo")
     finally:
         (sw_home / "work").chmod(0o700)
-    assert r.exit_code == 7
-    assert "cannot create the work folder" in r.output
-    assert isinstance(r.exception, SystemExit)  # no uncaught OSError traceback
+    assert_one_line_exit_7(r)
