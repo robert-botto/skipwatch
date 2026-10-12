@@ -233,3 +233,71 @@ def test_resume_still_reads_a_cleaned_finished_run(tmp_path):
     result = json.loads(r.stdout)
     assert result["next_stage"] is None and result["run"]["input"] == "https://youtu.be/x"
     assert invoke("list").exit_code == 0
+
+
+# ---- discard-work ----
+
+
+def fresh_work(*home_args: str) -> Path:
+    import json
+
+    r = invoke(*home_args, "new-work", "--slug", "demo", "--json")
+    assert r.exit_code == 0, r.output
+    return Path(json.loads(r.stdout)["work"])
+
+
+def test_discard_removes_a_fresh_work_folder(sw_home):
+    work = fresh_work()
+    r = invoke("discard-work", "--work", str(work))
+    assert r.exit_code == 0, r.output
+    assert not work.exists() and (sw_home / "work").is_dir()
+
+
+def test_discard_allows_the_first_stage_done(sw_home):
+    work = fresh_work()
+    WorkDir(work).mark("detect", "done")
+    WorkDir(work).mark("ingest", "running")
+    assert invoke("discard-work", "--work", str(work)).exit_code == 0
+    assert not work.exists()
+
+
+def test_discard_with_home_option(tmp_path, sw_home):
+    project_home = tmp_path / "project" / ".skipwatch"
+    work = fresh_work("--home", str(project_home))
+    assert work.parent == project_home.absolute() / "work"
+    assert invoke("discard-work", "--work", str(work)).exit_code == ExitCode.USAGE
+    r = invoke("--home", str(project_home), "discard-work", "--work", str(work))
+    assert r.exit_code == 0, r.output
+    assert not work.exists()
+
+
+def test_discard_refuses_a_folder_with_later_stages_done(sw_home):
+    work = fresh_work()
+    WorkDir(work).mark("detect", "done")
+    WorkDir(work).mark("ingest", "done")
+    r = invoke("discard-work", "--work", str(work))
+    assert r.exit_code == ExitCode.USAGE
+    assert (work / "stages.json").is_file()
+
+
+def test_discard_refuses_folders_not_directly_in_the_home_work_folder(tmp_path, sw_home):
+    elsewhere = work_folder(tmp_path / "elsewhere")
+    nested = sw_home / "work" / "a" / "b"
+    WorkDir(nested).ensure()
+    no_stages = sw_home / "work" / "plain-20261012-120000"
+    write(no_stages / "keep.txt")
+    for work in (elsewhere, nested, no_stages, sw_home / "work", sw_home, tmp_path):
+        r = invoke("discard-work", "--work", str(work))
+        assert r.exit_code == ExitCode.USAGE, work
+        assert work.is_dir(), work
+    assert (elsewhere / "stages.json").is_file() and (no_stages / "keep.txt").is_file()
+
+
+def test_discard_refuses_a_symlink_into_the_work_folder(tmp_path, sw_home):
+    outside = work_folder(tmp_path / "elsewhere")
+    (sw_home / "work").mkdir(parents=True)
+    link = sw_home / "work" / "demo-20261012-120000"
+    symlink(link, outside)
+    r = invoke("discard-work", "--work", str(link))
+    assert r.exit_code == ExitCode.USAGE
+    assert (outside / "stages.json").is_file()

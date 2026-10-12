@@ -11,9 +11,11 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.config import skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.runner import run_command
+from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 
 def _work_folder(work: Path) -> Path:
@@ -90,6 +92,28 @@ def _cleanup(work: Path, keep_media: bool, scratch: Path | None) -> int:
     return 0
 
 
+def _discard_work(work: Path) -> int:
+    """Remove a work folder new-work just made (run-fallbacks.md), and nothing else."""
+    root = (skipwatch_home() / "work").resolve()
+    resolved = work.resolve()
+
+    def refuse(why: str) -> SkipwatchError:
+        return SkipwatchError(ExitCode.USAGE, f"will not discard {work}: {why}")
+
+    if work.is_symlink() or resolved.parent != root:
+        raise refuse(f"not a work folder directly under {root}")
+    try:
+        stages = WorkDir(resolved).stages().stages
+    except (OSError, ValueError) as exc:
+        raise refuse("no readable stages.json") from exc
+    started = [s for s in STAGE_ORDER[1:] if s in stages and stages[s].status == "done"]
+    if started:
+        raise refuse(f"stage {started[0]} is done")
+    shutil.rmtree(resolved)
+    progress(f"Discarded {resolved}")
+    return 0
+
+
 def _snapshot_draft(work: Path) -> int:
     work = _work_folder(work)
     draft = work / "draft"
@@ -124,3 +148,10 @@ def register(app: typer.Typer) -> None:
         SKIPWATCH_KEEP_DRAFTS=1 keeps everything but the media.
         """
         run_command(lambda: _cleanup(work, keep_media, scratch))
+
+    @app.command("discard-work")
+    def _discard_cmd(
+        work: Annotated[Path, typer.Option("--work", help="The work folder new-work printed.")],
+    ):
+        """Remove a fresh work folder under the home's work/ (only the first stage done)."""
+        run_command(lambda: _discard_work(work))
