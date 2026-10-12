@@ -139,13 +139,6 @@ def _write(work: WorkDir, bundle: IngestBundle) -> None:
     write_model(work.file("ingest.json"), bundle)
 
 
-def _cache_lookup(
-    bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
-) -> IngestBundle | None:
-    cookies = opts.cookies_from_browser is not None
-    return runcache.cached_ingest(bundle, [p.name for p in providers], cookies)
-
-
 def run_ingest(
     value: str,
     work: WorkDir,
@@ -157,10 +150,18 @@ def run_ingest(
     detected = run_stage(work, "detect", lambda: detect(value, cwd))
 
     def body() -> IngestBundle:
-        bundle = _build(detected, work, opts, cfg or load_config(), _cache_lookup)
-        _write(work, bundle)
         cookies = opts.cookies_from_browser is not None
-        runcache.remember_ingest(bundle, work.file("ingest.json"), cookies)
+        enabled: list[str] = []  # the providers _build settled on, for the cache key
+
+        def lookup(
+            bundle: IngestBundle, providers: list[ContentProvider], opts: IngestOptions
+        ) -> IngestBundle | None:
+            enabled[:] = [p.name for p in providers]
+            return runcache.cached_ingest(bundle, enabled, cookies)
+
+        bundle = _build(detected, work, opts, cfg or load_config(), lookup)
+        _write(work, bundle)
+        runcache.remember_ingest(bundle, work.file("ingest.json"), cookies, enabled)
         return bundle
 
     return run_stage(work, "ingest", body)

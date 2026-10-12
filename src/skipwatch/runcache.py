@@ -2,10 +2,11 @@
 
 `$SKIPWATCH_HOME/cache/<key>/` holds the cached files and `entry.json` (CacheEntry). The key
 is `sha256(canonical_url or url)[:16]`, or `sha256("<abs path>|<size>|<mtime_ns>")[:16]` for a
-local file. A run whose media or context was fetched with browser cookies uses a separate key
-(`|cookies` appended), so private content never reaches a cookieless run (and an entry flagged
-`fetched_with_cookies` is refused there anyway). Media is never cached: frames need it, so a
-cached ingest still downloads.
+local file. An ingest entry's key also names the content providers enabled for it, so an
+entry only ever serves a run that would have asked the same providers. A run whose media or
+context was fetched with browser cookies uses a separate key (`|cookies` appended), so private
+content never reaches a cookieless run (and an entry flagged `fetched_with_cookies` is refused
+there anyway). Media is never cached: frames need it, so a cached ingest still downloads.
 
 An entry is fresh for 7 days from its first store; later stores add files but never extend
 that. A stale or corrupt entry is a miss, and the next store replaces it whole. The cache is
@@ -16,7 +17,7 @@ import hashlib
 import os
 import shutil
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypeVar
@@ -56,7 +57,9 @@ def _aware(when: datetime) -> datetime:
     return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
-def cache_key(source: SourceInfo, cookies: bool = False) -> str | None:
+def cache_key(
+    source: SourceInfo, cookies: bool = False, providers: Sequence[str] = ()
+) -> str | None:
     """None when the source has no stable identity (no URL, or a local file that is gone)."""
     url = source.canonical_url or source.url
     if url:
@@ -72,6 +75,8 @@ def cache_key(source: SourceInfo, cookies: bool = False) -> str | None:
         return None
     if cookies:
         raw += "|cookies"
+    if providers:
+        raw += "|providers=" + ",".join(sorted(set(providers)))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
@@ -160,13 +165,16 @@ def _remember(key: str | None, source: SourceInfo, name: str, path: Path) -> Non
         progress(f"Cache: could not store {name}: {exc.strerror or exc}")
 
 
-def remember_ingest(bundle: IngestBundle, path: Path, cookies: bool) -> None:
-    """Store a freshly built ingest.json; never one served from the cache or with a failed
-    provider call (the next run should ask that provider again). Never fails the stage."""
+def remember_ingest(
+    bundle: IngestBundle, path: Path, cookies: bool, providers: Sequence[str]
+) -> None:
+    """Store a freshly built ingest.json under the providers that enriched it; never one served
+    from the cache or with a failed provider call (the next run should ask that provider again).
+    Never fails the stage."""
     if bundle.from_cache or not all(c.ok for c in bundle.provider_calls):
         return
     cookies = cookies or bundle.fetched_with_cookies
-    _remember(cache_key(bundle.source, cookies), bundle.source, "ingest.json", path)
+    _remember(cache_key(bundle.source, cookies, providers), bundle.source, "ingest.json", path)
 
 
 def remember_transcript(bundle: IngestBundle, path: Path) -> None:
@@ -177,20 +185,25 @@ def remember_transcript(bundle: IngestBundle, path: Path) -> None:
 def cached_ingest(fresh: IngestBundle, providers: list[str], cookies: bool) -> IngestBundle | None:
     """The fresh bundle with cached context, source, hint and provider calls, or None.
 
-    A hit needs an ok call from every provider enabled now, so a provider switched on (or one
-    that failed) within 7 days is still asked. Captions stay this run's: they live in this
-    work folder. A cookie-fetched entry is never served to a cookieless run.
+    The key names the providers enabled now, so the entry was enriched by exactly these; one
+    that made no call had nothing to add (treg on a captioned YouTube video). Providers decide
+    on captions, so a change in captions since then is a miss. An entry with a failed call is
+    never served. Captions stay this run's: they live in this work folder. A cookie-fetched
+    entry is never served to a cookieless run.
     """
     if not providers:
         return None
     cookies = cookies or fresh.fetched_with_cookies
-    found = _read_cached(cache_key(fresh.source, cookies), "ingest.json", IngestBundle)
+    key = cache_key(fresh.source, cookies, providers)
+    found = _read_cached(key, "ingest.json", IngestBundle)
     if found is None:
         return None
     cached = found[0]
     if cached.fetched_with_cookies and not cookies:
         return None
-    if not set(providers) <= {c.provider for c in cached.provider_calls if c.ok}:
+    if not all(c.ok for c in cached.provider_calls):
+        return None
+    if cached.context.captions_available != fresh.context.captions_available:
         return None
     captions = {
         field: getattr(fresh.context, field)

@@ -255,6 +255,9 @@ def test_ingest_cache_keeps_this_runs_captions(sw_home, tmp_path, monkeypatch, c
     monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
     cfg = load_config(tmp_path / "none.toml")
+    old = url_bundle(URL, captions=True)
+    old_ctx = old.context.model_copy(update={"captions_path": "captions/old.en.vtt"})
+    adapter.build = lambda d, w, o: old.model_copy(update={"context": old_ctx})
     run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
     adapter.build = lambda d, w, o: url_bundle(d.value, captions=True)
     second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
@@ -356,9 +359,9 @@ def test_cached_entry_with_cookies_is_a_miss_even_under_the_plain_key(
     )
     src = tmp_path / "ingest.json"
     write_model(src, bundle)
-    store(sw_home, str(cache_key(bundle.source)), URL, {"ingest.json": src}, T0)
+    store(sw_home, str(cache_key(bundle.source, providers=["treg"])), URL, {"ingest.json": src}, T0)
     assert runcache.cached_ingest(url_bundle(), ["treg"], cookies=False) is None
-    store(sw_home, str(cache_key(bundle.source, cookies=True)), URL, {"ingest.json": src}, T0)
+    store(sw_home, str(cache_key(bundle.source, True, ["treg"])), URL, {"ingest.json": src}, T0)
     hit = runcache.cached_ingest(url_bundle(), ["treg"], cookies=True)
     assert hit is not None and hit.fetched_with_cookies is True
 
@@ -387,7 +390,7 @@ def test_failed_provider_call_is_neither_stored_nor_a_hit(sw_home, tmp_path, mon
     )
     src = tmp_path / "ingest.json"
     write_model(src, bundle)
-    store(sw_home, str(cache_key(bundle.source)), URL, {"ingest.json": src}, T0)
+    store(sw_home, str(cache_key(bundle.source, providers=["treg"])), URL, {"ingest.json": src}, T0)
     assert runcache.cached_ingest(url_bundle(), ["treg"], cookies=False) is None
 
 
@@ -430,3 +433,46 @@ def test_entry_removed_mid_lookup_is_not_a_crash(sw_home, tmp_path, monkeypatch,
     monkeypatch.setattr(runcache, "_read_cached", then_clear)
     t = run_transcribe(work_with_ingest(tmp_path, "w2"), "auto", None)
     assert t.origin == "faster-whisper" and faster.calls == 1
+
+
+# ---- a provider with nothing to add (M4: treg on a captioned YouTube video) ----
+class NothingToAdd(CountingProvider):
+    """Mirrors treg on a captioned YouTube video: enrich runs and makes no call."""
+
+    def enrich(self, bundle, work, opts):
+        self.enriched += 1
+        return bundle
+
+
+def test_provider_with_nothing_to_add_still_hits(sw_home, tmp_path, monkeypatch, clock):
+    provider = NothingToAdd()
+    first, second = ingest_runs(tmp_path, monkeypatch, provider, IngestOptions(), IngestOptions())
+    assert first.provider_calls == [] and first.from_cache is False
+    assert second.from_cache is True and provider.enriched == 1
+
+
+def test_free_run_entry_never_serves_a_provider_run(sw_home, tmp_path, monkeypatch, clock):
+    # nothing to add has no call either: only the provider set in the key tells them apart
+    provider = NothingToAdd()
+    first, second = ingest_runs(
+        tmp_path, monkeypatch, provider, IngestOptions(provider="free"), IngestOptions()
+    )
+    assert second.from_cache is False and provider.enriched == 1
+    third = run_ingest(
+        URL, WorkDir(tmp_path / "w9"), IngestOptions(), cfg=load_config(tmp_path / "none.toml")
+    )
+    assert third.from_cache is True and provider.enriched == 1
+
+
+def test_captions_changed_since_the_cached_run_is_a_miss(sw_home, tmp_path, monkeypatch, clock):
+    # treg asks for a YouTube transcript only when captions are missing
+    provider = NothingToAdd()
+    adapter = CountingAdapter()
+    monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
+    monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
+    cfg = load_config(tmp_path / "none.toml")
+    adapter.build = lambda d, w, o: url_bundle(d.value, captions=True)
+    run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
+    adapter.build = lambda d, w, o: url_bundle(d.value, captions=False)
+    second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
+    assert second.from_cache is False and provider.enriched == 2
