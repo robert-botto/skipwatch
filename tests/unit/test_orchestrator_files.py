@@ -209,6 +209,25 @@ def test_every_engine_call_is_one_simple_command():
     assert re.search(r";", _without_placeholders('<ENGINE> doctor; echo "rc=$?"'))
 
 
+def _redirects(command: str) -> list[str]:
+    """Shell redirects left once quoted strings and placeholders are removed."""
+    bare = re.sub(r'"[^"]*"', "", command)
+    bare = re.sub(r"\[[^\]]*\]", "", bare)  # optional parts
+    bare = re.sub(r"<[A-Za-z][^<>]*>", "", bare)  # placeholders start with a letter
+    return re.findall(r"[<>]", bare)
+
+
+def test_no_engine_call_uses_a_shell_redirect():
+    # a pre-approved engine rule must never carry a redirect to an arbitrary path
+    for path, command in _engine_command_lines():
+        assert not _redirects(command.split("<ENGINE>", 1)[1]), (path.name, command)
+    assert _redirects(' redact --stdin < "<W>/draft/x" > "<W>/staging/x"') == ["<", ">"]
+    assert (
+        _redirects(' probe "<input>" --out "<W>/logs/probe.json" [--cookies-from-browser <b>]')
+        == []
+    )
+
+
 def test_engine_calls_with_a_work_folder_use_log():
     # --log prints rc, elapsed and the last log lines, so no call needs a shell chain
     for path, command in _engine_command_lines():
