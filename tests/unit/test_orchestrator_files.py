@@ -994,6 +994,13 @@ def test_later_write_denial_switches_once_then_stops():
         '<ENGINE> --log "<old W>/logs/mark.log" mark --work "<old W>" --stage review --status done'
     )
     assert close in text
+    # the old folder is under the default home, so --home would make the engine refuse it
+    assert (
+        "This one call runs without `--home`, because the old folder is under the default home"
+        in text
+    )
+    assert "to every `<ENGINE>` call for the new `<W>` for the rest of the run" in text
+    assert "(if this exits non-zero, skip it)" not in text
 
 
 def test_fallback_home_is_git_ignored():
