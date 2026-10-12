@@ -144,6 +144,16 @@ def test_unpack_rejects_duplicate_and_casefold_collisions(tmp_path, sw_home):
     assert "duplicate" in err.message and "skill.md" in err.message
 
 
+@pytest.mark.parametrize("file_first", [True, False])
+@pytest.mark.parametrize("clash", ["references", "REFERENCES", "assets/frames"])
+def test_unpack_rejects_a_file_and_folder_with_one_name(tmp_path, sw_home, file_first, clash):
+    good = entries_of(good_pack(tmp_path))
+    extra = (f"{NAME}/{clash}", b"a file where a folder goes")
+    entries = [extra, *good] if file_first else [*good, extra]
+    err = refused(make_zip(tmp_path / "a.zip", entries), sw_home)
+    assert err.message == f"pack integrity: {clash}: a file and a folder share this name"
+
+
 def test_unpack_extra_missing_or_changed_file_is_9(tmp_path, sw_home):
     good = entries_of(good_pack(tmp_path))
     err = refused(make_zip(tmp_path / "a.zip", [*good, (f"{NAME}/extra.md", b"x")]), sw_home)

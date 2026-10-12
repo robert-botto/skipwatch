@@ -263,6 +263,15 @@ def _layout(infos: list[zipfile.ZipInfo]) -> str:
             raise _refuse(f"{_shown(rel)}: duplicate name (or one differing only in case)")
         seen.add(name.casefold())
         tops.add(top)
+    folders = {
+        "/".join(parts[:end]).casefold()
+        for parts in (info.orig_filename.split("/") for info in infos)
+        for end in range(1, len(parts))
+    }
+    for info in infos:
+        if info.orig_filename.casefold() in folders:
+            rel = info.orig_filename.partition("/")[2]
+            raise _refuse(f"{_shown(rel)}: a file and a folder share this name")
     if len(tops) != 1:
         raise _refuse("entries under more than one folder (a pack has one top folder only)")
     name = tops.pop()
