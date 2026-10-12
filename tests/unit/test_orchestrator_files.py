@@ -2113,6 +2113,14 @@ def _install_step(n: int) -> str:
     return re.sub(r"\s+", " ", step)
 
 
+def test_rename_moves_staging_with_the_engine():
+    # frames move with the staged skill and run.json keeps the name for resume
+    review = flat(REFS / "review-screen.md")
+    assert logged("rename-staging") + ' --work "<W>" --to "<new name>"' in review
+    assert "Exit 6: that name is taken" in review
+    assert "redact the draft into `<W>/staging/<new name>/`" not in review
+
+
 def test_pack_review_offers_no_rename_and_no_repair():
     step = _install_step(4)
     # someone else's skill: no rename, and an ambiguous test is never repaired here

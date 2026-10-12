@@ -128,9 +128,15 @@ When either offer produces a transcript, remove the fixed problem from the scree
 - **show draft:** Read `<W>/staging/<name>/SKILL.md` and print it, then the prompt line.
 - **test it:** stage 9b in `run-review-install.md` (it asks `Test it anyway?` first when
   there are safety flags), then the whole screen again with its `Test run:` line.
-- **rename:** ask for the name, check it against the naming rule in `distill-rules.md`,
-  rewrite the draft SKILL.md with the new `name:` (Read, then Write), redact the draft
-  into `<W>/staging/<new name>/`, re-run check, and show the screen again with the new
+- **rename:** ask for the name and check it against the naming rule in
+  `distill-rules.md`. Move the staged skill, frames included, and record the name for
+  resume:
+
+      <ENGINE> --log "<W>/logs/rename-staging.log" rename-staging --work "<W>" --to "<new name>"
+
+  Exit 6: that name is taken; ask for another. Exit 64: the name breaks the rule; ask
+  again. Then rewrite `name:` in the draft SKILL.md (Read, then Write), redact it into
+  `<W>/staging/<new name>/SKILL.md`, re-run check, and show the screen again with the new
   target.
 - **cancel:** mark review done at once, so the run is not offered for resume:
 
