@@ -2,8 +2,10 @@
 
 [spoken] quotes match the transcript after NFKC, quote folding, case and whitespace
 normalisation, on word boundaries, and must be at least 3 words or 12 characters. [on-screen]
-quotes follow the same length rule; for commands, settings and prompts they must be the whole
-reader item or whole lines of it, for other text they sit inside it on word boundaries. The
+quotes follow the same length rule, except a quote equal to a whole command, code, setting or
+ui_path item (same normalisation), which is valid at any length; for commands, settings and
+prompts they must be the whole reader item or whole lines of it, for other text they sit
+inside it on word boundaries. The
 [illegible at mm:ss] wildcard covers at most 40 characters on one line and needs a reader
 `illegible` entry within the window. Indented code, <pre> and inline code in the action are
 quotes too. [written] quotes must come from the post, thread or links.
@@ -13,7 +15,7 @@ import re
 import unicodedata
 
 from skipwatch.checks.runner import CheckContext
-from skipwatch.models import CheckItem, CheckResult, VerbatimItem
+from skipwatch.models import CheckItem, CheckResult, FrameNote, VerbatimItem
 from skipwatch.redact import redact_text
 from skipwatch.skillmd import Step, Tag
 
@@ -24,6 +26,9 @@ ILLEGIBLE = re.compile(r"\[illegible at \d{1,2}:\d{2}(?::\d{2})?\]")
 # The [illegible] wildcard stands for at most 40 characters on one line.
 WILDCARD = r"[^\n]{0,40}?"
 WHOLE_KINDS = {"command", "setting", "prompt"}
+# A quote shorter than the minimum is still evidence when it is the whole reader item for these
+# kinds: a one-word command such as `copilot` shown on its own is exactly what was on screen.
+SHORT_WHOLE_KINDS = {"command", "code", "setting", "ui_path"}
 QUOTE_FOLD = str.maketrans(
     {
         "\u2018": "'",
@@ -142,6 +147,16 @@ def _screen_matches(quote: str, item: VerbatimItem) -> bool:
     return _line_matches(" ".join(q_lines), joined, whole=False)
 
 
+def _is_whole_short_item(quote: str, frames: list[FrameNote]) -> bool:
+    """The quote equals a whole command, code, setting or ui_path item (normalised)."""
+    q = _norm(redact_text(quote)[0])
+    return bool(q) and any(
+        item.kind in SHORT_WHOLE_KINDS and _norm(redact_text(item.text)[0]) == q
+        for frame in frames
+        for item in frame.verbatim
+    )
+
+
 def _screen_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
     assert tag.seconds is not None
     t = tag.seconds
@@ -153,6 +168,8 @@ def _screen_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
     for quote in step.quotes + step.code_quotes:
         literal = _screen_line(ILLEGIBLE.sub(" ", quote))
         if _too_short(literal):
+            if not ILLEGIBLE.search(quote) and _is_whole_short_item(quote, frames):
+                continue
             items.append(CheckItem(step=step.number, msg=f"{label} quote is too short to verify"))
             continue
         wild = ILLEGIBLE.search(quote)
