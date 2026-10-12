@@ -374,3 +374,9 @@ def test_transcript_origin_accepts_pack():
     t = Transcript(origin="pack", segments=[Segment(start=1.0, end=2.0, text="hi there you")])
     assert t.origin == "pack"
     assert Transcript.model_validate_json(t.model_dump_json(by_alias=True)) == t
+
+
+def test_mem0_user_id_default_empty():
+    assert Config().exports.mem0.user_id == "" and Config().exports.mem0.enabled is False
+    cfg = Config.model_validate({"exports": {"mem0": {"user_id": "someone"}}})
+    assert cfg.exports.mem0.user_id == "someone"

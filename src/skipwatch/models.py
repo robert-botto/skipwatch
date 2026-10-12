@@ -83,6 +83,7 @@ class StyleConfig(_ConfigModel):
 class Mem0Config(_ConfigModel):
     enabled: bool = False
     tag: str = "skipwatch"
+    user_id: str = ""  # empty sends agent_id "skipwatch" (M5-M6 issue 8); the key is env only
 
 
 class NotesConfig(_ConfigModel):
