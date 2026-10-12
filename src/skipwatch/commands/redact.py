@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -9,6 +10,7 @@ from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.redact import redact_text
 from skipwatch.runner import run_command
+from skipwatch.workdir import write_bytes_atomic
 
 
 def _report(raw: str) -> str:
@@ -37,9 +39,15 @@ def _redact_file(work: Path, src: Path, out: Path) -> int:
         raise SkipwatchError(ExitCode.USAGE, f"--in {src} is not a file")
     if out.is_dir():
         raise SkipwatchError(ExitCode.USAGE, f"--out {out} is a folder")
-    text = _report(src.read_bytes().decode("utf-8", errors="replace"))
+    try:
+        fd = os.open(src, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            raw = stream.read()
+    except OSError as exc:
+        raise SkipwatchError(ExitCode.USAGE, f"--in {src} cannot be read: {exc}") from exc
+    text = _report(raw.decode("utf-8", errors="replace"))
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_bytes(text.encode("utf-8"))
+    write_bytes_atomic(out, text.encode("utf-8"))
     progress(f"Redacted: {out}")
     return 0
 

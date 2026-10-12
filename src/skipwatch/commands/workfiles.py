@@ -49,23 +49,42 @@ def _home_folder(work: Path, area: str) -> Path:
     return resolved
 
 
+def _refuse_dotdot(path: Path, flag: str) -> None:
+    if ".." in path.parts:
+        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} must not contain ..")
+
+
 def path_under(work: Path, sub: str, path: Path, flag: str) -> Path:
-    """path resolved, refused (exit 64) unless it lies inside <work>/<sub>, with no symlink as
-    its last component and none on the way that leads out. work is an already-checked folder;
-    path itself need not exist yet."""
+    """path resolved, refused (exit 64) unless it lies inside <work>/<sub> with no `..` and no
+    symlink anywhere inside that folder, the last component included (adversarial review REV6).
+    work is an already-checked folder; path itself need not exist yet."""
     folder = work / sub
-    if path.is_symlink():
-        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} is a symlink")
-    resolved = path.parent.resolve() / path.name
-    if path.name in ("", ".", "..") or not resolved.is_relative_to(folder) or resolved == folder:
-        raise SkipwatchError(ExitCode.USAGE, f"{flag} {path} is not inside {folder}")
+
+    def refuse(why: str) -> SkipwatchError:
+        return SkipwatchError(ExitCode.USAGE, f"{flag} {path} {why}")
+
+    _refuse_dotdot(path, flag)
+    if folder.is_symlink():
+        raise refuse(f"is in {folder}, which is a symlink")
+    resolved = path.resolve()
+    if not resolved.is_relative_to(folder) or resolved == folder:
+        raise refuse(f"is not inside {folder}")
+    given = Path(os.path.abspath(path))
+    for part in (given, *given.parents):
+        if not os.path.lexists(part):
+            continue
+        if not part.resolve().is_relative_to(folder):
+            break
+        if part.is_symlink():
+            raise refuse(f"goes through a symlink: {part}")
     return resolved
 
 
 def log_path(log: Path) -> Path:
     """--log resolved, refused (exit 64) unless it lies under <W>/logs of a work or pack folder
-    W as home_work_or_pack_folder checks it, with no symlink as its last component."""
-    resolved = log.parent.resolve() / log.name
+    W as home_work_or_pack_folder checks it, with no `..` and no symlink inside logs/."""
+    _refuse_dotdot(log, "--log")
+    resolved = log.resolve()
     for area in ("work", "packs"):
         root = (skipwatch_home() / area).resolve()
         if not resolved.is_relative_to(root):

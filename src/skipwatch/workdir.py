@@ -1,6 +1,7 @@
 """Work folder layout, atomic model files and stages.json bookkeeping (R-WORK-1)."""
 
 import os
+import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -36,11 +37,23 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def write_bytes_atomic(path: Path, data: bytes) -> None:
+    """Write data to a fresh temp file in path's folder (O_EXCL, so a planted symlink is never
+    followed), then os.replace it over path; a symlink at path is replaced, not followed."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 def write_model(path: Path, model: BaseModel) -> None:
     """Write JSON by alias atomically: temp file in the same folder, then os.replace."""
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(model.model_dump_json(by_alias=True, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    text = model.model_dump_json(by_alias=True, indent=2) + "\n"
+    write_bytes_atomic(path, text.encode("utf-8"))
 
 
 def read_model(path: Path, cls: type[M]) -> M:
