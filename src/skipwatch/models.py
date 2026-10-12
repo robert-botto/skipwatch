@@ -559,6 +559,19 @@ class PackResult(_Tagged):
     ignored: list[str] = []  # Finder and Windows junk left out of the pack
 
 
+class UnpackResult(_Tagged):
+    schema_: Literal["skipwatch/unpack/1"] = _tag("skipwatch/unpack/1")
+    name: str
+    work: str  # the pack work folder under $SKIPWATCH_HOME/packs/ (issue 1)
+    staging: str
+    pack_sha256: str
+    files: int
+    fetched_from: str | None = None
+    claimed_confidence: Literal["high", "medium", "low"]
+    claimed_critic_score: float | None = None
+    transcript: bool  # True when transcript.json was rebuilt from references/transcript.md
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -589,4 +602,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "export-log": ExportLog,
     "test-report": TesterReport,
     "pack": PackResult,
+    "unpack": UnpackResult,
 }

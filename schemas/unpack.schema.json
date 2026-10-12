@@ -1,0 +1,80 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "claimed_confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Claimed Confidence",
+      "type": "string"
+    },
+    "claimed_critic_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Claimed Critic Score"
+    },
+    "fetched_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fetched From"
+    },
+    "files": {
+      "title": "Files",
+      "type": "integer"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "pack_sha256": {
+      "title": "Pack Sha256",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/unpack/1",
+      "default": "skipwatch/unpack/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "staging": {
+      "title": "Staging",
+      "type": "string"
+    },
+    "transcript": {
+      "title": "Transcript",
+      "type": "boolean"
+    },
+    "work": {
+      "title": "Work",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "work",
+    "staging",
+    "pack_sha256",
+    "files",
+    "claimed_confidence",
+    "transcript"
+  ],
+  "title": "UnpackResult",
+  "type": "object"
+}

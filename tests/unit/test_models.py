@@ -29,6 +29,7 @@ from skipwatch.models import (
     SourceInfo,
     TesterReport,
     Transcript,
+    UnpackResult,
 )
 
 INGEST_EXAMPLE = {
@@ -250,6 +251,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "export-log",
         "test-report",
         "pack",
+        "unpack",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -503,3 +505,23 @@ def test_pack_result_round_trip():
     assert PackResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
     with pytest.raises(ValidationError):
         PackResult.model_validate({"name": "run-x"})
+
+
+def test_unpack_result_round_trip_and_claims():
+    r = UnpackResult(
+        name="run-x",
+        work="/h/packs/run-x-20261009-182000",
+        staging="/h/packs/run-x-20261009-182000/staging/run-x",
+        pack_sha256="sha256:" + "4" * 64,
+        files=3,
+        claimed_confidence="high",
+        transcript=True,
+    )
+    assert r.fetched_from is None and r.claimed_critic_score is None
+    assert UnpackResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        UnpackResult.model_validate({"name": "x"})
+    with pytest.raises(ValidationError):
+        UnpackResult.model_validate(
+            {**r.model_dump(by_alias=True), "claimed_confidence": "certain"}
+        )
