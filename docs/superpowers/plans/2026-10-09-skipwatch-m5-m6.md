@@ -44,6 +44,14 @@ Robert's instruction: "make sure it's seamless for someone to install with best 
 8. **Docs.** A 30-second quickstart, a "what gets installed where" table, a troubleshooting section keyed by exit code and platform (from platforms.md), and a privacy section (what leaves the machine: only the URL's platform, links in the post, and providers the user enabled).
 9. **Human check.** S1 on a fresh macOS user account (Robert action), plus one Windows run if a machine is available.
 
+## Orchestrator decisions after the M5-A review (2026-10-11, binding)
+
+1. **M6-A owns `tests/unit/test_registry.py`.** `test_export_registry_empty_before_m6` (M5-A) fails by design once `export_mem0.py` and `export_notes.py` land. M6-A replaces it with `test_export_registry_has_mem0_and_notes`, asserting `set(export_providers()) == {"mem0", "notes"}`, in the same commit that adds the second provider. It is never made conditional.
+2. **`IngestBundle.notes`** (list of free-form provenance notes, added in M5-A at the orchestrator's request) is the home for notes such as "video came from a linked post: <url>". The review screen reads it.
+3. **M5-E gains two small engine follow-ups**, each its own commit with a test: (a) `validate-notes --json` emits `ValidateNotesResult` (M5-A), keeping the ValidationError location for `field`, and M5-E owns `src/skipwatch/commands/validate_notes.py` and its test file; (b) `adapters/x.py` writes the linked-post note to `bundle.notes` instead of `route.fallbacks`, and M5-E owns that adapter edit and its test. M5-F's review-screen text reads `notes` (falling back to the old `route.fallbacks` text only for cached bundles from before the change).
+4. **Golden runs and treg.** `scripts/golden_run.py` disables treg (`SKIPWATCH_TREG_DISABLED=1`) unless `--treg` is passed, so free-route goldens stay free and repeatable. Owner: M5-G.
+5. **Whisper in acceptance exports.** Every acceptance export syncs with the Whisper extra for the platform (`--extra mlx` on Apple silicon, `--extra whisper` elsewhere). M6-F first-session setup offers the same extra once before the first run.
+
 ## Spec issues found (M5-M6)
 
 Each item is a genuine gap or contradiction. The plan applies the proposed resolution; the orchestrator confirms or overrules before builders start. None edits the spec text.
@@ -146,7 +154,7 @@ Five conditions the spec implies but no task's main tests exercise; each has a p
 **Registration points (no two packages edit one file)**
 
 - **Commands:** new files under `src/skipwatch/commands/` only (`pack.py`, `unpack.py`, `list.py`, `share.py`, `copy_frames.py`, `validate_agents.py`, `export.py`); `cli.py` auto-registers every module with `register(app)`.
-- **Export providers:** `providers/registry.py` (M5-A) gains `export_providers()`, discovering `providers/export_*.py` modules that define `PROVIDER`. M6-A adds files only.
+- **Export providers:** `providers/registry.py` (M5-A) gains `export_providers()`, discovering `providers/export_*.py` modules that define `PROVIDER`. M6-A adds files only, plus the one `test_registry.py` replacement in decision 1 of "Orchestrator decisions after the M5-A review".
 - **Models and schemas:** only M5-A, for every M5 and M6 need. A builder who finds a missing field stops and reports.
 - **Shared, sequential files:** `SKILL.md`, `run-protocol.md`, `review-screen.md`, `test_orchestrator_files.py` (M4-C, then M5-F, then M6-A for the export lines); `install.py` (M5-D hook only); `doctor.py` (M6-C); `ci.yml` (M6-C); `pyproject.toml` (M6-C).
 
