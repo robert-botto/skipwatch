@@ -10,9 +10,10 @@ allowed-tools: Bash, Read, Write, Agent
 Arguments: $ARGUMENTS
 
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
-to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and three agents
-(`skipwatch:frame-reader`, `skipwatch:skill-critic`, `skipwatch:skill-tester`; see "Rules
-that hold in every stage") read frames, critique the draft and test it.
+to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and
+three agents (`skipwatch:frame-reader`, `skipwatch:skill-critic`,
+`skipwatch:skill-tester`; see "Rules that hold in every stage") read frames, critique the
+draft and test it.
 
 ## Engine and paths
 
@@ -74,10 +75,10 @@ guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run `<ENGINE> doctor` as one command and print its report first,
-unchanged, inside a code block, before any commentary (its stderr and stdout, starting
-with the `Tier` line). Do not install anything. If the report lists missing
-pieces, offer each install command and run only the ones the user accepts.
+If the first argument is `doctor`, run `<ENGINE> doctor` as one command and print its
+report first, unchanged, inside a code block, before any commentary (its stderr and
+stdout, starting with the `Tier` line). Do not install anything. If the report lists
+missing pieces, offer each install command and run only the ones the user accepts.
 
 ## Run the pipeline
 

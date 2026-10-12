@@ -149,11 +149,11 @@ The collision prompt gains the same options. `--yes` never picks one of these op
   after the user picks it, with the Bash tool's `timeout: 600000` and its output
   redirected to `<W>/logs/whisper-install.log` (one redirect, nothing chained). On rc 0,
   refresh the doctor report with `<ENGINE> doctor --json` (with `--home "<P>/.skipwatch"`
-  when the run moved), then run `<ENGINE> resume "<W>" --json` and continue from `next_stage` as `## Resume` in
-  `run-review-install.md` says. On any other rc, show the last line of the stderr the Bash tool returned (the log
-  holds stdout only), tell the user to
-  run `! <command>` in Claude Code and then `/skipwatch resume <W>`, and show the prompt
-  line again.
+  when the run moved), then run `<ENGINE> resume "<W>" --json` and continue from
+  `next_stage` as `## Resume` in `run-review-install.md` says. On any other rc, show the
+  last line of the stderr the Bash tool returned (the log holds stdout only), tell the
+  user to run `! <command>` in Claude Code and then `/skipwatch resume <W>`, and show the
+  prompt line again.
 - **transcribe with <Provider> and re-run:** audio goes to a cloud provider only after
   the user said yes to that provider by name; picking this option, which names the
   provider, is that yes, and nothing else is. Print

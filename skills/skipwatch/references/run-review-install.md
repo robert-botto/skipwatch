@@ -106,9 +106,9 @@ Cleanup, each its own Bash call: `rm -rf "<W>/media"` unless `--keep-media`. Unl
 environment sets `SKIPWATCH_KEEP_DRAFTS=1` (check with `printenv SKIPWATCH_KEEP_DRAFTS`;
 acceptance runs keep `draft-pre-critic`), run
 `rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<W>/notes" "<W>/frames" "<W>/outline.md" "<W>/critique.json" "<P>/.skipwatch/test-run-<name>"`.
-On cancel and on any stop, these files stay for resume; the stop or cancel line adds
-`Work files at <W> may hold unredacted text from the video.`
-The user's original file is never inside `<W>` and is never moved or deleted.
+On cancel and on any stop, these files stay for resume; the stop or cancel line adds `Work
+files at <W> may hold unredacted text from the video.` The user's original file is never
+inside `<W>` and is never moved or deleted.
 
 ## Resume
 
@@ -129,9 +129,10 @@ The user's original file is never inside `<W>` and is never moved or deleted.
      and stop.
    - `run` is null: print
      `SkipWatch: <work> has no run.json; start a new run with the original source.` and stop.
-3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in `run-fallbacks.md`). `<input>`
-   is `run.input`; read `run.flags` as if the user had typed them and `run.name` as
-   `--name`. Print `Resuming <W> at <next_stage> (<k> stages done)`.
+3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in
+   `run-fallbacks.md`). `<input>` is `run.input`; read `run.flags` as if the user had
+   typed them and `run.name` as `--name`. Print `Resuming <W> at <next_stage> (<k> stages
+   done)`.
 4. Rebuild the degradation list: no `transcript.json` gives the no-transcript line, an
    empty `frames.json` gives `no frames: audio-only file`.
 5. Continue from `next_stage`:

@@ -71,7 +71,8 @@ timestamp). First, one Bash call:
 
 - It prints the path: cached. Read the tier with
   `grep -m1 '"tier"' "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`.
-- It prints nothing, or a "No such file" error with exit 1: run doctor as its own Bash call and take `tier` from its JSON:
+- It prints nothing, or a "No such file" error with exit 1: run doctor as its own Bash
+  call and take `tier` from its JSON:
 
       <ENGINE> doctor --json
 
@@ -214,8 +215,8 @@ source is exempt.
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage read --status running
 
-Read `<W>/batches.json` and `<W>/frames.json` once each. Build every reader prompt from the
-current `<W>` (after any move to the project). Dispatch one Agent call per batch with
+Read `<W>/batches.json` and `<W>/frames.json` once each. Build every reader prompt from
+the current `<W>` (after any move to the project). Dispatch one Agent call per batch with
 agent type `skipwatch:frame-reader`, **all in one message** (parallel). Each prompt
 contains exactly:
 
