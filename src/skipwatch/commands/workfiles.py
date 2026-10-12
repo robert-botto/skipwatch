@@ -127,6 +127,18 @@ def _discard_work(work: Path) -> int:
     return 0
 
 
+def _discard_pack(work: Path, scratch: Path | None) -> int:
+    """Remove a pack work folder unpack made, after install or cancel (sharing.md), and this
+    project's test-run scratch folder; every path is checked before anything is deleted."""
+    work = _home_folder(work, "packs")
+    scratch = None if scratch is None else _scratch_folder(work, scratch)
+    shutil.rmtree(work)
+    if scratch is not None and scratch.exists():
+        shutil.rmtree(scratch)
+    progress(f"Discarded {work}")
+    return 0
+
+
 def _snapshot_draft(work: Path) -> int:
     work = home_work_folder(work)
     draft = work / "draft"
@@ -168,3 +180,14 @@ def register(app: typer.Typer) -> None:
     ):
         """Remove a fresh work folder under the home's work/ (only the first stage done)."""
         run_command(lambda: _discard_work(work))
+
+    @app.command("discard-pack")
+    def _discard_pack_cmd(
+        work: Annotated[Path, typer.Option("--work", help="The pack work folder unpack printed.")],
+        scratch: Annotated[
+            Path | None,
+            typer.Option("--scratch", help="The tester's <project>/.skipwatch/test-run-<name>."),
+        ] = None,
+    ):
+        """Remove a pack work folder under the home's packs/, and the test run's scratch."""
+        run_command(lambda: _discard_pack(work, scratch))
