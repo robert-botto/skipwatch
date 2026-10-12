@@ -424,3 +424,10 @@ def test_export_module_file_is_discovered_and_duplicates_refused(extra_package_d
     with pytest.raises(RuntimeError) as e:
         export_providers()
     assert "zz" in str(e.value)
+
+
+def test_project_constants_shared_by_pack_share_and_docs():
+    from skipwatch.project import PACK_SUFFIX, REPO_URL
+
+    assert REPO_URL == "https://github.com/robert-botto/skipwatch"
+    assert PACK_SUFFIX == ".skillpack.zip"
