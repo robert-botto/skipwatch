@@ -191,7 +191,7 @@ The collision prompt gains the same options. `--yes` never picks one of these op
       <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status done
 
   Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop.
-- Anything else: re-show the prompt line once with the five answers.
+- Anything else: re-show the prompt line last printed, once.
 
 ## Old patterns
 

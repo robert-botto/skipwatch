@@ -1327,6 +1327,9 @@ def test_review_done_only_after_install_or_cancel():
     review = flat(REFS / "review-screen.md")
     cancel = review.split("**cancel:**", 1)[1].split("- Anything else", 1)[0]
     assert REVIEW_DONE in cancel
+    # pack and offer prompts have other answer counts, so re-show the one last printed
+    assert "- Anything else: re-show the prompt line last printed, once." in review
+    assert "with the five answers" not in review
 
 
 def test_review_running_marked_when_the_screen_is_printed():
