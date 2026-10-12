@@ -129,8 +129,9 @@ When either offer produces a transcript, remove the fixed problem from the scree
 - **test it:** stage 9b in `run-review-install.md` (it asks `Test it anyway?` first when
   there are safety flags), then the whole screen again with its `Test run:` line.
 - **rename:** ask for the name, check it against the naming rule in `distill-rules.md`,
-  set `name:` in the draft SKILL.md, redact the draft into `<W>/staging/<new name>/`,
-  re-run check, and show the screen again with the new target.
+  rewrite the draft SKILL.md with the new `name:` (Read, then Write), redact the draft
+  into `<W>/staging/<new name>/`, re-run check, and show the screen again with the new
+  target.
 - **cancel:** mark review done at once, so the run is not offered for resume:
 
       <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status done

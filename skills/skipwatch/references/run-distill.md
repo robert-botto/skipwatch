@@ -71,8 +71,8 @@ time:
 3. A non-zero rc means the staged file is incomplete: re-run once, then stop with the
    engine's last log line.
 
-To change a staged file later, edit its draft copy and redact it again; never edit
-staging directly. Print `Writing the skill: <n> steps (<n>s)`, then:
+To change a staged file later, rewrite its draft copy (Read, then Write) and redact it
+again; never change staging directly. Print `Writing the skill: <n> steps (<n>s)`, then:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage distill --status done
 
@@ -112,8 +112,8 @@ the review screen then reports `critic not run` by itself.
 
    Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2 for `SKILL.md`, then
    validate once more.
-4. Read `<W>/critique.json` once and apply its `fixes` in order, at most 8, to the draft
-   copies, never to staging, under "Critic fixes" in `distill-rules.md`. Step `0` means
+4. Read `<W>/critique.json` once and apply its `fixes` in order, at most 8, by rewriting
+   the draft copies (Read, then Write each file whole), never to staging, under "Critic fixes" in `distill-rules.md`. Step `0` means
    the description.
    - A fix that asks to re-check a timestamp re-dispatches the reader for the batch
      holding the frames within 20 s of it (stage 4 prompt, at most 2 batches per run),
@@ -138,8 +138,8 @@ whole folder again.
 
 - Exit 0: print `Checks: frontmatter ok, structure ok, provenance ok, redaction ok, safety ok, style ok (<n>s)`.
 - Exit 5: the same line with `safety <k> flags`; continue.
-- Exit 1: fix only the items in `<W>/check-report.json` in the draft copies, redact them
-  again, and re-run check.
+- Exit 1: fix only the items in `<W>/check-report.json` by rewriting the draft copies,
+  redact them again, and re-run check.
 - When only redaction failed, the single retry removes or fixes that file: an archive,
   or a binary that is not an image or media file, is deleted from draft and staging with
   every link to it; a file with a secret in its file name is renamed in the draft and its

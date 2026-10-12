@@ -89,7 +89,7 @@ characters.
 
 ## Critic fixes
 
-Critic fixes edit the draft copies in `<W>/draft/`, never staging, and every rule above
+Critic fixes rewrite the draft copies in `<W>/draft/` (Read, then Write), never staging, and every rule above
 still holds:
 
 - Verbatim text stays verbatim: a fix may move a quote, retag a step or add an

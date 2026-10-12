@@ -62,6 +62,8 @@ degrades and continues, or stops with one message.
       <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"
 
   Unread frames are noted the same way with `--unread "<ids> (<reason>)"`.
+- To change a draft file (critic fixes, check repairs, a rename, a test-run repair), Read
+  it, then Write the full new content with the Write tool. Never use Edit.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.
 - Exit codes: the failure table in SKILL.md, which also covers 64, 70, 78 and the codes
   that mean the engine never started. A second exit 64 for the same command stops with

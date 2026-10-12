@@ -515,6 +515,37 @@ def _rule_covers(pattern: str, command: str) -> bool:
     return re.fullmatch(regex, command) is not None
 
 
+FILE_TOOLS = ("Read", "Write", "Edit", "Glob", "Grep")
+
+
+def test_drafts_are_rewritten_with_write_never_edit():
+    # a live default-mode run denied Edit; the skill rewrites whole files with Write instead
+    assert "Edit" not in allowed_tools()
+    assert "Read it, then Write the full new content with the Write tool. Never use Edit." in (
+        flat(REFS / "run-engine.md")
+    )
+    for path in SKILL.rglob("*.md"):
+        text = read(path).replace("Edit it and run", "").replace("Never use Edit", "")
+        assert not re.search(r"\bEdit\b", text), path
+        assert not re.search(r"\bedits? (?:its|the|that)[^.]*draft", text), path
+
+
+def test_allowed_tools_list_every_file_tool_the_skill_names():
+    text = " ".join(read(path) for path in SKILL.rglob("*.md"))
+    text = text.replace("Never use Edit", "").replace("Edit it and run", "")
+    named = {tool for tool in FILE_TOOLS if re.search(rf"\b{tool}\b", text)}
+    assert {"Read", "Write"} <= named
+    assert named <= set(allowed_tools()), named - set(allowed_tools())
+
+
+@pytest.mark.parametrize("name", ["frame-reader", "skill-critic", "skill-tester"])
+def test_agents_list_exactly_the_tools_their_text_uses(name):
+    path = ROOT / "agents" / f"{name}.md"
+    tools = {t.strip() for t in str(fm(path)["tools"]).split(",")}
+    named = set(re.findall(r"\b(Read|Write|Edit|Bash|Glob|Grep)\b", body(path)))
+    assert named == tools, (named, tools)
+
+
 def test_allowed_tools_are_the_engine_plus_two_harmless_prefixes():
     rules = allowed_tools()["Bash"]
     assert rules == [
@@ -2038,7 +2069,7 @@ def test_distill_rules_critic_fixes():
     assert "\n## Critic fixes\n" in raw
     section = re.sub(r"\s+", " ", raw.split("\n## Critic fixes\n", 1)[1].split("\n## ", 1)[0])
     section = section.lower()
-    assert "edit the draft" in section
+    assert "rewrite the draft" in section
     assert "verbatim text stays verbatim" in section
     assert "never add a step without evidence" in section
     assert "never removes the attribution" in section
