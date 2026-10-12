@@ -279,3 +279,8 @@ def test_provider_is_registered_under_its_name():
     assert [p.name for p in content_providers()] == ["treg"]
     assert content_treg.PROVIDER.name == "treg"
 
+
+def test_unit_tests_never_reach_a_real_treg():
+    """tests/conftest.py hides the treg binary from every non-live test."""
+    assert content_treg._treg_path() is None
+    assert content_treg.PROVIDER.available() is False

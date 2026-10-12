@@ -40,6 +40,17 @@ def _block_network(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_treg(request, monkeypatch):
+    """treg is a real, paid CLI on a Tier 3 machine: no non-live test may find it on PATH, so
+    ingest under `auto` and doctor never run it. Tests that need treg pass a fake runner."""
+    if request.node.get_closest_marker("live") is not None:
+        return
+    from skipwatch.providers import content_treg
+
+    monkeypatch.setattr(content_treg, "_treg_path", lambda: None)
+
+
+@pytest.fixture(autouse=True)
 def _isolated_home(tmp_path_factory, monkeypatch):
     """No test reads or writes the real ~/.skipwatch (ingest and transcribe store a run cache)."""
     monkeypatch.setenv("SKIPWATCH_HOME", str(tmp_path_factory.mktemp("default-swhome")))
