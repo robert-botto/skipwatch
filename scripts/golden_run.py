@@ -1,7 +1,7 @@
 """Run the golden set through SkipWatch and diff each staged draft against its expected ranges.
 
 Usage:
-  uv run python scripts/golden_run.py [--only G1,G5] [--out DIR] [--plugin-dir .]
+  uv run python scripts/golden_run.py [--only G1,G5] [--out DIR] [--plugin-dir .] [--treg]
   uv run python scripts/golden_run.py --engine-only --only G1 --out DIR
 
 The full run calls `claude -p` once per video (paid, run by hand). Each video gets its own
@@ -9,7 +9,8 @@ SKIPWATCH_HOME under <out>/<id>/home. Judging reads that home's newest check-rep
 staged SKILL.md, installed or not (M2-M4 issue 16). Downloaded media and frames are
 deleted after each video unless `--keep-media` is given. `--engine-only` runs just the stages that
 need no Claude (probe, ingest, transcribe, frames, plan) on the free provider and judges
-nothing; `--stages` picks a subset.
+nothing; `--stages` picks a subset. treg is disabled (SKIPWATCH_TREG_DISABLED=1) so free-route
+goldens stay free and repeatable; `--treg` lets the run use treg when it is installed.
 """
 
 import argparse
@@ -32,6 +33,7 @@ CLAUDE_TIMEOUT_S = 30 * 60
 STAGE_TIMEOUT_S = 30 * 60
 ENGINE_STAGES = ("probe", "ingest", "transcribe", "frames", "plan")
 COOKIE_ENV = "SKIPWATCH_GOLDEN_COOKIES"
+TREG_DISABLED_ENV = "SKIPWATCH_TREG_DISABLED"
 # Below this many steps the inferred ratio ceiling is replaced by an absolute count.
 SMALL_SKILL_STEPS = 6
 SMALL_SKILL_INFERRED_MAX = 1
@@ -133,6 +135,16 @@ def cookies_from_env(env: Mapping[str, str]) -> str | None:
     return value if value in COOKIE_BROWSERS else None
 
 
+def run_env(base: Mapping[str, str], home: Path, treg: bool) -> dict[str, str]:
+    """The child environment: an isolated home, and treg off unless asked for (M5 decision 4)."""
+    env = {**base, "SKIPWATCH_HOME": str(home)}
+    if treg:
+        env.pop(TREG_DISABLED_ENV, None)
+    else:
+        env[TREG_DISABLED_ENV] = "1"
+    return env
+
+
 def skill_name(entry: dict[str, Any]) -> str:
     return f"{entry['id'].lower()}-skill"
 
@@ -176,10 +188,11 @@ def run_video(
     runner: Runner = subprocess.run,
     base_env: Mapping[str, str] | None = None,
     keep_media: bool = False,
+    treg: bool = False,
 ) -> VideoResult:
     """One full Claude run, judged; media and frames are deleted afterwards unless kept."""
     try:
-        return _run_video(entry, out, plugin_dir, runner, base_env)
+        return _run_video(entry, out, plugin_dir, runner, base_env, treg)
     finally:
         if not keep_media:
             remove_media(out / entry["id"] / "home")
@@ -191,11 +204,12 @@ def _run_video(
     plugin_dir: Path,
     runner: Runner,
     base_env: Mapping[str, str] | None,
+    treg: bool,
 ) -> VideoResult:
     base = dict(os.environ if base_env is None else base_env)
     home = out / entry["id"] / "home"
     home.mkdir(parents=True, exist_ok=True)
-    env = {**base, "SKIPWATCH_HOME": str(home)}
+    env = run_env(base, home, treg)
     cmd = claude_command(entry, out, plugin_dir, cookies_from_env(base))
     vid = entry["id"]
     try:
@@ -255,6 +269,7 @@ def run_engine_only(
     base_env: Mapping[str, str] | None = None,
     stages: list[str] | None = None,
     keep_media: bool = False,
+    treg: bool = False,
 ) -> VideoResult:
     """probe, ingest, transcribe, frames, plan in an isolated home on the free provider.
 
@@ -263,7 +278,7 @@ def run_engine_only(
     Media and frames are deleted afterwards unless kept.
     """
     try:
-        return _run_engine_only(entry, out, runner, base_env, stages)
+        return _run_engine_only(entry, out, runner, base_env, stages, treg)
     finally:
         if not keep_media:
             remove_media(out / entry["id"] / "home")
@@ -275,13 +290,14 @@ def _run_engine_only(
     runner: Runner,
     base_env: Mapping[str, str] | None,
     stages: list[str] | None,
+    treg: bool,
 ) -> VideoResult:
     base = dict(os.environ if base_env is None else base_env)
     vid = entry["id"]
     home = out / vid / "home"
     work = home / "work" / vid.lower()
     work.parent.mkdir(parents=True, exist_ok=True)
-    env = {**base, "SKIPWATCH_HOME": str(home)}
+    env = run_env(base, home, treg)
     timings: list[str] = []
     probe: dict[str, Any] = {}
     for stage in [s for s in ENGINE_STAGES if stages is None or s in stages]:
@@ -364,6 +380,11 @@ def main(argv: list[str] | None = None) -> int:
         help="write that entry's s2/s3 setup files into --dir and print its task",
     )
     parser.add_argument("--dir", type=Path, help="scratch dir for --prepare")
+    parser.add_argument(
+        "--treg",
+        action="store_true",
+        help="let the run use treg (default: SKIPWATCH_TREG_DISABLED=1)",
+    )
     args = parser.parse_args(argv)
     if args.prepare:
         if args.dir is None:
@@ -381,7 +402,9 @@ def main(argv: list[str] | None = None) -> int:
             stages = args.stages.split(",") if args.stages else None
             if stages and set(stages) - set(ENGINE_STAGES):
                 raise SystemExit(f"--stages takes {','.join(ENGINE_STAGES)}")
-            result = run_engine_only(entry, out, stages=stages, keep_media=args.keep_media)
+            result = run_engine_only(
+                entry, out, stages=stages, keep_media=args.keep_media, treg=args.treg
+            )
         else:
             result = run_video(
                 entry,
@@ -390,6 +413,7 @@ def main(argv: list[str] | None = None) -> int:
                 subprocess.run,
                 None,
                 keep_media=args.keep_media,
+                treg=args.treg,
             )
         all_ok = all_ok and result.ok
         print(result.line, flush=True)

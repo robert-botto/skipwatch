@@ -718,7 +718,7 @@ def test_main_only_selection_and_exit(run_mod, tmp_path, capsys, monkeypatch):
     path.write_text(json.dumps(golden))
     seen = []
 
-    def fake_run_video(entry, out, plugin_dir, runner, base_env, keep_media):
+    def fake_run_video(entry, out, plugin_dir, runner, base_env, keep_media, treg):
         seen.append(entry["id"])
         return run_mod.VideoResult(entry["id"], entry["id"] == "G1", f"{entry['id']} X")
 
@@ -729,3 +729,59 @@ def test_main_only_selection_and_exit(run_mod, tmp_path, capsys, monkeypatch):
     assert run_mod.main(args) == 1
     with pytest.raises(SystemExit):
         run_mod.main([*args, "--only", "G9"])
+
+
+# ---- golden_run.py and treg (M5 decision 4) ----
+
+
+def test_run_video_disables_treg_unless_asked(run_mod, tmp_path):
+    entry = _entry(needs_cookies=False)
+    fake, calls = _fake_run_writes(
+        run_mod, tmp_path / "a", entry, _report(), SKILL_ILLEGIBLE_OUTSIDE
+    )
+    run_mod.run_video(entry, tmp_path / "a", Path("/repo"), runner=fake, base_env={})
+    assert calls[0][1]["SKIPWATCH_TREG_DISABLED"] == "1"
+    fake, calls = _fake_run_writes(
+        run_mod, tmp_path / "b", entry, _report(), SKILL_ILLEGIBLE_OUTSIDE
+    )
+    base = {"SKIPWATCH_TREG_DISABLED": "1"}  # a guard inherited from the caller is dropped too
+    run_mod.run_video(entry, tmp_path / "b", Path("/repo"), runner=fake, base_env=base, treg=True)
+    assert "SKIPWATCH_TREG_DISABLED" not in calls[0][1]
+
+
+def test_engine_only_disables_treg_unless_asked(run_mod, tmp_path):
+    seen = []
+
+    def fake(cmd, *, env, timeout, **kwargs):
+        seen.append(dict(env))
+        return _engine_fake([])(cmd, env=env, timeout=timeout, **kwargs)
+
+    run_mod.run_engine_only(_entry(), tmp_path / "a", runner=fake, base_env={})
+    assert seen and all(env["SKIPWATCH_TREG_DISABLED"] == "1" for env in seen)
+    seen.clear()
+    base = {"SKIPWATCH_TREG_DISABLED": "1"}
+    run_mod.run_engine_only(_entry(), tmp_path / "b", runner=fake, base_env=base, treg=True)
+    assert seen and all("SKIPWATCH_TREG_DISABLED" not in env for env in seen)
+
+
+def test_main_passes_treg_flag(run_mod, tmp_path, monkeypatch):
+    path = tmp_path / "golden.json"
+    path.write_text(json.dumps({"videos": [_entry(id="G1", needs_cookies=False)]}))
+    seen = []
+
+    def fake_run_video(entry, out, plugin_dir, runner, base_env, keep_media, treg):
+        seen.append(treg)
+        return run_mod.VideoResult(entry["id"], True, "G1 X")
+
+    def fake_engine_only(entry, out, stages, keep_media, treg):
+        seen.append(("engine", treg))
+        return run_mod.VideoResult(entry["id"], True, "G1 X")
+
+    monkeypatch.setattr(run_mod, "run_video", fake_run_video)
+    monkeypatch.setattr(run_mod, "run_engine_only", fake_engine_only)
+    args = ["--golden", str(path), "--out", str(tmp_path / "o")]
+    run_mod.main(args)
+    run_mod.main([*args, "--treg"])
+    run_mod.main([*args, "--engine-only"])
+    run_mod.main([*args, "--engine-only", "--treg"])
+    assert seen == [False, True, ("engine", False), ("engine", True)]
