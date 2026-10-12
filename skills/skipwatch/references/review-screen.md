@@ -74,20 +74,10 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   Screens without a test keep the shape above.
 - **Source:** `source` in `<W>/ingest.json`: title, author handle and post date; a local
   file is `local file` and `undated` unless it carries them.
-- **Provider calls:** rows of `<W>/calls.json` (`provider`, `op`, `cost_usd`, `error`).
-  Only rows whose `provider` is `treg` count; no treg rows means `none (free route)`.
-  Otherwise `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts
-  the treg rows and the total is the sum of their `cost_usd`, never from `treg balance`.
-  For example
-  `treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)`.
-  `media.get` rows show as `media.get $0.0000`, and rows whose `error` is `cost cap` show
-  as `<op> refused (cost cap)`; both add nothing. When `<W>/ingest.json`
-  `route.fallbacks` has `treg: cost cap reached`, append
-  `; treg cost cap reached ($<max_cost_usd>)` (`[providers.treg] max_cost_usd`, default
-  `$0.05`). When it has `from_cache` true, append `; cached from <date>` (else
-  `cached from an earlier run`); cached calls are not billed again. A cached transcript
-  adds `; transcript cached (<origin>)`; audio sent to a cloud provider adds
-  `<provider> transcription (billed to your <ENV VAR> key)`.
+- **Provider calls:** `provider_calls_line` in `<W>/check-report.json`, printed exactly;
+  never compute it from `calls.json` or `treg balance`. Then a transcript reused from the
+  cache adds `; transcript cached (<origin>)`, and audio sent to a cloud provider adds
+  `; <provider> transcription (billed to your <ENV VAR> key)`.
 - **Draft:** `<W>/staging/<name>/`. **Target:** always absolute.
 
 ## Extra lines
@@ -126,7 +116,7 @@ differ:
   and `[written]` quotes cannot be re-checked here).
 - **Source:** as usual, then `(from pack <file>, sha256 <12 hex>)`: `pack.file` and the
   first 12 hex characters of `pack.sha256` after `sha256:`.
-- **Provider calls:** `none (shared pack)`. **Unread frames:** `none`.
+- **Provider calls:** the engine's line, `none (shared pack)`. **Unread frames:** `none`.
 
 ```
   Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)

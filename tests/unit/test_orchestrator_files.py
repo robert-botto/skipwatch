@@ -1129,13 +1129,6 @@ def test_media_kept_for_resume_on_failure():
     assert 'rm -rf "<W>/media"' in text
 
 
-def test_review_screen_reports_cache():
-    text = flat(REFS / "review-screen.md")
-    assert "`from_cache`" in text
-    assert "cached from <date>" in text
-    assert "not billed again" in text
-
-
 def test_check_retry_removes_or_fixes_an_unredactable_file():
     text = protocol_flat()
     assert "the single retry removes or fixes that file" in text  # 8.7
@@ -1491,35 +1484,20 @@ def test_slug_rule_is_spelled_out():
 # ---- M4: treg provider calls, cost and cross-check (Task M4-C1) ----
 
 
-def test_provider_calls_line_lists_each_call_and_the_total():
-    review = flat(REFS / "review-screen.md")
-    assert "`none (free route)`" in review
-    # the free route logs provider="free" rows at cost 0 into calls.json too
-    assert "Only rows whose `provider` is `treg` count" in review
-    assert "no treg rows means `none (free route)`" in review
-    assert "`<n>` counts the treg rows" in review
-    assert "counts every row" not in review
-    assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
-    # catalog prices from content_treg.CATALOG_PRICES; the total is the sum of the shown costs
-    example = "treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)"
-    assert example in review
-    # a treg call without a stderr call id can still carry cost_usd from its body, so the
-    # exclusions are named, not inferred from a missing call_id
-    assert "`media.get` rows" in review and "`<op> refused (cost cap)`" in review
-    assert "rows whose `error` is `cost cap`" in review
-    assert "not billed calls" not in review
-    assert "`cost_usd`" in review and "`op`" in review
-    # the total is computed from calls.json, never from the treg balance
-    assert "never from `treg balance`" in review
+def test_provider_calls_line_comes_from_the_engine():
+    # calls_line.provider_calls_line owns the treg rows, refusals, cap and cache suffixes
+    from skipwatch.models import CheckReport
 
-
-def test_treg_cost_cap_is_surfaced():
+    assert "provider_calls_line" in CheckReport.model_fields
     review = flat(REFS / "review-screen.md")
-    assert "`treg: cost cap reached`" in review  # the engine's route.fallbacks entry
-    assert "`; treg cost cap reached ($<max_cost_usd>)`" in review
-    assert "`[providers.treg] max_cost_usd`" in review
-    text = protocol_flat()
-    assert "treg cost cap reached" in text  # said in the ingest progress line too
+    assert "`provider_calls_line` in `<W>/check-report.json`, printed exactly" in review
+    assert "never compute it from `calls.json` or `treg balance`" in review
+    for arithmetic in ("total to 4 decimals", "`<n>` counts", "refused (cost cap)", "max_cost_usd"):
+        assert arithmetic not in review, arithmetic
+    # the engine line does not cover these two, so the skill still appends them
+    assert "`; transcript cached (<origin>)`" in review
+    assert "`; <provider> transcription (billed to your <ENV VAR> key)`" in review
+    assert "treg cost cap reached" in protocol_flat()  # said in the ingest progress line
 
 
 def test_cross_check_flags_disagreement_and_is_never_a_step_source():
