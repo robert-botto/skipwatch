@@ -692,3 +692,31 @@ def test_download_media_stops_at_the_size_cap_while_streaming(tmp_path, fake_get
     with pytest.raises(links.Refused, match="cap"):
         content_treg.download_media("https://cdn.example/v", dest)
     assert not dest.exists() and not dest.with_name("video.mp4.part").exists()
+
+
+def test_unknown_author_stores_no_replies_and_no_continuations(tmp_path, treg_on):
+    """Without a known author handle nothing can be attributed: a comment or a thread post
+    with no authorHandle is a stranger's text as far as SkipWatch can tell."""
+    thread = {
+        "costUsd": 0.00375,
+        "output": {
+            "found": True,
+            "data": {"tweets": [{"id": G2_ID, "text": "root"}, {"id": "2", "text": "later"}]},
+        },
+    }
+    comments = {
+        "output": {
+            "comments": [
+                {"id": "9", "text": "@x I am a stranger", "authorHandle": None},
+                {"id": "8", "text": "stranger two"},
+            ]
+        }
+    }
+    runner = FakeRunner(
+        {"anyapi.twitter.thread": stdout_of(thread), "treg.x.post.comments": stdout_of(comments)}
+    )
+    bundle = video_bundle("x", G2_URL)
+    bundle = bundle.model_copy(update={"source": bundle.source.model_copy(update={"author": None})})
+    got = TregProvider(runner=runner).enrich(bundle, work(tmp_path), IngestOptions())
+    assert got.context.author_replies == []
+    assert got.context.thread == []

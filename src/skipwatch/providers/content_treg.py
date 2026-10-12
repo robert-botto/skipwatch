@@ -499,7 +499,8 @@ class TregProvider:
         root = _root(tweets, wanted) or (tweets[0] if tweets else None)
         author = _handle(source.author) or _handle((root or {}).get("authorHandle"))
         thread_ids = {str(t.get("id")) for t in tweets}
-        later = tweets[tweets.index(root) + 1 :] if root is not None else []
+        # privacy: with no known author nothing can be attributed, so nothing is kept
+        later = tweets[tweets.index(root) + 1 :] if root is not None and author else []
         continuations = [
             _text(t) for t in later if _handle(t.get("authorHandle")) == author and _text(t)
         ]
@@ -510,7 +511,7 @@ class TregProvider:
         if source.kind == "text" and not context.post_text and root is not None:
             context = context.model_copy(update={"post_text": _text(root) or None})
         replies: list[str] = []
-        if wanted is not None:
+        if wanted is not None and author:
             comments = client.call(COMMENTS, body={"tweet_id": wanted}, headers=COMMENTS_HEADERS)
             items = comments.get("comments") if isinstance(comments, dict) else None
             for item in items or []:
