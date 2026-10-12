@@ -17,6 +17,10 @@ uv run python scripts/golden_run.py --only G1 --out /tmp/sw-golden
 # Engine stages only (probe to plan) on the free provider; no Claude, nothing judged.
 uv run python scripts/golden_run.py --engine-only --only G2 --stages probe,ingest,frames --out /tmp/sw-golden
 uv run python scripts/golden_run.py --engine-only --only G1 --out /tmp/sw-golden
+
+# Fresh-session task (S2 for G1, S3 for G2): write its setup files into a scratch dir and
+# print the task to give the session; then run the entry's verify command in that dir.
+uv run python scripts/golden_run.py --prepare G2 --dir "$T"
 ```
 
 `golden_run.py` gives each video its own `SKIPWATCH_HOME` at `<out>/<id>/home` and judges the
@@ -42,7 +46,10 @@ done. Everything in `<out>` is for local testing only: never commit it or share 
   success criterion S2.
 - G2: a public X post with a native video tutorial, 1 to 5 minutes, account over 10k
   followers, no login wall when opened logged out. Carries `expected.context` (thread, author
-  replies and links seen logged out) for M4.
+  replies and links seen logged out) for M4. G2 alone carries `s3` (task, verify command and
+  `setup_files`, here `models.ts`) for success criterion S3; its verify type-checks the
+  session's `mock.ts` with `npx --yes -p typescript@5.6 tsc --strict` and needs network for
+  npm. `golden_check.py` validates the shape of `s2` and `s3`.
 - G3: a public TikTok tutorial with on-screen text, 30 s to 3 minutes.
 - G4: a public Instagram reel tutorial, 30 s to 3 minutes (set `needs_cookies: true` when it
   cannot be fetched logged out).
