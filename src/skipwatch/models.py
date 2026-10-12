@@ -318,6 +318,9 @@ class CheckReport(_Tagged):
     passed: bool
     results: list[CheckResult]
     counts: Counts
+    # Pack mode only: the engine's grade without a critic (never high); skipwatch.json keeps
+    # the pack's claimed confidence.
+    pack_confidence: Literal["high", "medium", "low"] | None = None
 
 
 # ---- skipwatch.json (7.6) ----

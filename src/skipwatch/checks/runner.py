@@ -11,7 +11,13 @@ from types import ModuleType
 from skipwatch.checks import CHECK_ORDER
 from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.manifest import MANIFEST_NAME, build, read_work_file
+from skipwatch.manifest import (
+    MANIFEST_NAME,
+    build,
+    pack_confidence,
+    pack_refusal,
+    read_work_file,
+)
 from skipwatch.models import (
     BatchesFile,
     CheckReport,
@@ -128,6 +134,11 @@ def _check_modules() -> dict[str, ModuleType]:
     return {name: importlib.import_module(f"skipwatch.checks.{name}") for name in CHECK_ORDER}
 
 
+def _is_pack(ctx: CheckContext) -> bool:
+    """Pack mode as build sees it: a `pack` field honoured in this folder (pack_refusal)."""
+    return ctx.pack is not None and pack_refusal(ctx.staging, ctx.work, ctx.pack) is None
+
+
 def _run_checks(staging: Path, work: Path) -> CheckReport:
     modules = _check_modules()
     # Redaction first so every later check, and the manifest, see cleaned text (R-CHK-2).
@@ -148,6 +159,7 @@ def _run_checks(staging: Path, work: Path) -> CheckReport:
         passed=all(r.ok for r in ordered if r.check != "safety"),
         results=ordered,
         counts=counts,
+        pack_confidence=pack_confidence(counts) if _is_pack(ctx) else None,
     )
     write_model(staging / MANIFEST_NAME, build(staging, work, report))
     write_model(work / "check-report.json", report)
