@@ -101,7 +101,7 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 
-       <ENGINE> install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force] 2>"<work>/logs/install.log"; echo "rc=$?"; tail -n 3 "<work>/logs/install.log"
+       <ENGINE> --log "<work>/logs/install.log" install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force]
 
    Exit codes as in stage 10 of a run. On success print the same two lines as a run
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
