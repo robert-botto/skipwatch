@@ -19,6 +19,7 @@ from skipwatch.models import (
     Counts,
     IngestBundle,
     NotesFile,
+    PackOrigin,
     Transcript,
 )
 from skipwatch.skillmd import SkillDoc, parse
@@ -66,6 +67,7 @@ class CheckContext:
     notes: list[NotesFile]
     ingest: IngestBundle
     config: Config
+    pack: PackOrigin | None = None  # from ingest.pack only: the one switch for pack mode
 
 
 def _notes_paths(work: Path) -> list[Path]:
@@ -84,6 +86,7 @@ def build_context(staging: Path, work: Path) -> CheckContext:
         config = load_config()
     except ValueError as exc:
         raise SkipwatchError(ExitCode.USAGE, str(exc)) from exc
+    ingest = read_work_file(work / "ingest.json", IngestBundle)
     return CheckContext(
         staging=staging,
         work=work,
@@ -92,8 +95,9 @@ def build_context(staging: Path, work: Path) -> CheckContext:
             read_work_file(transcript_path, Transcript) if transcript_path.exists() else None
         ),
         notes=[read_work_file(p, NotesFile) for p in _notes_paths(work)],
-        ingest=read_work_file(work / "ingest.json", IngestBundle),
+        ingest=ingest,
         config=config,
+        pack=ingest.pack,
     )
 
 
