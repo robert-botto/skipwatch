@@ -127,9 +127,10 @@ Quote every path and URL in commands.
 ### run.json
 
 Before stage 3, use the Write tool to write `<W>/run.json` (and again in a new `<W>`),
-so resume can repeat the run. `flags` holds every flag token in order, `--to` absolute:
+so resume can repeat the run. `flags` holds every flag token in order, `--to` absolute.
+Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call.
 
-    {"schema": "skipwatch/run/1", "input": "<input>", "flags": ["--thorough", "--to", "/abs/dir"], "name": "<--name value, or null>", "started_at": "<UTC ISO time>"}
+    {"schema": "skipwatch/run/1", "input": "<input>", "flags": ["--thorough", "--to", "/abs/dir"], "name": "<--name value, or null>", "started_at": "<date output>"}
 
 ## Stage 3: engine stages
 

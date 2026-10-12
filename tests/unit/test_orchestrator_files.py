@@ -954,6 +954,8 @@ def test_run_json_and_probe_come_before_ingest():
     # resume needs the original input and flags (plan issue 5)
     assert "use the Write tool to write `<W>/run.json`" in text
     assert '"schema": "skipwatch/run/1"' in text
+    # Claude has no clock: the time comes from `date`, never made up
+    assert "Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call." in text
     assert _before(text, "`<W>/run.json`", logged("ingest") + ' "<input>"')
     # the long-video warning needs the duration before anything downloads (plan issue 4)
     assert logged("probe") + ' "<input>" --json' in text
