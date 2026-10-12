@@ -10,6 +10,7 @@ import typer
 
 from skipwatch.checks.frontmatter import is_skill_name
 from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.install import Scope, scope_target
 from skipwatch.runner import run_command
 
 _HOME_VAR = re.compile(r"^\$(HOME|\{HOME\})(?=/|$)")
@@ -20,7 +21,9 @@ def _expand(raw: str) -> Path:
     return Path(_HOME_VAR.sub(lambda _: str(Path.home()), raw)).expanduser()
 
 
-def _target_free(to: str | None, name: str | None, target: str | None) -> int:
+def _target_free(to: str | None, name: str | None, target: str | None, scope: Scope | None) -> int:
+    if scope is not None and (to is not None or target is not None):
+        raise SkipwatchError(ExitCode.USAGE, "--scope goes with --name alone, not --to or --target")
     if target is not None and to is None and name is None:
         path = _expand(target)
         if not path.is_absolute():
@@ -31,8 +34,14 @@ def _target_free(to: str | None, name: str | None, target: str | None) -> int:
         if not is_skill_name(name):
             raise SkipwatchError(ExitCode.USAGE, f"--name {name!r} is not a skill name")
         path = Path(os.path.abspath(_expand(to))) / name
+    elif target is None and to is None and name is not None:
+        if not is_skill_name(name):
+            raise SkipwatchError(ExitCode.USAGE, f"--name {name!r} is not a skill name")
+        path, _ = scope_target(scope, name, Path.cwd(), Path.home())
     else:
-        raise SkipwatchError(ExitCode.USAGE, "give --to and --name, or --target alone")
+        raise SkipwatchError(
+            ExitCode.USAGE, "give --name (with --scope or --to), or --target alone"
+        )
     # a dangling symlink counts as taken: install would refuse it too
     print(f"target {'exists' if os.path.lexists(path) else 'free'}: {path}")
     return 0
@@ -48,6 +57,13 @@ def register(app: typer.Typer) -> None:
         target: Annotated[
             str | None, typer.Option("--target", help="A full target path instead.")
         ] = None,
+        scope: Annotated[
+            Scope | None,
+            typer.Option(
+                "--scope",
+                help="user, project or agents, resolved as install does. Default from config.",
+            ),
+        ] = None,
     ):
         """Print `target free: <path>` or `target exists: <path>`; exit 0 either way."""
-        run_command(lambda: _target_free(to, name, target))
+        run_command(lambda: _target_free(to, name, target, scope))
