@@ -3,7 +3,13 @@ import os
 import shutil
 from pathlib import Path
 
-from skipwatch.manifest import build, confidence, file_hashes, finalize_manifest
+from skipwatch.manifest import (
+    build,
+    confidence,
+    file_hashes,
+    finalize_manifest,
+    pack_confidence,
+)
 from skipwatch.models import CheckReport, CheckResult, Counts, Critique, Manifest, SafetyFlag
 from skipwatch.workdir import read_model, write_model
 
@@ -104,3 +110,8 @@ def test_finalize_manifest_sets_files_and_checks_passed(tmp_path):
     on_disk = read_model(staging / "skipwatch.json", Manifest)
     assert m == on_disk and on_disk.checks_passed is True
     assert on_disk.files == file_hashes(staging)
+
+
+def test_pack_confidence_never_high():
+    assert pack_confidence(Counts(steps=10)) == "medium"
+    assert pack_confidence(Counts(steps=10, gaps=2)) == "low"

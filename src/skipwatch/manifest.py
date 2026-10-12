@@ -48,6 +48,11 @@ def confidence(counts: Counts, critic_score: float | None) -> Literal["high", "m
     return "low"
 
 
+def pack_confidence(counts: Counts) -> Literal["high", "medium", "low"]:
+    """The 4.3 rule for a shared pack: the critic did not run here, so at most `medium`."""
+    return confidence(counts, None)
+
+
 def _mtime_utc(path: Path) -> str:
     stamp = datetime.fromtimestamp(int(path.stat().st_mtime), UTC)
     return stamp.isoformat(timespec="seconds").replace("+00:00", "Z")
