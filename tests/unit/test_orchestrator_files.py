@@ -403,12 +403,58 @@ def test_skill_md_frontmatter_kept():
     meta = fm(SKILL / "SKILL.md")
     assert meta["name"] == "skipwatch"
     assert meta["argument-hint"] == "<url or path> [flags]"
-    assert {t.strip() for t in meta["allowed-tools"].split(",")} == {
-        "Bash",
-        "Read",
-        "Write",
-        "Agent",
-    }
+    assert set(allowed_tools()) == {"Bash", "Read", "Write", "Agent"}
+    assert "Bash" not in allowed_tools()["Bash"]  # never a bare, unlimited Bash grant
+
+
+def allowed_tools() -> dict[str, list[str]]:
+    """SKILL.md allowed-tools as {tool: [rule patterns]}; a bare tool has no patterns."""
+    raw = str(fm(SKILL / "SKILL.md")["allowed-tools"])
+    found: dict[str, list[str]] = {}
+    for tool, pattern in re.findall(r"(\w+)(?:\(((?:[^()]|\([^()]*\))*)\))?", raw):
+        found.setdefault(tool, [])
+        if pattern:
+            found[tool].append(pattern)
+    return found
+
+
+SHELL_WORDS = ("find", "grep", "test", "mkdir", "rm", "cp", "date", "touch", "printenv")
+SHELL_WORDS += ("tail", "sleep", "tr", "printf", "cat", "ls", "echo", "cd", "chmod", "mv")
+
+
+def _shell_commands() -> list[tuple[str, str]]:
+    """Every non-engine command the skill's files tell Claude to run (with arguments)."""
+    found = []
+    for path in SKILL.rglob("*.md"):
+        text = read(path)
+        lines = [line.strip() for line in text.splitlines() if line.startswith("    ")]
+        for command in [*lines, *re.findall(r"`([^`\n]+)`", text)]:
+            word = command.split(" ", 1)[0]
+            if word in SHELL_WORDS and " " in command and not command.startswith("test run"):
+                found.append((path.name, command))
+    return found
+
+
+def _rule_covers(pattern: str, command: str) -> bool:
+    regex = re.escape(pattern).replace(r"\*", ".*")
+    return re.fullmatch(regex, command) is not None
+
+
+def test_allowed_tools_cover_every_command_the_skill_runs():
+    rules = allowed_tools()["Bash"]
+    engine = '"${CLAUDE_PLUGIN_ROOT}/scripts/skipwatch" *'
+    assert engine in rules  # the quoted wrapper form every engine call uses
+    commands = _shell_commands()
+    assert len(commands) >= 8
+    for name, command in commands:
+        assert any(_rule_covers(r, command) for r in rules), (name, command)
+    # and no rule for a command the skill no longer runs
+    used = {command.split(" ", 1)[0] for _, command in commands} | {"touch"}
+    for rule in rules:
+        word = rule.split(" ", 1)[0]
+        if "scripts/skipwatch" not in word:
+            assert word in used, rule
+    assert not _rule_covers("rm -rf *", "sudo rm -rf /")  # the matcher is anchored
 
 
 def test_skill_md_description_says_what_and_when():
@@ -603,7 +649,7 @@ def test_plugin_root_only_in_skill_md():
     for path in PROMPT_FILES:
         if path != SKILL / "SKILL.md":
             assert "CLAUDE_PLUGIN_ROOT}" not in read(path), path
-    text = read(SKILL / "SKILL.md")
+    text = body(SKILL / "SKILL.md")  # allowed-tools in the frontmatter uses it too
     assert text.count("CLAUDE_PLUGIN_ROOT}") == 1
     assert "Plugin root: ${CLAUDE_PLUGIN_ROOT}" in text
 
@@ -617,7 +663,8 @@ def test_engine_defined_once_in_skill_md():
     # wrapper path is written once, in the definition, so changing it is a one-place change
     for path in PROMPT_FILES:
         assert "uv run" not in read(path), path
-        n = read(path).count("scripts/skipwatch")
+        text = body(path) if path == SKILL / "SKILL.md" else read(path)
+        n = text.count("scripts/skipwatch")
         assert n == (1 if path == SKILL / "SKILL.md" else 0), (path, n)
 
 
