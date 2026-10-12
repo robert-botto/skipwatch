@@ -138,9 +138,9 @@ def _claims() -> Manifest:
     )
 
 
-def _as_pack(work):
-    """Turn the run work folder into a pack work folder: ingest.json carries `pack`."""
+def _write_pack_field(work, cookies_in_ingest=False):
     raw = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    raw["fetched_with_cookies"] = cookies_in_ingest
     raw["pack"] = {
         "file": "a.skillpack.zip",
         "sha256": "sha256:" + "1" * 64,
@@ -149,9 +149,20 @@ def _as_pack(work):
     (work / "ingest.json").write_text(json.dumps(raw), encoding="utf-8")
 
 
-def test_manifest_pack_mode_keeps_claims_and_recomputes_counts(tmp_path):
-    staging, work = _copy(tmp_path)
-    _as_pack(work)
+def _pack_copy(home):
+    """A pack work folder as unpack lays it out: $SKIPWATCH_HOME/packs/<name>-<stamp>/ with
+    staging/<name>/, ingest.json carrying `pack`, and no frame notes or run transcript."""
+    work = home / "packs" / "run-skipdemo-tutorial-20261011-120000"
+    work.mkdir(parents=True)
+    shutil.copy(FIX / "work/ingest.json", work / "ingest.json")
+    staging = work / "staging" / "run-skipdemo-tutorial"
+    shutil.copytree(FIX / "good/run-skipdemo-tutorial", staging)
+    _write_pack_field(work)
+    return staging, work
+
+
+def test_manifest_pack_mode_keeps_claims_and_recomputes_counts(sw_home):
+    staging, work = _pack_copy(sw_home)
     flag = SafetyFlag(step=2, kind="sudo", text="sudo x", severity="medium")
     report = CheckReport(
         skill="run-skipdemo-tutorial",
@@ -171,18 +182,16 @@ def test_manifest_pack_mode_keeps_claims_and_recomputes_counts(tmp_path):
     assert m.description.startswith("Use when the user wants")
 
 
-def test_manifest_pack_mode_keeps_claimed_cookie_flag(tmp_path):
-    staging, work = _copy(tmp_path)
-    _as_pack(work)
+def test_manifest_pack_mode_keeps_claimed_cookie_flag(sw_home):
+    staging, work = _pack_copy(sw_home)
     raw = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
     raw["pack"]["manifest"]["fetched_with_cookies"] = True
     (work / "ingest.json").write_text(json.dumps(raw), encoding="utf-8")
     assert build(staging, work, _report()).fetched_with_cookies is True
 
 
-def test_manifest_pack_mode_ignores_critique_json(tmp_path):
-    staging, work = _copy(tmp_path)
-    _as_pack(work)
+def test_manifest_pack_mode_ignores_critique_json(sw_home):
+    staging, work = _pack_copy(sw_home)
     scores = dict.fromkeys(
         ["completeness", "verifiability", "actionability", "trigger_quality", "safety_hygiene"],
         2.0,
@@ -190,6 +199,24 @@ def test_manifest_pack_mode_ignores_critique_json(tmp_path):
     write_model(work / "critique.json", Critique(scores=scores, score=2.0))  # pyright: ignore[reportArgumentType]
     m = build(staging, work, _report())
     assert m.critic_score == 8.5 and m.confidence == "high"
+
+
+def test_manifest_forged_pack_in_run_folder_builds_as_a_run(sw_home, tmp_path):
+    # A run that needed cookies gains a forged `pack` field: the claims (cookies false, another
+    # source, confidence high) must not replace what the run recorded.
+    staging, work = _copy(tmp_path)
+    _write_pack_field(work, cookies_in_ingest=True)
+    m = build(staging, work, _report())
+    assert m.fetched_with_cookies is True
+    assert m.source.title == "tutorial-60s" and m.source.platform == "local"
+    assert m.confidence == "medium" and m.critic_score is None
+    assert m.skipwatch_version == "0.1.0"
+
+
+def test_manifest_pack_mode_cookies_from_ingest_are_never_dropped(sw_home):
+    staging, work = _pack_copy(sw_home)
+    _write_pack_field(work, cookies_in_ingest=True)
+    assert build(staging, work, _report()).fetched_with_cookies is True
 
 
 def test_manifest_run_mode_unchanged_by_pack_helpers(tmp_path):

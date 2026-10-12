@@ -8,6 +8,7 @@ from typing import Literal, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from skipwatch import __version__
+from skipwatch.config import skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import (
     CheckReport,
@@ -16,6 +17,7 @@ from skipwatch.models import (
     IngestBundle,
     Manifest,
     ManifestSource,
+    Transcript,
 )
 from skipwatch.skillmd import parse
 from skipwatch.workdir import read_model, write_model
@@ -48,6 +50,26 @@ def confidence(counts: Counts, critic_score: float | None) -> Literal["high", "m
     return "low"
 
 
+def pack_refusal(staging: Path, work: Path) -> str | None:
+    """Why a `pack` field in ingest.json is not honoured here, or None. Fail closed: a pack is
+    checked only in the folder unpack made (under $SKIPWATCH_HOME/packs/, symlinks resolved),
+    on its own staging/<name>/, with no frame notes and no transcript but the pack's own.
+    Shared by provenance and build so neither trusts a forged `pack` field."""
+    work = work.resolve()
+    if (skipwatch_home() / "packs").resolve() not in work.parents:
+        return "the work folder is not under $SKIPWATCH_HOME/packs/"
+    if staging.resolve().parent != work / "staging":
+        return "the staging folder is not <work>/staging/<name>"
+    if (work / "batches.json").exists() or (work / "notes").exists():
+        return "the work folder has frame notes (notes/ or batches.json)"
+    transcript_path = work / "transcript.json"
+    if transcript_path.exists():
+        origin = read_work_file(transcript_path, Transcript).origin
+        if origin != "pack":
+            return f'transcript.json origin is "{origin}", not "pack"'
+    return None
+
+
 def pack_confidence(counts: Counts) -> Literal["high", "medium", "low"]:
     """The 4.3 rule for a shared pack: the critic did not run here, so at most `medium`."""
     return confidence(counts, None)
@@ -69,7 +91,7 @@ def build(staging: Path, work: Path, report: CheckReport) -> Manifest:
     description = front.get("description")
     description = description if isinstance(description, str) else ""
     flags = [f for r in report.results if r.check == "safety" for f in r.flags]
-    if ingest.pack is not None:
+    if ingest.pack is not None and pack_refusal(staging, work) is None:
         # A shared pack keeps its claims so a round trip is byte-identical (M5-M6 issue 4);
         # counts, flags and checks are recomputed here, and critique.json is never read.
         claims = ingest.pack.manifest
@@ -79,7 +101,7 @@ def build(staging: Path, work: Path, report: CheckReport) -> Manifest:
             skipwatch_version=claims.skipwatch_version,
             source=claims.source,
             extracted_at=claims.extracted_at,
-            fetched_with_cookies=claims.fetched_with_cookies,
+            fetched_with_cookies=claims.fetched_with_cookies or ingest.fetched_with_cookies,
             counts=report.counts,
             confidence=claims.confidence,
             critic_score=claims.critic_score,

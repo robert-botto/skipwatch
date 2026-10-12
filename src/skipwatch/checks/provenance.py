@@ -21,7 +21,7 @@ import re
 import unicodedata
 
 from skipwatch.checks.runner import CheckContext
-from skipwatch.config import skipwatch_home
+from skipwatch.manifest import pack_refusal
 from skipwatch.models import CheckItem, CheckResult, FrameNote, VerbatimItem
 from skipwatch.redact import redact_text
 from skipwatch.skillmd import Step, Tag
@@ -234,22 +234,6 @@ def _listed_in_gaps(ctx: CheckContext, number: int) -> bool:
     return re.search(INFERRED_LINE.format(n=number), gaps) is not None
 
 
-def _pack_refusal(ctx: CheckContext) -> str | None:
-    """Why a `pack` field is not honoured here, or None. Fail closed: a pack is checked only in
-    the folder unpack made (under $SKIPWATCH_HOME/packs/, symlinks resolved), which holds no
-    frame notes and no transcript but the one rebuilt from the pack."""
-    work = ctx.work.resolve()
-    if (skipwatch_home() / "packs").resolve() not in work.parents:
-        return "the work folder is not under $SKIPWATCH_HOME/packs/"
-    if ctx.staging.resolve().parent != work / "staging":
-        return "the staging folder is not <work>/staging/<name>"
-    if (work / "batches.json").exists() or (work / "notes").exists():
-        return "the work folder has frame notes (notes/ or batches.json)"
-    if ctx.transcript is not None and ctx.transcript.origin != "pack":
-        return f'transcript.json origin is "{ctx.transcript.origin}", not "pack"'
-    return None
-
-
 def _pack_skips(ctx: CheckContext, step: Step) -> bool:
     """In a shared pack, quotes with no shipped evidence are not re-verified (M5-M6 issue 1).
     Only a step that already has one tag and a quote counts; the structure rules still bite."""
@@ -300,7 +284,7 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
 
 def run(ctx: CheckContext) -> CheckResult:
     if ctx.pack is not None:
-        refusal = _pack_refusal(ctx)
+        refusal = pack_refusal(ctx.staging, ctx.work)
         if refusal is not None:
             return CheckResult(
                 check="provenance",
