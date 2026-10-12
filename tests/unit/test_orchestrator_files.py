@@ -877,10 +877,18 @@ def test_check_retry_removes_or_fixes_an_unredactable_file():
 def test_referenced_frames_copied_into_staging_before_check():
     text = flat(REFS / "run-protocol.md")
     assert (
-        "Before stage 7, copy each frame the skill references from `<W>/frames/<id>.jpg` "
-        "into `<W>/staging/<name>/assets/frames/`" in text
+        "Before stage 7, copy each frame the skill references into "
+        "`<W>/staging/<name>/assets/frames/`" in text
     )
     assert "at most 8 (3.4)" in text
+    # copy-frames scales to 960 wide before check hashes the files (plan issue 7)
+    assert (
+        '<ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ...'
+        in text
+    )
+    assert "960 wide" in text
+    assert 'cp "<W>/frames/' not in text
+    assert "1280-wide" not in text and "arrives with `pack` in M5" not in text
 
 
 # ---- doctor eval hardening (the M1 acceptance doctor case was flaky) ----

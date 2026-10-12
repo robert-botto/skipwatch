@@ -393,14 +393,19 @@ Files (paths relative to the skill folder):
 - `references/transcript.md`: the full timed transcript, one `[mm:ss] text` line per
   segment. Omit it over 200 KB and say so in `source.md`. Omit it when there is no
   transcript.
-- `assets/frames/`: Before stage 7, copy each frame the skill references from
-  `<W>/frames/<id>.jpg` into `<W>/staging/<name>/assets/frames/`, at most 8 (3.4), with
-  `mkdir -p "<W>/staging/<name>/assets/frames" && cp "<W>/frames/<id>.jpg" "<W>/staging/<name>/assets/frames/"`.
-  Every image link in the draft must name a copied file, or the structure check fails on
-  a missing reference. Copy, never Read. Pick the frames that support on-screen steps. They are the 1280-wide
-  JPEGs from `frames/`; no M1 engine command scales to 960 wide, so that scaling arrives
-  with `pack` in M5. The structure check caps the count, not the width. `--no-frames`
-  skips this folder and its image links.
+- `assets/frames/`: Before stage 7, copy each frame the skill references into
+  `<W>/staging/<name>/assets/frames/`, at most 8 (3.4), with the engine, in one call
+  listing every frame id:
+
+      <ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ... 2>>"<W>/logs/copy-frames.log"; echo "rc=$?"; tail -n 3 "<W>/logs/copy-frames.log"
+
+  The engine writes each frame as `<id>.jpg` scaled to 960 wide (3.4), before check takes
+  the file hashes, so a later pack never changes a byte. Never copy or resize frames with
+  `cp` or any other tool, and never Read them. Exit 64 names an unknown frame id or more
+  than 8 frames: fix the id list and run it once more. Every image link in the draft must
+  name a copied file, or the structure check fails on a missing reference. Pick the
+  frames that support on-screen steps. `--no-frames` skips this folder and its image
+  links.
 
 Redact before anything reaches the staging folder (R-CHK-2, first pass). Every prose
 block goes through `<ENGINE> redact --stdin` before it is written to staging, one file at
