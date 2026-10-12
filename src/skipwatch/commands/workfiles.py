@@ -24,6 +24,18 @@ def home_work_folder(work: Path) -> Path:
     return _home_folder(work, "work")
 
 
+def home_work_or_pack_folder(work: Path) -> Path:
+    """home_work_folder, or the same rule for the home's packs/ (a pack test run's folder).
+    When neither fits, the work/ refusal is the one raised."""
+    try:
+        return home_work_folder(work)
+    except SkipwatchError as work_error:
+        try:
+            return _home_folder(work, "packs")
+        except SkipwatchError:
+            raise work_error from None
+
+
 def _home_folder(work: Path, area: str) -> Path:
     """home_work_folder's rule for the home's work/ or packs/ folder."""
     root = (skipwatch_home() / area).resolve()
