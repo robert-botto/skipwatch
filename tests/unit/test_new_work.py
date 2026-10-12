@@ -56,7 +56,7 @@ def test_new_work_relative_home_is_made_absolute(tmp_path, monkeypatch):
     assert work.is_absolute() and work.parent == tmp_path / "rel-home" / "work"
 
 
-@pytest.mark.parametrize("slug", ["", "Has-Caps", "a/b", "../x", "-lead", "a b", "x" * 81])
+@pytest.mark.parametrize("slug", ["", "Has-Caps", "a/b", "../x", "-lead", "a b", "x" * 81, "abc\n"])
 def test_new_work_bad_slug_is_usage_error(slug, sw_home, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["skipwatch", "new-work", "--slug", slug])
     with pytest.raises(SystemExit) as exc:

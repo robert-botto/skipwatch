@@ -38,7 +38,7 @@ def _claim(slug: str, now: datetime) -> Path:
 
 
 def _new_work(slug: str, json_out: bool) -> int:
-    if not SLUG_RE.match(slug):
+    if not SLUG_RE.fullmatch(slug):
         raise SkipwatchError(
             ExitCode.USAGE,
             f"bad slug {slug!r}: lowercase letters, digits and hyphens, 1 to 80 characters",
