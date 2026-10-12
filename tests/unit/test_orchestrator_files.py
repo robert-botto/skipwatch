@@ -543,6 +543,12 @@ def test_every_tool_used_grader_is_covered():
     assert found == {
         "evals/doctor/graders/doctor-ran.md",
         "evals/local-fixture/graders/agent-text-not-in-bash.md",
+        # M5-G: quoted-command regex tests for these are in tests/unit/test_m5_evals.py
+        "evals/critic-repair/graders/critic-dispatched.md",
+        "evals/pack-tamper/graders/unpack-ran.md",
+        "evals/pack-yes-holds/graders/unpack-ran.md",
+        "evals/pack-yes-holds/graders/check-ran.md",
+        "evals/pack-install/graders/check-ran.md",
     }
 
 
