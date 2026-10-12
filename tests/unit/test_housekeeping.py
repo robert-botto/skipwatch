@@ -407,3 +407,12 @@ def test_a_scratch_holding_the_work_folder_is_refused(tmp_path):
     r = invoke("--home", str(home), "cleanup", "--work", str(work), "--scratch", str(home))
     assert r.exit_code == ExitCode.USAGE
     assert (work / "draft" / "SKILL.md").is_file() and (work / "stages.json").is_file()
+
+
+def test_discard_refuses_a_symlink_to_a_sibling_work_folder(sw_home):
+    real = fresh_work()
+    link = real.parent / "link-20261012-120000"
+    symlink(link, real)
+    r = invoke("discard-work", "--work", str(link))
+    assert r.exit_code == ExitCode.USAGE
+    assert (real / "stages.json").is_file() and link.is_symlink()
