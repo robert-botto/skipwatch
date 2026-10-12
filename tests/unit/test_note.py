@@ -20,8 +20,8 @@ def note(work: Path, *args: str):
 
 
 @pytest.fixture
-def work(tmp_path) -> Path:
-    path = tmp_path / "w"
+def work(sw_home) -> Path:
+    path = sw_home / "work" / "demo-20261012-120000"
     WorkDir(path).ensure()
     return path
 
@@ -73,10 +73,18 @@ def test_note_takes_exactly_one_single_line_value(work, args):
     assert not (work / "degradations.json").exists()
 
 
-def test_note_outside_a_work_folder_is_exit_2(tmp_path):
-    r = note(tmp_path, "--degradation", "x")
-    assert r.exit_code == ExitCode.UNSUPPORTED_SOURCE
-    assert not (tmp_path / "degradations.json").exists()
+def test_note_outside_a_work_folder_is_exit_64(tmp_path, sw_home):
+    elsewhere = tmp_path / "elsewhere" / "demo-20261012-120000"
+    WorkDir(elsewhere).ensure()  # a valid stages.json, but not under the home's work/
+    nested = sw_home / "work" / "a" / "demo-20261012-120000"
+    WorkDir(nested).ensure()
+    empty = sw_home / "work" / "empty-20261012-120000"
+    empty.mkdir(parents=True)
+    (empty / "stages.json").write_text("", encoding="utf-8")
+    for target in (tmp_path, elsewhere, nested, empty):
+        r = note(target, "--degradation", "x")
+        assert r.exit_code == ExitCode.USAGE, target
+        assert not (target / "degradations.json").exists(), target
 
 
 def test_note_on_an_invalid_file_is_exit_7_and_leaves_it(work):

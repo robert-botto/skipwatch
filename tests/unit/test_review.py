@@ -396,10 +396,10 @@ def test_high_confidence_prints_no_reasons_even_when_some_apply(tmp_path):
     assert line(lines, "Confidence:") == "  Confidence: high"
 
 
-def test_noted_degradations_and_unread_frames_reach_the_screen(tmp_path):
+def test_noted_degradations_and_unread_frames_reach_the_screen(sw_home):
     from skipwatch.workdir import WorkDir
 
-    work, staging = run_case(tmp_path)
+    work, staging = run_case(sw_home / "work")  # <home>/work/work: note checks the root
     WorkDir(work).ensure()  # note needs a work folder's stages.json
     for args in (
         ("--degradation", "critic failed twice"),

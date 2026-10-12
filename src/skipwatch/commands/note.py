@@ -10,6 +10,7 @@ from typing import Annotated
 
 import typer
 
+from skipwatch.commands.workfiles import home_work_folder
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.review import DEGRADATIONS_FILE, read_degradations
@@ -38,8 +39,7 @@ def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
 
 def _note(work: Path, degradation: str | None, unread: str | None) -> int:
     field, value = _value(degradation, unread)
-    if not (work / "stages.json").is_file():
-        raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"{work} is not a SkipWatch work folder")
+    work = home_work_folder(work)
     recorded = read_degradations(work)
     items: list[str] = getattr(recorded, field)
     if value not in items:

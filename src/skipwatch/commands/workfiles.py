@@ -18,7 +18,7 @@ from skipwatch.runner import run_command
 from skipwatch.workdir import STAGE_ORDER, WorkDir
 
 
-def _work_folder(work: Path) -> Path:
+def home_work_folder(work: Path) -> Path:
     """The work folder, resolved: directly under the home's work/ (as --home sets it), not a
     symlink, with a stages.json that reads. Anything else is exit 64 before any deletion."""
     root = (skipwatch_home() / "work").resolve()
@@ -82,7 +82,7 @@ def _scratch_folder(work: Path, scratch: Path) -> Path:
 
 
 def _cleanup(work: Path, keep_media: bool, scratch: Path | None) -> int:
-    work = _work_folder(work)
+    work = home_work_folder(work)
     scratch = None if scratch is None else _scratch_folder(work, scratch)
     targets = [] if keep_media else [work / "media"]
     if os.environ.get(KEEP_DRAFTS) != "1":
@@ -123,7 +123,7 @@ def _discard_work(work: Path) -> int:
 
 
 def _snapshot_draft(work: Path) -> int:
-    work = _work_folder(work)
+    work = home_work_folder(work)
     draft = work / "draft"
     if not draft.is_dir() or draft.is_symlink():
         raise SkipwatchError(ExitCode.NO_CONTENT, f"no draft to snapshot: {draft}")
