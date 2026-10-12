@@ -48,7 +48,13 @@ def copy_frames(work: Path, dest: Path, ids: list[str]) -> list[Path]:
             ExitCode.USAGE,
             f"a skill holds at most {MAX_SKILL_FRAMES} frames; {dest} would hold {total}",
         )
-    sources = [work / by_id[i].path for i in wanted]
+    frames_dir = (work / "frames").resolve()
+    sources = [(work / by_id[i].path).resolve() for i in wanted]
+    outside = [i for i, s in zip(wanted, sources, strict=True) if not s.is_relative_to(frames_dir)]
+    if outside:
+        raise SkipwatchError(
+            ExitCode.USAGE, f"frames.json points outside the frames folder for {', '.join(outside)}"
+        )
     missing = [str(s) for s in sources if not s.is_file()]
     if missing:
         raise SkipwatchError(ExitCode.NO_CONTENT, f"frame file missing: {', '.join(missing)}")

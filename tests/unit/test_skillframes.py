@@ -123,3 +123,19 @@ def test_copy_frames_without_frames_json_is_7(tmp_path):
     with pytest.raises(SkipwatchError) as exc:
         copy_frames(tmp_path, tmp_path / "out", [frame_id(1)])
     assert exc.value.code == ExitCode.NO_CONTENT
+
+
+@pytest.mark.parametrize("where", ["absolute", "parent"])
+def test_copy_frames_refuses_paths_outside_the_frames_folder(tmp_path, where):
+    work = make_work(tmp_path, [(100, 50), (100, 50)])
+    outside = tmp_path / "secret.jpg"
+    Image.new("RGB", (10, 10)).save(outside)
+    frames = FramesFile.model_validate_json((work / "frames.json").read_text("utf-8"))
+    frames.frames[1].path = str(outside) if where == "absolute" else "../secret.jpg"
+    write_model(work / "frames.json", frames)
+    dest = tmp_path / "out"
+    with pytest.raises(SkipwatchError) as exc:
+        copy_frames(work, dest, [frame_id(1), frame_id(2)])
+    assert exc.value.code == ExitCode.USAGE
+    assert frame_id(2) in exc.value.message
+    assert not dest.exists()
