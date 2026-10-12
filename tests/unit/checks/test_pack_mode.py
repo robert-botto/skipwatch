@@ -253,7 +253,7 @@ def test_pack_mode_context_carries_the_pack_origin(tmp_path):
 # ---- the fail-closed guard: a `pack` field is honoured only in a real pack work folder ----
 
 
-OUTSIDE = "pack mode refused: the work folder is not under $SKIPWATCH_HOME/packs/"
+OUTSIDE = "pack mode refused: the work folder is not directly under $SKIPWATCH_HOME/packs/"
 NOTES = "pack mode refused: the work folder has frame notes (notes/ or batches.json)"
 FIX_TEXT = "check a shared pack only in the folder `skipwatch unpack` made"
 
@@ -333,3 +333,9 @@ def test_pack_guard_run_staging_with_a_legit_pack_work_fails(tmp_path):
     run_staging.mkdir(parents=True)
     (run_staging / "SKILL.md").write_text(_skill(ONSCREEN_STEP), encoding="utf-8")
     _refused(_run(run_staging, pack_work), STAGING)
+
+
+def test_pack_guard_nested_folder_under_packs_fails(tmp_path):
+    nested = skipwatch_home() / "packs" / "a" / "b" / "c"
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP), work=nested)
+    _refused(_run(staging, work), OUTSIDE)

@@ -52,12 +52,12 @@ def confidence(counts: Counts, critic_score: float | None) -> Literal["high", "m
 
 def pack_refusal(staging: Path, work: Path) -> str | None:
     """Why a `pack` field in ingest.json is not honoured here, or None. Fail closed: a pack is
-    checked only in the folder unpack made (under $SKIPWATCH_HOME/packs/, symlinks resolved),
-    on its own staging/<name>/, with no frame notes and no transcript but the pack's own.
+    checked only in the folder unpack made (directly under $SKIPWATCH_HOME/packs/, symlinks
+    resolved), on its own staging/<name>/, with no frame notes and no transcript but the pack's.
     Shared by provenance and build so neither trusts a forged `pack` field."""
     work = work.resolve()
-    if (skipwatch_home() / "packs").resolve() not in work.parents:
-        return "the work folder is not under $SKIPWATCH_HOME/packs/"
+    if work.parent != (skipwatch_home() / "packs").resolve():
+        return "the work folder is not directly under $SKIPWATCH_HOME/packs/"
     if staging.resolve().parent != work / "staging":
         return "the staging folder is not <work>/staging/<name>"
     if (work / "batches.json").exists() or (work / "notes").exists():
