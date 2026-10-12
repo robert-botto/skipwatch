@@ -17,6 +17,7 @@ import zipfile
 import zlib
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import ValidationError
 
@@ -461,6 +462,9 @@ def unpack(
 ) -> UnpackResult:
     """Verify, then lay out <work>/staging/<name>/ and the synthetic ingest.json and
     transcript.json. Nothing is written until the whole pack has been verified."""
+    if fetched_from is not None:  # a query or fragment can carry a token: never stored
+        parts = urlsplit(fetched_from)
+        fetched_from = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
     data = _pack_bytes(source)
     name, files, manifest, manifest_bytes = _parse_pack(data)
     if manifest.fetched_with_cookies:

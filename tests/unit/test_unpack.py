@@ -271,6 +271,15 @@ def test_unpack_lays_out_pack_work_folder(tmp_path, sw_home):
     assert ingest.pack is not None and ingest.pack.file == second.fetched_from
 
 
+def test_unpack_records_the_url_without_query_or_fragment(tmp_path, sw_home):
+    url = "https://example.com/x/run-x.skillpack.zip"
+    result = unpack(good_pack(tmp_path), None, now=NOW, fetched_from=url + "?token=s3cret#part")
+    assert result.fetched_from == url
+    ingest = IngestBundle.model_validate_json((Path(result.work) / "ingest.json").read_bytes())
+    assert ingest.pack is not None and ingest.pack.file == url
+    assert "s3cret" not in (Path(result.work) / "ingest.json").read_text(encoding="utf-8")
+
+
 def test_unpack_without_transcript_and_local_source(tmp_path, sw_home):
     skill = installed_skill(tmp_path / "author")
     (skill / "references" / "transcript.md").unlink()
