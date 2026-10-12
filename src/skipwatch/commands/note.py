@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from skipwatch.commands.workfiles import home_work_folder
+from skipwatch.commands.workfiles import home_work_folder, remove_path
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.review import DEGRADATIONS_FILE, read_degradations
@@ -23,9 +23,17 @@ def _unprintable(char: str) -> bool:
     return category[0] == "C" or category in ("Zl", "Zp")
 
 
-def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
-    if (degradation is None) == (unread is None):
-        raise SkipwatchError(ExitCode.USAGE, "give exactly one of --degradation and --unread")
+CRITIC_FAILED = "critic failed twice"
+
+
+def _value(degradation: str | None, unread: str | None, critic_failed: bool) -> tuple[str, str]:
+    given = [degradation is not None, unread is not None, critic_failed]
+    if given.count(True) != 1:
+        raise SkipwatchError(
+            ExitCode.USAGE, "give exactly one of --degradation, --unread and --critic-failed"
+        )
+    if critic_failed:
+        return "degradations", CRITIC_FAILED
     field, value = ("degradations", degradation) if unread is None else ("unread", unread)
     assert value is not None
     # control, format, surrogate, private-use and unassigned characters (category C*) and
@@ -37,14 +45,17 @@ def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
     return field, value
 
 
-def _note(work: Path, degradation: str | None, unread: str | None) -> int:
-    field, value = _value(degradation, unread)
+def _note(work: Path, degradation: str | None, unread: str | None, critic_failed: bool) -> int:
+    field, value = _value(degradation, unread, critic_failed)
     work = home_work_folder(work)
     recorded = read_degradations(work)
     items: list[str] = getattr(recorded, field)
     if value not in items:
         items.append(value)
         write_model(work / DEGRADATIONS_FILE, recorded)
+    if critic_failed:
+        # stage 7 continues without the critic, so a half-written critique must not be read
+        remove_path(work / "critique.json")
     progress(f"Noted: {value}")
     return 0
 
@@ -60,6 +71,11 @@ def register(app: typer.Typer) -> None:
             str | None,
             typer.Option("--unread", help='Unread frames, as "<ids> (<reason>)".'),
         ] = None,
+        critic_failed: bool = typer.Option(
+            False,
+            "--critic-failed",
+            help=f'Record "{CRITIC_FAILED}" and delete <work>/critique.json.',
+        ),
     ):
         """Record a degradation or unread frames for the review screen (kept for resume)."""
-        run_command(lambda: _note(work, degradation, unread))
+        run_command(lambda: _note(work, degradation, unread, critic_failed))

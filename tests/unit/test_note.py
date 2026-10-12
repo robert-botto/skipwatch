@@ -93,3 +93,58 @@ def test_note_on_an_invalid_file_is_exit_7_and_leaves_it(work):
     assert r.exit_code == ExitCode.NO_CONTENT
     assert "delete" in r.stderr and "degradations.json" in r.stderr
     assert (work / "degradations.json").read_text() == "{not json"
+
+
+# ---- --critic-failed: stage 7's "failed twice" without a shell rm ----
+
+CRITIC = "critic failed twice"
+
+
+def test_critic_failed_records_once_and_deletes_the_critique(work):
+    (work / "critique.json").write_text("{}", encoding="utf-8")
+    for _ in range(2):
+        r = note(work, "--critic-failed")
+        assert r.exit_code == 0, r.output
+        assert not (work / "critique.json").exists()
+    assert recorded(work).degradations == [CRITIC]
+
+
+def test_critic_failed_dedups_against_a_noted_degradation(work):
+    assert note(work, "--degradation", CRITIC).exit_code == 0
+    assert note(work, "--critic-failed").exit_code == 0
+    assert recorded(work).degradations == [CRITIC]
+
+
+def test_critic_failed_unlinks_a_critique_symlink_and_keeps_its_target(tmp_path, work):
+    target = tmp_path / "keep.json"
+    target.write_text("{}", encoding="utf-8")
+    try:
+        (work / "critique.json").symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    assert note(work, "--critic-failed").exit_code == 0
+    assert not (work / "critique.json").is_symlink() and target.is_file()
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("--critic-failed", "--degradation", "x"),
+        ("--critic-failed", "--unread", UNREAD),
+    ],
+)
+def test_critic_failed_with_another_flag_is_exit_64_and_deletes_nothing(work, args):
+    (work / "critique.json").write_text("{}", encoding="utf-8")
+    r = note(work, *args)
+    assert r.exit_code == ExitCode.USAGE
+    assert (work / "critique.json").is_file()
+    assert not (work / "degradations.json").exists()
+
+
+def test_critic_failed_outside_a_work_folder_deletes_nothing(tmp_path, sw_home):
+    elsewhere = tmp_path / "elsewhere" / "demo-20261012-120000"
+    WorkDir(elsewhere).ensure()
+    (elsewhere / "critique.json").write_text("{}", encoding="utf-8")
+    r = note(elsewhere, "--critic-failed")
+    assert r.exit_code == ExitCode.USAGE
+    assert (elsewhere / "critique.json").is_file()
