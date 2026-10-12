@@ -5,6 +5,7 @@ from typing import get_args
 
 from skipwatch import runcache
 from skipwatch.audio import media_has_audio
+from skipwatch.crosscheck import attach, disagreement
 from skipwatch.doctor import extra_command, is_apple_silicon  # one source for install advice
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
@@ -22,17 +23,23 @@ def _whisper_hint() -> str:
     return extra_command(os.environ.get("CLAUDE_PLUGIN_ROOT"), extra)
 
 
-def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
-    """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+def refuse_nothing_to_transcribe(bundle: IngestBundle) -> None:
+    """Exit 7 before any cache lookup or backend: a text source, or media with no audio track
+    and no captions, has nothing to transcribe, install or upload."""
     if bundle.source.kind == "text":
         # Before any backend, so a text source never gets install advice (exit 8).
         raise SkipwatchError(ExitCode.NO_CONTENT, "text source: nothing to transcribe")
-    backends = transcription_backends()
-    captions = backends.get("captions")
+    captions = transcription_backends().get("captions")
     has_captions = captions is not None and captions.available(bundle)
     if bundle.media is not None and not media_has_audio(bundle) and not has_captions:
         # Before any backend, explicit ones too: nothing to install and nothing to upload.
         raise SkipwatchError(ExitCode.NO_CONTENT, "the video has no audio track")
+
+
+def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
+    """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    refuse_nothing_to_transcribe(bundle)
+    backends = transcription_backends()
     if requested == "auto":
         ranked = sorted(
             (b for b in backends.values() if not b.cloud and b.auto_rank is not None),
@@ -75,6 +82,15 @@ def mark_silence(t: Transcript, duration_s: float | None) -> Transcript:
     return t.model_copy(update={"silent": wpm < SILENT_WPM})
 
 
+def cross_check(transcript: Transcript, bundle: IngestBundle) -> Transcript:
+    """R-ING-2: the provider's untimed text only goes to cross_check; warn when they disagree."""
+    transcript = attach(transcript, bundle.transcript_hint)
+    warning = disagreement(transcript)
+    if warning is not None:
+        progress(f"Transcribe: warning: {warning}")
+    return transcript
+
+
 def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript:
     ingest_json = work.file("ingest.json")
     if not ingest_json.exists():
@@ -82,10 +98,12 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
     bundle = read_model(ingest_json, IngestBundle)
 
     def body() -> Transcript:
+        refuse_nothing_to_transcribe(bundle)  # never serve a cached transcript for these
         hit = runcache.cached_transcript(bundle, backend, model)  # R-TR-3
         if hit is not None:
             cached, age = hit
             progress(f"Transcribe: reused cached transcript ({cached.origin}, {age}h old)")
+            cached = cross_check(cached, bundle)  # this run's hint, never the cached one
             write_model(work.file("transcript.json"), cached)
             return cached
         chosen = select_backend(backend, bundle)
@@ -93,7 +111,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
         if not transcript.segments:
             # R-TR-1: never write a transcript without timed segments.
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
-        transcript = mark_silence(transcript, bundle.source.duration_s)
+        transcript = cross_check(mark_silence(transcript, bundle.source.duration_s), bundle)
         write_model(work.file("transcript.json"), transcript)
         runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
