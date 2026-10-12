@@ -1214,7 +1214,7 @@ def test_resume_command():
 def test_media_kept_for_resume_on_failure():
     text = protocol_flat()
     assert "keep `<W>/media/` on every stop" in text  # 3.4 media retention
-    assert 'rm -rf "<W>/media"' in text
+    assert "The engine deletes the media (unless `--keep-media`)" in text
 
 
 def test_check_retry_removes_or_fixes_an_unredactable_file():
@@ -1856,19 +1856,15 @@ def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     assert "Only when it does not exist" in stage10
     assert _before(stage10, "Then print two lines", ".star-nudged")
     assert "/skipwatch share <name> prints a thank-you post for the creator." in stage10
-    # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
-    # notes, frames, outline and critique quote secrets verbatim: deleted after install
-    cleanup = (
-        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<W>/notes" "<W>/frames" '
-        '"<W>/outline.md" "<W>/critique.json" "<P>/.skipwatch/test-run-<name>"'
-    )
+    # the engine deletes every raw work file (it honours SKIPWATCH_KEEP_DRAFTS itself)
+    cleanup = logged("cleanup") + ' --work "<W>" [--keep-media] [--scratch'
+    assert cleanup in stage10
     warning = "`Work files at <W> may hold unredacted text from the video.`"
     assert warning in stage10
     for path in (SKILL / "SKILL.md", REFS / "review-screen.md"):
         assert warning in flat(path), path  # the stop line and the cancel line
-    assert "can contain secrets shown in the video" in read(README_PATH)
-    assert cleanup in stage10
-    assert "Unless the environment sets `SKIPWATCH_KEEP_DRAFTS=1`" in stage10
+    assert "keeps the drafts itself when the environment sets `SKIPWATCH_KEEP_DRAFTS=1`" in stage10
+    assert "printenv" not in stage10 and "rm -rf" not in stage10
     # no shell chains: each cleanup step is its own call
     assert "||" not in stage10 and "&& echo" not in stage10
 

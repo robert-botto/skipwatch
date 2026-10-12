@@ -100,10 +100,14 @@ and create the marker with `touch` on the same path. Then print:
 
     /skipwatch share <name> prints a thank-you post for the creator.
 
-Cleanup, each its own Bash call: `rm -rf "<W>/media"` unless `--keep-media`. Unless the
-environment sets `SKIPWATCH_KEEP_DRAFTS=1` (check with `printenv SKIPWATCH_KEEP_DRAFTS`;
-acceptance runs keep `draft-pre-critic`), run
-`rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<W>/notes" "<W>/frames" "<W>/outline.md" "<W>/critique.json" "<P>/.skipwatch/test-run-<name>"`.
+Cleanup, one Bash call. The engine deletes the media (unless `--keep-media`), the drafts,
+the test folder, notes, frames, `outline.md`, `critique.json`, `transcript.json`,
+`ingest.json` and `logs/probe.json`, and keeps the drafts itself when the environment
+sets `SKIPWATCH_KEEP_DRAFTS=1`. Pass `--scratch` only when the test run used the fallback
+scratch folder:
+
+    <ENGINE> --log "<W>/logs/cleanup.log" cleanup --work "<W>" [--keep-media] [--scratch "<P>/.skipwatch/test-run-<name>"]
+
 On cancel and on any stop, these files stay for resume; the stop or cancel line adds `Work
 files at <W> may hold unredacted text from the video.` The user's original file is never
 inside `<W>` and is never moved or deleted.
