@@ -15,6 +15,7 @@ import typer
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.output import progress
 from skipwatch.runner import run_command
+from skipwatch.slug import slug_for
 from skipwatch.workdir import WorkDir, new_work_path
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
@@ -46,7 +47,17 @@ def _claim(slug: str, now: datetime) -> Path:
     raise SkipwatchError(ExitCode.NO_CONTENT, f"no free work folder name for {slug}")
 
 
-def _new_work(slug: str, json_out: bool) -> int:
+def _pick_slug(slug: str | None, source: str | None) -> str:
+    """--slug is the --name as given; --from derives the slug from the run's input."""
+    if source is not None and slug is None:
+        return slug_for(source)
+    if slug is not None and source is None:
+        return slug
+    raise SkipwatchError(ExitCode.USAGE, "give exactly one of --from <input> and --slug <name>")
+
+
+def _new_work(slug: str | None, source: str | None, json_out: bool) -> int:
+    slug = _pick_slug(slug, source)
     if not SLUG_RE.fullmatch(slug):
         raise SkipwatchError(
             ExitCode.USAGE,
@@ -67,8 +78,14 @@ def _new_work(slug: str, json_out: bool) -> int:
 def register(app: typer.Typer) -> None:
     @app.command("new-work")
     def _cmd(
-        slug: Annotated[str, typer.Option("--slug", help="Lowercase, hyphenated run name.")],
+        slug: Annotated[
+            str | None, typer.Option("--slug", help="Lowercase, hyphenated run name (--name).")
+        ] = None,
+        source: Annotated[
+            str | None,
+            typer.Option("--from", help="The run's input (URL or file): derive the slug from it."),
+        ] = None,
         json_out: bool = typer.Option(False, "--json", help='Print {"work": <path>}.'),
     ):
         """Create a work folder under the engine's home and print its absolute path."""
-        run_command(lambda: _new_work(slug, json_out))
+        run_command(lambda: _new_work(slug, source, json_out))
