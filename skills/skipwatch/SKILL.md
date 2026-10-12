@@ -10,9 +10,8 @@ allowed-tools: Bash, Read, Write, Agent
 Arguments: $ARGUMENTS
 
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
-to a timestamp. You orchestrate; a deterministic engine does the mechanical work,
-`skipwatch:frame-reader` agents read the frames, `skipwatch:skill-critic` reviews the
-draft and `skipwatch:skill-tester` test-runs it on request.
+to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and the
+agents under "Reading frames" read, critique and test.
 
 ## Engine and paths
 
@@ -149,8 +148,8 @@ Use the namespaced agent types `skipwatch:frame-reader`, `skipwatch:skill-critic
 `skipwatch:skill-tester`, with the prompts `run-protocol.md` gives (5 minutes for readers
 and the critic, 10 for the tester).
 
-Dispatch one Agent call with agent type `skipwatch:frame-reader` per batch in
-`batches.json`, all in one message so they run in parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
+Dispatch one reader per batch in `batches.json`, all in one message so they run in
+parallel. If a notes file is missing or malformed, re-dispatch that batch once; a second
 failure marks its frames unread and the review screen says so.
 
 ### Writing the skill

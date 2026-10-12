@@ -511,6 +511,12 @@ def test_non_engine_exit_codes_mapped():
         assert "W/logs" in text or "<W>/logs" in text, path
 
 
+def test_skill_md_lists_the_agents_once():
+    skill = read(SKILL / "SKILL.md")
+    for agent in ("skipwatch:frame-reader", "skipwatch:skill-critic", "skipwatch:skill-tester"):
+        assert skill.count(f"`{agent}`") == 1, agent
+
+
 def test_instructions_without_the_backstory():
     skill = flat(SKILL / "SKILL.md")
     assert "Never invoke uv yourself to run the engine" in skill
