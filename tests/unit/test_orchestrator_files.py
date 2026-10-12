@@ -901,6 +901,12 @@ def test_check_hint_uses_the_full_engine_command():
         assert "run skipwatch check" not in text and "run: skipwatch check" not in text, path
 
 
+def test_pack_test_run_failure_is_noted_in_the_pack_folder():
+    note = logged("note") + ' --work "<W>" --degradation "test run failed twice"'
+    assert note in protocol_flat()
+    assert "its `note` calls write into `<work>`" in flat(SHARING)
+
+
 def test_exit_64_covers_refused_folders_log_paths_and_homes():
     skill = read(SKILL / "SKILL.md")
     [row] = [line for line in skill.splitlines() if line.startswith("| 64 |")]

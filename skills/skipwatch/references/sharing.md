@@ -108,8 +108,8 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    that kind on the pack screen); otherwise show the pack review screen with its prompt
    and wait. "test it"
    and `--test` follow `## Stage 9b: test run` in `run-review-install.md` with
-   `<W>` = `<work>`, except
-   that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
+   `<W>` = `<work>` (its `note` calls write into `<work>`), except that an
+   `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 
        <ENGINE> --log "<work>/logs/install.log" install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force]

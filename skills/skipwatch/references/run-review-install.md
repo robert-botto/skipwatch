@@ -69,8 +69,11 @@ unless `--test` was also given.
 
        <ENGINE> --log "<W>/logs/validate-test.log" validate-test --work "<W>"
 
-   Exit 1: re-dispatch the tester once; a second exit 1 notes `test run failed twice`
-   (`note --degradation`), with no `Test run:` line.
+   Exit 1: re-dispatch the tester once; a second exit 1 notes the failure, with no
+   `Test run:` line (for a pack, `<W>` is the pack's `<work>`, which `note` accepts):
+
+       <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "test run failed twice"
+
 6. `ambiguous at step N`: ask `[repair step N / install as is / cancel]`. Repair edits
    that step's draft copy from the tester's detail and evidence the run already holds,
    redacts it, re-runs check (stage 8) and shows the screen with
