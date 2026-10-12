@@ -12,6 +12,7 @@ from skipwatch.media import find_system_ffmpeg
 from skipwatch.models import ProbeResult
 from skipwatch.probe import probe
 from skipwatch.providers import content_free as cf
+from skipwatch.workdir import WorkDir
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 REC = FIXTURES / "recorded" / "youtube"
@@ -165,3 +166,74 @@ def test_probe_cli_maps_errors_to_exit_codes(extract, sw_home):
     extract(error="ERROR: [youtube] x: Private video. Use --cookies-from-browser")
     r = CliRunner().invoke(app, ["probe", URL])
     assert r.exit_code == ExitCode.PRIVATE_CONTENT and "--cookies-from-browser" in r.stderr
+
+
+# ---- --work --out: the probe JSON lands in logs/ without a shell redirect (audit 5 fix 5) ----
+
+
+@pytest.fixture(params=["work", "packs"])
+def run_folder(request, sw_home) -> Path:
+    path = sw_home / request.param / "demo-20261012-120000"
+    WorkDir(path).ensure()
+    return path
+
+
+def test_probe_out_writes_the_json_to_logs(extract, no_whisper, run_folder):
+    extract(recorded())
+    out = run_folder / "logs" / "probe.json"
+    r = CliRunner().invoke(app, ["probe", URL, "--work", str(run_folder), "--out", str(out)])
+    assert r.exit_code == 0, r.output
+    assert r.stdout == ""
+    assert ProbeResult.model_validate_json(out.read_text(encoding="utf-8")).value == URL
+
+
+def test_probe_out_respects_home(extract, no_whisper, tmp_path, sw_home):
+    extract(recorded())
+    home = tmp_path / "other-home"
+    work = home / "work" / "demo-20261012-120000"
+    WorkDir(work).ensure()
+    out = work / "logs" / "probe.json"
+    args = ["--home", str(home), "probe", URL, "--work", str(work), "--out", str(out)]
+    r = CliRunner().invoke(app, args)
+    assert r.exit_code == 0, r.output
+    assert out.is_file()
+
+
+def test_probe_out_refuses_before_probing_and_writes_nothing(monkeypatch, tmp_path, run_folder):
+    def no_probe(*args, **kwargs):
+        raise AssertionError("a refused --out must not probe")
+
+    monkeypatch.setattr(cf, "extract", no_probe)
+    outside = tmp_path / "outside.json"
+    outside.write_text("keep", encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere" / "demo-20261012-120000"
+    WorkDir(elsewhere).ensure()
+    logs = run_folder / "logs"
+    cases = [
+        ["--work", str(elsewhere), "--out", str(elsewhere / "logs" / "probe.json")],
+        ["--work", str(run_folder), "--out", str(outside)],
+        ["--work", str(run_folder), "--out", str(logs / ".." / "stages.json")],
+        ["--work", str(run_folder), "--out", str(run_folder / "probe.json")],
+        ["--work", str(run_folder), "--out", str(logs)],
+        ["--out", str(logs / "probe.json")],
+        ["--work", str(run_folder)],
+    ]
+    try:
+        logs.mkdir(exist_ok=True)
+        (logs / "link.json").symlink_to(outside)
+        (logs / "dir").symlink_to(tmp_path, target_is_directory=True)
+        cases += [
+            ["--work", str(run_folder), "--out", str(logs / "link.json")],
+            ["--work", str(run_folder), "--out", str(logs / "dir" / "evil.json")],
+        ]
+    except OSError:
+        pass
+    stages = (run_folder / "stages.json").read_bytes()
+    for args in cases:
+        r = CliRunner().invoke(app, ["probe", URL, *args])
+        assert r.exit_code == ExitCode.USAGE, (args, r.output)
+    assert outside.read_text(encoding="utf-8") == "keep"
+    assert not (tmp_path / "evil.json").exists()
+    assert not (run_folder / "probe.json").exists()
+    assert not (elsewhere / "logs" / "probe.json").exists()
+    assert (run_folder / "stages.json").read_bytes() == stages
