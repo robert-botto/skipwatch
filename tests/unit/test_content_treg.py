@@ -979,7 +979,10 @@ def test_text_x_cache_lookup_uses_the_same_key_as_ingest(tmp_path, treg_on, monk
             return None
 
     monkeypatch.setattr(ingest, "content_providers", lambda: [provider, Other()])
-    got = ingest.run_ingest(G2_URL, work(tmp_path / "2"), IngestOptions(), cfg=Config())
+    sw_home.mkdir(parents=True, exist_ok=True)  # build_text_x reads the config from home
+    (sw_home / "config.toml").write_text("[providers.treg]\nenabled = true\n", encoding="utf-8")
+    on = Config.model_validate({"providers": {"treg": {"enabled": True}}})
+    got = ingest.run_ingest(G2_URL, work(tmp_path / "2"), IngestOptions(), cfg=on)
     assert not got.from_cache
     assert len(runner.calls()) > billed
 

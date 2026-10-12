@@ -103,7 +103,7 @@
         "treg": {
           "$ref": "#/$defs/TregConfig",
           "default": {
-            "enabled": "auto",
+            "enabled": false,
             "max_cost_usd": 0.05
           }
         }
@@ -158,7 +158,7 @@
       "additionalProperties": false,
       "properties": {
         "enabled": {
-          "default": "auto",
+          "default": false,
           "enum": [
             "auto",
             true,
@@ -210,7 +210,7 @@
       "$ref": "#/$defs/ProvidersConfig",
       "default": {
         "treg": {
-          "enabled": "auto",
+          "enabled": false,
           "max_cost_usd": 0.05
         }
       }

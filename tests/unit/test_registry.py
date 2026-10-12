@@ -174,7 +174,9 @@ def test_media_fallback_uses_provider_media_and_records_attempts(tmp_path, monke
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
     w = WorkDir(tmp_path / "w")
     w.ensure()
-    b = build_bundle("https://vimeo.com/1", w, IngestOptions(), load_config(tmp_path / "n"))
+    on = tmp_path / "on.toml"
+    on.write_text("[providers.treg]\nenabled = true\n", encoding="utf-8")
+    b = build_bundle("https://vimeo.com/1", w, IngestOptions(), load_config(on))
     assert b.media is not None and b.media.path == "media/video.mp4"
     assert b.route.media == "treg"
     assert "free.yt-dlp.download: HTTP Error 403" in b.route.fallbacks
@@ -236,12 +238,28 @@ def test_enabled_providers_free_auto_and_config_off(tmp_path, monkeypatch):
 
     up, down = FakeProvider(), FakeProvider(available=False)
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [up])
-    assert enabled_providers(IngestOptions(provider="free"), Config()) == []
-    assert enabled_providers(IngestOptions(provider="auto"), Config()) == [up]
+    on = Config.model_validate({"providers": {"treg": {"enabled": True}}})
+    auto = Config.model_validate({"providers": {"treg": {"enabled": "auto"}}})
+    assert enabled_providers(IngestOptions(provider="free"), on) == []
+    assert enabled_providers(IngestOptions(provider="auto"), on) == [up]
+    assert enabled_providers(IngestOptions(provider="auto"), auto) == [up]
     off = Config.model_validate({"providers": {"treg": {"enabled": False}}})
     assert enabled_providers(IngestOptions(provider="auto"), off) == []
     monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [down])
-    assert enabled_providers(IngestOptions(provider="auto"), Config()) == []
+    assert enabled_providers(IngestOptions(provider="auto"), on) == []
+
+
+def test_paid_provider_is_opt_in_under_auto(tmp_path, monkeypatch):
+    """Skill audit fix 15: the default config never bills; --provider treg still asks it."""
+    from skipwatch.adapters.base import IngestOptions
+    from skipwatch.config import load_config
+    from skipwatch.ingest import enabled_providers
+
+    up = FakeProvider()
+    monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [up])
+    cfg = load_config(tmp_path / "missing.toml")
+    assert enabled_providers(IngestOptions(provider="auto"), cfg) == []
+    assert enabled_providers(IngestOptions(provider="treg"), cfg) == [up]
 
 
 # ---- review fixes: local never consults providers, resilient and named registries ----
