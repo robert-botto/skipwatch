@@ -87,6 +87,18 @@ def test_run_protocol_logs_per_stage():
     assert "run.log" not in text
 
 
+def test_mark_and_validator_exits_are_handled():
+    # every mark reports its rc: an unrecorded stage breaks resume
+    for path in PROMPT_FILES:
+        for line in read(path).splitlines():
+            if re.search(r"<ENGINE> (?:--log \S+ )?mark ", line):
+                assert '--log "<W>/logs/mark.log" mark ' in line, (path, line)
+    text = flat(REFS / "run-protocol.md")
+    assert "A non-zero `mark` rc stops the run with its stderr" in text
+    assert "Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2" in text
+    assert "A second exit 64 for the same command stops" in text
+
+
 def test_engine_times_and_logs_stages_itself():
     # Haiku and Sonnet never hand-assemble T0=$(date +%s); ...; rc=$?; tail one-liners
     for path in PROMPT_FILES:
@@ -1158,7 +1170,7 @@ def test_claude_stages_are_marked_in_stages_json():
     text = flat(REFS / "run-protocol.md")
 
     def mark(stage, status):
-        return f'<ENGINE> mark --work "<W>" --stage {stage} --status {status}'
+        return logged("mark") + f' --work "<W>" --stage {stage} --status {status}'
 
     for stage in ("read", "distill", "review"):
         assert mark(stage, "running") in text, stage
@@ -1200,7 +1212,7 @@ def test_unread_cue_frames_stay_gaps_and_others_are_informational():
     assert gaps(other_line) == 0  # informational only
 
 
-REVIEW_DONE = '<ENGINE> mark --work "<W>" --stage review --status done'
+REVIEW_DONE = logged("mark") + ' --work "<W>" --stage review --status done'
 
 
 def test_review_done_only_after_install_or_cancel():
@@ -1218,27 +1230,28 @@ def test_review_done_only_after_install_or_cancel():
 def test_review_running_marked_when_the_screen_is_printed():
     # the review stage's timing must not include check (stage 7)
     text = flat(REFS / "run-protocol.md")
-    running = '<ENGINE> mark --work "<W>" --stage review --status running'
+    running = logged("mark") + ' --work "<W>" --stage review --status running'
     assert _before(text, "Print the review screen in the exact format", running)
     assert "as you print the review screen" in text
     stage9 = read(REFS / "run-protocol.md").split("## Stage 9: review", 1)[1]
-    assert not stage9.lstrip().startswith("<ENGINE> mark")
+    assert not stage9.lstrip().startswith("<ENGINE> --log")
 
 
 def test_install_is_marked_done_after_it_succeeds():
     text = flat(REFS / "run-protocol.md")
-    install_done = '<ENGINE> mark --work "<W>" --stage install --status done'
+    install_done = logged("mark") + ' --work "<W>" --stage install --status done'
     assert _before(text, logged("install") + ' "<W>/staging/<name>"', install_done)
     assert _before(text, install_done, "Then print two lines")
 
 
 def test_critique_is_marked_around_the_critic_not_unconditionally():
     text = flat(REFS / "run-protocol.md")
-    running = '<ENGINE> mark --work "<W>" --stage critique --status running'
-    done = '<ENGINE> mark --work "<W>" --stage critique --status done'
+    running = logged("mark") + ' --work "<W>" --stage critique --status running'
+    done = logged("mark") + ' --work "<W>" --stage critique --status done'
     assert "# no critic before M5" not in text
     # the critic stage has its own marks, between distill and check
-    assert _before(text, '<ENGINE> mark --work "<W>" --stage distill --status done', running)
+    distill_done = logged("mark") + ' --work "<W>" --stage distill --status done'
+    assert _before(text, distill_done, running)
     assert _before(text, running, "agent type `skipwatch:skill-critic`")
     assert _before(text, "<ENGINE> validate-critique", done)
     assert _before(text, done, '<ENGINE> check "<W>/staging/<name>"')

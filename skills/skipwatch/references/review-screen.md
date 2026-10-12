@@ -219,7 +219,7 @@ still names the install command.
   then show the whole screen again with the new target.
 - **cancel:** mark review done at once, so the cancelled run is not offered for resume:
 
-      <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
+      <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status done
 
   Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
   installed and `<W>` is kept.
