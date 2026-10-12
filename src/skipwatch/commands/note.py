@@ -10,19 +10,10 @@ from typing import Annotated
 import typer
 
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.manifest import read_work_file
-from skipwatch.models import DegradationsFile
 from skipwatch.output import progress
+from skipwatch.review import DEGRADATIONS_FILE, read_degradations
 from skipwatch.runner import run_command
 from skipwatch.workdir import write_model
-
-FILE_NAME = "degradations.json"
-
-
-def read_degradations(work: Path) -> DegradationsFile:
-    """The recorded file, or an empty one; a broken file is exit 7 with its name."""
-    path = work / FILE_NAME
-    return read_work_file(path, DegradationsFile) if path.is_file() else DegradationsFile()
 
 
 def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
@@ -43,7 +34,7 @@ def _note(work: Path, degradation: str | None, unread: str | None) -> int:
     items: list[str] = getattr(recorded, field)
     if value not in items:
         items.append(value)
-        write_model(work / FILE_NAME, recorded)
+        write_model(work / DEGRADATIONS_FILE, recorded)
     progress(f"Noted: {value}")
     return 0
 
