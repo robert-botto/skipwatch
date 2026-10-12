@@ -386,3 +386,11 @@ def test_check_report_without_a_provider_calls_line_is_exit_7(tmp_path):
     edit_json(work / "check-report.json", provider_calls_line=None)
     r = review(work, staging)
     assert r.exit_code == 7 and "provider_calls_line" in r.output
+
+
+def test_high_confidence_prints_no_reasons_even_when_some_apply(tmp_path):
+    work, staging = run_case(tmp_path)
+    edit_json(staging / "skipwatch.json", critic_score=8.5, confidence="high")
+    (work / "transcript.json").unlink()
+    lines = lines_of(work, staging, "--unread", "f006032 (reader failed twice)")
+    assert line(lines, "Confidence:") == "  Confidence: high"
