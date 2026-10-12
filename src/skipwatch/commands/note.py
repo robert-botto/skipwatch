@@ -26,15 +26,23 @@ def _unprintable(char: str) -> bool:
 CRITIC_FAILED = "critic failed twice"
 
 
-def _value(degradation: str | None, unread: str | None, critic_failed: bool) -> tuple[str, str]:
-    given = [degradation is not None, unread is not None, critic_failed]
+def _value(
+    degradation: str | None, unread: str | None, critic_failed: bool, clear: str | None
+) -> tuple[str, str]:
+    given = [degradation is not None, unread is not None, critic_failed, clear is not None]
     if given.count(True) != 1:
         raise SkipwatchError(
-            ExitCode.USAGE, "give exactly one of --degradation, --unread and --critic-failed"
+            ExitCode.USAGE,
+            "give exactly one of --degradation, --unread, --critic-failed and --clear",
         )
     if critic_failed:
         return "degradations", CRITIC_FAILED
-    field, value = ("degradations", degradation) if unread is None else ("unread", unread)
+    if clear is not None:
+        field, value = "degradations", clear
+    elif unread is None:
+        field, value = "degradations", degradation
+    else:
+        field, value = "unread", unread
     assert value is not None
     # control, format, surrogate, private-use and unassigned characters (category C*) and
     # line or paragraph separators (Zl, Zp) could reshape the review screen it is printed on
@@ -45,9 +53,28 @@ def _value(degradation: str | None, unread: str | None, critic_failed: bool) -> 
     return field, value
 
 
-def _note(work: Path, degradation: str | None, unread: str | None, critic_failed: bool) -> int:
-    field, value = _value(degradation, unread, critic_failed)
+def _clear(work: Path, prefix: str) -> int:
+    recorded = read_degradations(work)
+    kept = [line for line in recorded.degradations if not line.startswith(prefix)]
+    cleared = len(recorded.degradations) - len(kept)
+    if cleared:
+        recorded.degradations = kept
+        write_model(work / DEGRADATIONS_FILE, recorded)
+    progress(f"Cleared {cleared} degradation(s) starting with: {prefix}")
+    return 0
+
+
+def _note(
+    work: Path,
+    degradation: str | None,
+    unread: str | None,
+    critic_failed: bool,
+    clear: str | None,
+) -> int:
+    field, value = _value(degradation, unread, critic_failed, clear)
     work = home_work_folder(work)
+    if clear is not None:
+        return _clear(work, value)
     recorded = read_degradations(work)
     items: list[str] = getattr(recorded, field)
     if value not in items:
@@ -76,6 +103,10 @@ def register(app: typer.Typer) -> None:
             "--critic-failed",
             help=f'Record "{CRITIC_FAILED}" and delete <work>/critique.json.',
         ),
+        clear: Annotated[
+            str | None,
+            typer.Option("--clear", help="Remove every degradation starting with this text."),
+        ] = None,
     ):
         """Record a degradation or unread frames for the review screen (kept for resume)."""
-        run_command(lambda: _note(work, degradation, unread, critic_failed))
+        run_command(lambda: _note(work, degradation, unread, critic_failed, clear))
