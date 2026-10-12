@@ -105,9 +105,13 @@ the review screen then reports `critic not run` by itself.
        <ENGINE> --log "<W>/logs/validate-critique.log" validate-critique --work "<W>" --skill "<W>/staging/<name>"
 
    Exit 1: re-dispatch the critic once with the same prompt and validate again. A second
-   exit 1: `rm -f "<W>/critique.json"`, note `critic failed twice` (`note --degradation`;
-   it replaces `critic not run` on the screen), and go to step 6. Exit 7 (`SKILL.md not found` in staging): redo
-   stage 6 step 2 for `SKILL.md`, then validate once more.
+   exit 1 notes `critic failed twice` (it replaces `critic not run` on the screen) and
+   deletes the invalid `critique.json`, then go to step 6:
+
+       <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --critic-failed
+
+   Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2 for `SKILL.md`, then
+   validate once more.
 4. Read `<W>/critique.json` once and apply its `fixes` in order, at most 8, to the draft
    copies, never to staging, under "Critic fixes" in `distill-rules.md`. Step `0` means
    the description.

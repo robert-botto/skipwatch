@@ -485,7 +485,6 @@ def _rule_covers(pattern: str, command: str) -> bool:
 # Commands with no engine equivalent yet: they ask for permission instead of widening
 # allowed-tools (the critic's invalid score file and a pack's work folder under packs/).
 STILL_PROMPTS = {
-    'rm -f "<W>/critique.json"',
     'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"',
 }
 
@@ -1831,7 +1830,8 @@ def test_stage_7_keeps_evidence_validates_and_degrades():
     assert logged("validate-critique") + ' --work "<W>" --skill "<W>/staging/<name>"' in text
     assert _before(text, "skipwatch:skill-critic", logged("validate-critique"))
     assert "re-dispatch the critic once" in text
-    assert 'rm -f "<W>/critique.json"' in text and "`critic failed twice`" in text
+    assert logged("note") + ' --work "<W>" --critic-failed' in text
+    assert "`critic failed twice`" in text and "rm -f" not in text
     # fixes go to the draft copies and reach staging only through redact
     assert "never to staging" in text and "at most 8" in text
     assert "at most 2 batches per run" in text and "within 20 s" in text
@@ -2014,7 +2014,7 @@ def test_critic_reasons_are_exclusive():
     assert "`critic failed twice`, once noted, replaces `critic not run`" in review
     assert "under `--fast` the engine reports `critic not run` itself" in review
     run = protocol_flat()
-    assert "note `critic failed twice`" in run
+    assert "notes `critic failed twice`" in run
     from skipwatch import review as engine_review
 
     assert engine_review.CRITIC_FAILED == "critic failed twice"
