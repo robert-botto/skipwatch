@@ -466,9 +466,7 @@ def test_free_run_entry_never_serves_a_provider_run(sw_home, tmp_path, monkeypat
         tmp_path, monkeypatch, provider, IngestOptions(provider="free"), IngestOptions()
     )
     assert second.from_cache is False and provider.enriched == 1
-    third = run_ingest(
-        URL, WorkDir(tmp_path / "w9"), IngestOptions(), cfg=treg_on_config(tmp_path)
-    )
+    third = run_ingest(URL, WorkDir(tmp_path / "w9"), IngestOptions(), cfg=treg_on_config(tmp_path))
     assert third.from_cache is True and provider.enriched == 1
 
 
