@@ -1173,3 +1173,11 @@ def test_fallback_removes_the_abandoned_work_folder():
     assert 'rm -rf "<W>"' in text
     assert "only the exact path `new-work` printed" in text
     assert _before(text, 'rm -rf "<W>"', 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work')
+
+
+def test_text_resume_continues_from_the_first_missing_late_stage():
+    # restarting a text run at stage 5 would redo distill and overwrite staging
+    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    assert "the engine's `next_stage` already skips them" in resume
+    assert "the first of distill, critique, check, review and install not yet done" in resume
+    assert "go to stage 5, or" not in resume

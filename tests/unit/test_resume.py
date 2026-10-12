@@ -247,3 +247,32 @@ def test_newest_incomplete_skips_a_folder_without_run_json(sw_home):
     real = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",), run_json=True)
     work_at(sw_home / "work" / "demo-20261005-090000")  # newer orphan, no run.json
     assert newest_incomplete(sw_home) == real.path
+
+
+def text_run(tmp_path, done):
+    w = work_at(tmp_path / "w", done=done, run_json=True)
+    bundle = IngestBundle(
+        source=SourceInfo(kind="text", platform="x", url="https://x.com/a/status/1"),
+        route=Route(context="free"),
+    )
+    write_model(w.file("ingest.json"), bundle)
+    return w
+
+
+def test_text_source_resume_skips_the_video_stages(tmp_path):
+    # a text bundle never runs transcribe, frames, plan or read, so resume never names them
+    w = text_run(tmp_path, done=("detect", "ingest"))
+    assert resume_info(w.path).next_stage == "distill"
+    w.mark("distill", "done")
+    w.mark("critique", "done")
+    assert resume_info(w.path).next_stage == "check"
+    for s in ("check", "review"):
+        w.mark(s, "done")
+    assert resume_info(w.path).next_stage == "install"
+    w.mark("install", "done")
+    assert resume_info(w.path).next_stage is None
+
+
+def test_video_source_still_resumes_at_transcribe(tmp_path):
+    w = work_at(tmp_path / "w", done=("detect", "ingest"), run_json=True)
+    assert resume_info(w.path).next_stage == "transcribe"  # no ingest.json: not text

@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, ResumeResult, RunFile, StageName, StagesFile
-from skipwatch.workdir import STAGE_ORDER, WorkDir, read_model
+from skipwatch.workdir import STAGE_ORDER, read_model
 
 # work folders are named <slug>-<yyyymmdd-hhmmss> (workdir.new_work_path)
 _STAMP_RE = re.compile(r"-(\d{8}-\d{6})$")
@@ -66,10 +66,28 @@ def _exports_enabled() -> bool:
     return exports.mem0.enabled or exports.notes.enabled
 
 
+# a text bundle has no media: these stages never run for it (run-protocol stage 3)
+VIDEO_STAGES: tuple[StageName, ...] = ("transcribe", "frames", "plan", "read")
+
+
+def _is_text(work: Path) -> bool:
+    try:
+        return read_model(work / "ingest.json", IngestBundle).source.kind == "text"
+    except (OSError, ValidationError):
+        return False
+
+
 def next_stage(work: Path) -> StageName | None:
     """The first stage not done; a run whose only missing stage is export is complete
-    unless exports are on, since export never runs before M6."""
-    stage = WorkDir(work).first_incomplete()
+    unless exports are on, since export never runs before M6. A text source skips the
+    video stages, which never run for it."""
+    stages = _stages(work).stages
+    skip: tuple[StageName, ...] = VIDEO_STAGES if _is_text(work) else ()
+    stage: StageName | None = None
+    for name in STAGE_ORDER:
+        if name not in skip and (name not in stages or stages[name].status != "done"):
+            stage = name
+            break
     if stage == "export" and not _exports_enabled():
         return None
     return stage

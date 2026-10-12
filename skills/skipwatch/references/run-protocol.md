@@ -529,9 +529,11 @@ done (3.4, section 15). A stage left `running` by a killed process counts as not
      readers only for batches whose notes file is missing or invalid, then stage 5.
    - `check`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, otherwise stage 5.
    - `review` or `install`: stage 7 (staging may have been edited by hand), then stage 8.
-   - a text source never runs transcribe, frames, plan or read: when `next_stage` is one
-     of those and `ingest.json` says `source.kind` is `"text"`, go to stage 5, or, when
-     `completed` already has `install`, print `SkipWatch: nothing to resume.`
+   - a text source never runs transcribe, frames, plan or read, and the engine's
+     `next_stage` already skips them: it is the first of distill, critique, check, review
+     and install not yet done, handled by the lines above, except that `distill` and
+     `critique` go straight to stage 5 with no `validate-notes` (there are no batches).
+     Work already staged is not redone. `null` means the run is finished.
 
 From there the run is an ordinary run: same progress lines, same review prompt, same
 install rules.
