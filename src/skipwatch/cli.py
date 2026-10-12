@@ -1,14 +1,16 @@
 import importlib
 import pkgutil
 import sys
+from pathlib import Path
 from types import ModuleType
+from typing import Annotated
 
 import typer
 
 # typer 0.27 vendors click and does not re-export UsageError; test_cli pins this import.
 from typer._click.exceptions import ClickException, UsageError
 
-from skipwatch import __version__, commands
+from skipwatch import __version__, commands, stagelog
 from skipwatch.errors import ExitCode
 from skipwatch.runner import run_command
 
@@ -21,7 +23,17 @@ app = typer.Typer(add_completion=False, help="SkipWatch engine.")
 def _root(
     ctx: typer.Context,
     version: bool = typer.Option(False, "--version", help="Print the version."),
+    log: Annotated[
+        Path | None,
+        typer.Option(
+            "--log",
+            help="Send progress to this file; at the end print rc, elapsed and its last 3 lines.",
+        ),
+    ] = None,
 ) -> None:
+    if log is not None:
+        stagelog.start(log)
+        ctx.call_on_close(stagelog.stop)
     if version:
         typer.echo(__version__)
         raise typer.Exit(0)
@@ -41,17 +53,30 @@ def _register_all(target: typer.Typer, package: ModuleType) -> None:
 _register_all(app, commands)
 
 
-def main() -> None:
-    """Console entry point. Usage errors exit 64 so they never read as exit 2 (unsupported)."""
+def _dispatch() -> int:
     try:
         code = app(standalone_mode=False)
     except UsageError as exc:
         exc.show()
-        sys.exit(ExitCode.USAGE)
+        return ExitCode.USAGE
     except ClickException as exc:
         exc.show()
-        sys.exit(exc.exit_code)
+        return exc.exit_code
     except typer.Abort:
         print("Aborted!", file=sys.stderr)
-        sys.exit(1)
-    sys.exit(code if isinstance(code, int) else 0)
+        return 1
+    return code if isinstance(code, int) else 0
+
+
+def main() -> None:
+    """Console entry point. Usage errors exit 64 so they never read as exit 2 (unsupported)."""
+    try:
+        code = _dispatch()
+    except KeyboardInterrupt:
+        stagelog.report(130)
+        raise
+    except BaseException:
+        stagelog.report(1)
+        raise
+    stagelog.report(code)
+    sys.exit(code)
