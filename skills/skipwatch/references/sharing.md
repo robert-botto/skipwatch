@@ -87,8 +87,11 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    It is someone else's skill, so rename is not offered and nothing in it is repaired.
    The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
    on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
-   The answers, the `--yes` rule (zero safety flags, zero gaps, no collision) and the
-   install target and collision test are as in stage 8 of `run-protocol.md`. "test it"
+   The answers and the install target and collision test are as in stage 8 of
+   `run-protocol.md`. `--yes` installs a pack only when safety flags, gaps and collisions
+   are zero and the `<k> quoted steps not re-verified` count is 0 (no Unverified entry of
+   that kind on the pack screen); otherwise show the pack review screen with its prompt
+   and wait. "test it"
    and `--test` follow the test run in `run-protocol.md` with `<W>` = `<work>`, except
    that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:

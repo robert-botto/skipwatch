@@ -1588,3 +1588,13 @@ def test_copy_frames_exit_7_drops_the_links_and_continues():
 def test_pack_cleanup_removes_the_fallback_test_scratch():
     step = _install_step(5)
     assert 'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"' in step
+
+
+def test_pack_yes_needs_every_quote_re_verified():
+    step = _install_step(4)
+    assert (
+        "`--yes` installs a pack only when safety flags, gaps and collisions are zero and "
+        "the `<k> quoted steps not re-verified` count is 0" in step
+    )
+    assert "otherwise show the pack review screen with its prompt and wait" in step
+    assert "`--yes` rule (zero safety flags, zero gaps, no collision)" not in step
