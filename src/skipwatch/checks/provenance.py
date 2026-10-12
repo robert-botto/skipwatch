@@ -284,7 +284,7 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
 
 def run(ctx: CheckContext) -> CheckResult:
     if ctx.pack is not None:
-        refusal = pack_refusal(ctx.staging, ctx.work)
+        refusal = pack_refusal(ctx.staging, ctx.work, ctx.pack)
         if refusal is not None:
             return CheckResult(
                 check="provenance",

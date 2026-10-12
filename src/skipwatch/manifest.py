@@ -1,6 +1,8 @@
 """skipwatch.json: built by `check` (plan issue 1), finalised by `install` (R-MAN-1 hashes)."""
 
 import hashlib
+import os
+import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypeVar
@@ -17,12 +19,15 @@ from skipwatch.models import (
     IngestBundle,
     Manifest,
     ManifestSource,
+    PackOrigin,
     Transcript,
 )
 from skipwatch.skillmd import parse
 from skipwatch.workdir import read_model, write_model
 
 MANIFEST_NAME = "skipwatch.json"
+# Finder and Explorer junk that pack leaves out (M5-C IGNORED_NAMES), so it is not compared.
+PACK_IGNORED_NAMES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 M = TypeVar("M", bound=BaseModel)
 
 
@@ -50,7 +55,27 @@ def confidence(counts: Counts, critic_score: float | None) -> Literal["high", "m
     return "low"
 
 
-def pack_refusal(staging: Path, work: Path) -> str | None:
+def _staging_differs(staging: Path, listed: dict[str, str]) -> str | None:
+    """The first file (sorted) where staging and the pack's manifest disagree: an extra, a
+    missing or a changed file, or anything that is not a regular file. lstat, never follows."""
+    seen: dict[str, str] = {}
+    odd: set[str] = set()
+    for root, dirs, names in os.walk(staging, followlinks=False):
+        for name in dirs + names:
+            path = Path(root) / name
+            rel = path.relative_to(staging).as_posix()
+            mode = path.lstat().st_mode
+            if stat.S_ISDIR(mode):
+                continue
+            if not stat.S_ISREG(mode):
+                odd.add(rel)
+            elif name not in PACK_IGNORED_NAMES and rel != MANIFEST_NAME:
+                seen[rel] = "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    wrong = odd | {rel for rel in seen.keys() | listed.keys() if seen.get(rel) != listed.get(rel)}
+    return min(wrong) if wrong else None
+
+
+def pack_refusal(staging: Path, work: Path, pack: PackOrigin) -> str | None:
     """Why a `pack` field in ingest.json is not honoured here, or None. Fail closed: a pack is
     checked only in the folder unpack made (directly under $SKIPWATCH_HOME/packs/, symlinks
     resolved), on its own staging/<name>/, with no frame notes and no transcript but the pack's.
@@ -67,6 +92,9 @@ def pack_refusal(staging: Path, work: Path) -> str | None:
         origin = read_work_file(transcript_path, Transcript).origin
         if origin != "pack":
             return f'transcript.json origin is "{origin}", not "pack"'
+    differs = _staging_differs(staging, pack.manifest.files)
+    if differs is not None:
+        return f"staging differs from the pack's manifest: {differs}"
     return None
 
 
@@ -91,7 +119,7 @@ def build(staging: Path, work: Path, report: CheckReport) -> Manifest:
     description = front.get("description")
     description = description if isinstance(description, str) else ""
     flags = [f for r in report.results if r.check == "safety" for f in r.flags]
-    if ingest.pack is not None and pack_refusal(staging, work) is None:
+    if ingest.pack is not None and pack_refusal(staging, work, ingest.pack) is None:
         # A shared pack keeps its claims so a round trip is byte-identical (M5-M6 issue 4);
         # counts, flags and checks are recomputed here, and critique.json is never read.
         claims = ingest.pack.manifest
