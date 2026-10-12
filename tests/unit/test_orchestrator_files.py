@@ -1579,7 +1579,7 @@ def test_provider_calls_line_comes_from_the_engine():
     assert "  Provider calls: <provider_calls_line>" in raw
     for arithmetic in ("total to 4 decimals", "`<n>` counts", "refused (cost cap)", "billed to"):
         assert arithmetic not in raw, arithmetic
-    assert "treg cost cap reached" in protocol_flat()  # said in the ingest progress line
+    assert "treg cost cap reached" in flat(REFS / "platforms.md")  # ingest progress line
 
 
 def test_cross_check_flags_disagreement_and_is_never_a_step_source():
@@ -1591,8 +1591,12 @@ def test_cross_check_flags_disagreement_and_is_never_a_step_source():
 
 
 def test_provider_flag_and_treg_login_message():
-    text = protocol_flat()
-    assert "--provider <the --provider flag, or auto>" in text  # passthrough, unchanged
+    run = protocol_flat()
+    assert "--provider <the --provider flag, or auto>" in run  # passthrough, unchanged
+    # treg is off by default, so its rules load only when it is on (platforms.md)
+    assert "follow `## treg (Tier 3)` in `platforms.md`" in run
+    assert "Exit 8 under `--provider treg`" not in run
+    text = flat(REFS / "platforms.md").split("## treg (Tier 3)", 2)[1]
     # the engine's own exit 8 line (ingest.py), quoted exactly, then the free-route hint
     assert "treg is not installed or not logged in: run `treg login`" in text
     assert _before(text, "run `treg login`", "or re-run with --provider free.")

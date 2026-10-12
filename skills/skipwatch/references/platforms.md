@@ -2,6 +2,7 @@
 
 ## Contents
 
+- treg (Tier 3)
 - Local files
 - YouTube
 - Generic yt-dlp URLs
@@ -15,6 +16,19 @@ What each source kind needs without cookies, how it fails, and the exact line to
 user. The engine makes every download and every provider call; you never run yt-dlp or
 `treg` yourself. The `treg (Tier 3)` notes apply only when treg is on: `--provider treg`,
 or `[providers.treg] enabled = true` in `config.toml` (off by default).
+
+## treg (Tier 3)
+
+- treg is opt-in and paid. `auto` is the free route unless `config.toml` has
+  `[providers.treg] enabled = true` (default `false`; doctor then reports
+  `treg: logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg`).
+  `--provider treg` forces it, `--provider free` never calls it. The engine makes, logs
+  and caps every call to treg. Never run `treg` yourself or print its balance.
+- Exit 8 under `--provider treg`: quote
+  `` treg is not installed or not logged in: run `treg login` ``, then
+  `or re-run with --provider free.` Under `auto` the engine skips a missing treg.
+- `treg: cost cap reached` in `route.fallbacks` of `ingest.json`: add
+  `, treg cost cap reached` to the ingest progress line.
 
 ## Local files
 

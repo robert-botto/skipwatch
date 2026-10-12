@@ -148,16 +148,8 @@ Take `started_at` from `date -u +%Y-%m-%dT%H:%M:%SZ`, its own Bash call.
    - Exit 7: stop with `No usable content in <input>: no video, audio or text.` A
      text-only X post says so itself; quote it:
      `This post has no video. Enable treg (Tier 3) to read text posts.`
-   - `treg: cost cap reached` in `route.fallbacks` of `ingest.json`: add
-     `, treg cost cap reached` to the progress line.
-   - Exit 8 under `--provider treg`: quote
-     `` treg is not installed or not logged in: run `treg login` ``, then
-     `or re-run with --provider free.` Under `auto` the engine skips a missing treg.
-   - treg (Tier 3) is opt-in and paid. `auto` is the free route unless `config.toml` has
-     `[providers.treg] enabled = true` (default `false`; doctor then reports
-     `treg: logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg`).
-     `--provider treg` forces it, `--provider free` never calls it. The engine makes,
-     logs and caps every treg call. Never run `treg` yourself or print its balance.
+   - treg is opt-in: when `--provider treg` is given or `config.toml` enables it, follow
+     `## treg (Tier 3)` in `platforms.md`.
    - Linked video: when the video came from a linked post (the engine notes it and the
      review screen shows it), `source` describes the linked post and the requested
      post's text is in `context.thread`.
