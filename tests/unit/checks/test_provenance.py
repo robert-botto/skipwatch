@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from skipwatch.checks import provenance
 from tests.unit.checks.conftest import context_for, make_case
 
@@ -379,3 +381,51 @@ def test_provenance_spoken_folds_curly_quotes_and_nfkc(tmp_path):
     path.write_text(json.dumps(data), encoding="utf-8")
     r = provenance.run(context_for(staging, work))
     assert r.ok, r.items
+
+
+# ---- short whole-item quotes (G3 golden run) ----
+
+
+@pytest.mark.parametrize("kind", ["command", "code", "setting", "ui_path"])
+def test_provenance_passes_one_word_quote_equal_to_whole_item(tmp_path, kind):
+    # G3: step 4's only evidence is the command `copilot`, shown whole on screen.
+    r = _case_with_note(tmp_path, "copilot", kind=kind, text="copilot")
+    assert r.ok, r.items
+
+
+def test_provenance_whole_item_match_keeps_case(tmp_path):
+    r = _case_with_note(tmp_path, "ls -r", kind="command", text="ls -R")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
+
+
+def test_provenance_whole_item_match_same_case_passes(tmp_path):
+    r = _case_with_note(tmp_path, "ls -R", kind="command", text="ls  -R")
+    assert r.ok, r.items
+
+
+def test_provenance_whole_item_rejects_fullwidth_quote(tmp_path):
+    fullwidth = "\uff43\uff4f\uff50\uff49\uff4c\uff4f\uff54"
+    r = _case_with_note(tmp_path, fullwidth, kind="command", text="copilot")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
+
+
+def test_provenance_fails_short_quote_that_is_part_of_a_command(tmp_path):
+    r = _case_with_note(tmp_path, "copilot", kind="command", text="npm i -g copilot")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
+
+
+@pytest.mark.parametrize("kind", ["text", "prompt", "url"])
+def test_provenance_fails_short_whole_item_of_other_kinds(tmp_path, kind):
+    r = _case_with_note(tmp_path, "Run", kind=kind, text="Run")
+    assert not r.ok and r.items[0].msg == "[on-screen 00:25] quote is too short to verify"
+
+
+def test_provenance_fails_on_mid_word_prompt_quote(tmp_path):
+    r = _case_with_note(tmp_path, "rite a four line poem about river")
+    assert not r.ok and r.items[0].step == 2
+
+
+def test_provenance_short_spoken_quote_points_at_on_screen_tag(tmp_path):
+    r = _run(tmp_path, _step5_quote("copilot"))
+    assert not r.ok and r.items[0].msg == "[spoken 00:49] quote is too short to verify"
+    assert "[on-screen mm:ss]" in (r.items[0].fix or "")
