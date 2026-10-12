@@ -29,7 +29,7 @@ with every step traced to the moment in the video it came from.
 
 Tutorial videos are a slow way to learn a workflow. You pause, rewind, squint at a terminal, and type the command by hand. Then next month you watch it again.
 
-SkipWatch watches it once for you. It reads the captions or transcribes the audio, looks at the frames, and writes a skill Claude can use from then on. Every step says where it came from, so you can check it. Nothing is installed until you say yes.
+SkipWatch watches it once for you. It reads the captions or transcribes the audio, looks at the frames, and writes a skill Claude can use from then on. Every step says where it came from, so you can check it. Nothing installs until you say yes on the review screen, or pass `--yes` and nothing is flagged.
 
 ## Features
 
@@ -42,7 +42,7 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 **Reads the video, not just the words**
 
 - Captions first. No captions: local Whisper (mlx-whisper on Apple silicon, faster-whisper elsewhere).
-- Key frames sampled at scene changes, with near-duplicates dropped.
+- Frames sampled once a second, with still screens collapsed to one frame and near-duplicates dropped, plus extra frames where the speaker says "paste", "click", "run" and the like.
 - `frame-reader` agents read the frames and copy commands, code and settings exactly as shown.
 
 **Skills you can check**
@@ -50,8 +50,8 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 - Every step carries one tag: `[spoken mm:ss]`, `[on-screen mm:ss]`, `[written]` or `[inferred]`. The check matches each quote against the transcript, the frame notes or the post.
 - API keys, tokens and passwords are redacted before anything is written.
 - Risky commands, such as piping a download into a shell, are flagged on the review screen. They are never hidden.
-- Text in the video is data, never instructions. Nothing from the video runs during a run.
-- Nothing installs until you say yes on the review screen.
+- Text in the video is data, never instructions. Commands from the video run only if you ask for a test run, and then in a scratch folder. The tester stops before any flagged step.
+- Nothing installs until you say yes on the review screen, or pass `--yes` and nothing is flagged.
 
 **Keep and share**
 

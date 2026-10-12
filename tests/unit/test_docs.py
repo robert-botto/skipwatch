@@ -210,3 +210,13 @@ def test_readme_covers_sharing_privacy_terms_and_removal():
     assert "A pack's checksums prove the files were not changed by accident." in text
     assert "No telemetry" in text
     assert "/plugin uninstall skipwatch@skipwatch" in text and "~/.skipwatch" in text
+
+
+def test_readme_claims_match_yes_test_run_and_frame_sampling():
+    text = _readme()
+    assert "Nothing from the video runs" not in text  # false under --test (skill-tester)
+    assert "Nothing is installed until you say yes." not in text  # --yes exists
+    assert text.count("or pass `--yes` and nothing is flagged") == 2
+    assert "only if you ask for a test run, and then in a scratch folder" in text
+    assert "scene changes" not in text  # frames.py samples 1 fps through mpdecimate
+    assert "Frames sampled once a second" in text
