@@ -32,6 +32,9 @@ CLAUDE_TIMEOUT_S = 30 * 60
 STAGE_TIMEOUT_S = 30 * 60
 ENGINE_STAGES = ("probe", "ingest", "transcribe", "frames", "plan")
 COOKIE_ENV = "SKIPWATCH_GOLDEN_COOKIES"
+# Below this many steps the inferred ratio ceiling is replaced by an absolute count.
+SMALL_SKILL_STEPS = 6
+SMALL_SKILL_INFERRED_MAX = 1
 COOKIE_BROWSERS = {"chrome"}
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
@@ -75,6 +78,7 @@ def metrics(report: dict[str, Any], skill_md: str) -> dict[str, Any]:
     return {
         "steps": steps,
         "inferred": inferred / steps if steps else 0.0,
+        "inferred_steps": inferred,
         "gaps": int(counts.get("gaps", 0)),
         "flags": sum(len(result.get("flags", [])) for result in report.get("results", [])),
         "illegible_in_quotes": illegible_in_quotes(skill_md),
@@ -88,7 +92,14 @@ def judge(report: dict[str, Any], skill_md: str, expected: dict[str, Any]) -> li
     problems = []
     if not low <= m["steps"] <= high:
         problems.append(f"steps={m['steps']} (want {low}..{high})")
-    if m["inferred"] > expected["inferred_ratio_max"]:
+    if m["steps"] < SMALL_SKILL_STEPS:
+        # One honest [inferred] step in a 3-step skill is already 0.33: ratios are noise here.
+        if m["inferred_steps"] > SMALL_SKILL_INFERRED_MAX:
+            problems.append(
+                f"inferred={m['inferred_steps']} steps "
+                f"(want <={SMALL_SKILL_INFERRED_MAX} below {SMALL_SKILL_STEPS} steps)"
+            )
+    elif m["inferred"] > expected["inferred_ratio_max"]:
         problems.append(
             f"inferred={m['inferred']:.2f} (want <={expected['inferred_ratio_max']:.2f})"
         )

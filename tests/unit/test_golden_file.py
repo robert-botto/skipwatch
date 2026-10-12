@@ -347,6 +347,25 @@ def test_judge_ratio_at_the_ceiling_passes_and_just_above_fails(run_mod):
     assert run_mod.judge(_report(steps=10, inferred=3), "", g2_like) == []  # exactly 0.3
 
 
+G4_LIKE = {**EXPECTED, "steps": [3, 15], "inferred_ratio_max": 0.3, "gaps_max": 2}
+
+
+def test_judge_tiny_skill_allows_one_inferred_step_instead_of_the_ratio(run_mod):
+    # Real G4 run: 3 honest steps, the "apply" step [inferred] (1/3 = 0.33 > 0.30).
+    assert run_mod.judge(_report(steps=3, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=5, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=5, inferred=2), "", G4_LIKE) == [
+        "inferred=2 steps (want <=1 below 6 steps)"
+    ]
+
+
+def test_judge_ratio_applies_from_six_steps(run_mod):
+    assert run_mod.judge(_report(steps=6, inferred=1), "", G4_LIKE) == []
+    assert run_mod.judge(_report(steps=6, inferred=2), "", G4_LIKE) == [
+        "inferred=0.33 (want <=0.30)"
+    ]
+
+
 def test_judge_zero_steps_is_out_of_range_not_a_crash(run_mod):
     assert run_mod.judge(_report(steps=0, inferred=0), "", EXPECTED) == ["steps=0 (want 6..20)"]
 
