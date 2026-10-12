@@ -126,8 +126,8 @@ def _build(
     providers = [] if detected.platform == "local" else enabled_providers(opts, cfg)
     try:
         bundle = _build_with(providers, adapter, detected, work, opts, cached)
-    except Exception:
-        # whatever ended the run, money already spent is logged and reviewed
+    except BaseException:
+        # whatever ended the run, Ctrl-C included, money already spent is logged and reviewed
         _, billed = _finish(providers, work, None)
         if billed:
             _record(work, billed)

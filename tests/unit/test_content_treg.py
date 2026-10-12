@@ -982,3 +982,18 @@ def test_text_x_cache_lookup_uses_the_same_key_as_ingest(tmp_path, treg_on, monk
     got = ingest.run_ingest(G2_URL, work(tmp_path / "2"), IngestOptions(), cfg=Config())
     assert not got.from_cache
     assert len(runner.calls()) > billed
+
+
+def test_ctrl_c_mid_enrich_still_logs_the_billed_calls(tmp_path, treg_on, monkeypatch, sw_home):
+    def interrupt(urls, calls, budget=None):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(links, "fetch_urls", interrupt)
+    runner = FakeRunner({"treg.x.post.comments": stdout_of(with_author_link_reply(), 2)})
+    fixed_x(monkeypatch)
+    provider = TregProvider(runner=runner)
+    w = work(tmp_path)
+    with pytest.raises(KeyboardInterrupt):
+        run(G2_URL, w, provider, monkeypatch)
+    assert [c["op"] for c in calls_json(w)] == ["x.thread", "x.comments"]
+    assert provider._runs == {}
