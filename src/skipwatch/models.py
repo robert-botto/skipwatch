@@ -549,6 +549,16 @@ class ResumeResult(_Tagged):
     media_present: bool = False
 
 
+class PackResult(_Tagged):
+    schema_: Literal["skipwatch/pack/1"] = _tag("skipwatch/pack/1")
+    name: str
+    path: str
+    sha256: str  # "sha256:<hex>" of the pack file, for the recipient to compare (issue 3)
+    files: int
+    bytes: int
+    ignored: list[str] = []  # Finder and Windows junk left out of the pack
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -578,4 +588,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "installs": InstallsFile,
     "export-log": ExportLog,
     "test-report": TesterReport,
+    "pack": PackResult,
 }

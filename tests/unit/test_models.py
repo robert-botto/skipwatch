@@ -19,6 +19,7 @@ from skipwatch.models import (
     ManifestSource,
     NotesFile,
     PackOrigin,
+    PackResult,
     ProbeResult,
     ProviderCall,
     ResumeResult,
@@ -248,6 +249,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "installs",
         "export-log",
         "test-report",
+        "pack",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -491,3 +493,13 @@ def test_tester_report_blocked_needs_step_and_detail():
 def test_tester_report_is_not_collected_by_pytest():
     # pytest collects every Test* class it can see, so the rename alone (issue 25) is not enough
     assert getattr(TesterReport, "__test__", True) is False
+
+
+def test_pack_result_round_trip():
+    r = PackResult(
+        name="run-x", path="/p/run-x.skillpack.zip", sha256="sha256:" + "3" * 64, files=3, bytes=9
+    )
+    assert r.ignored == []
+    assert PackResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        PackResult.model_validate({"name": "run-x"})
