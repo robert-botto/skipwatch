@@ -87,6 +87,15 @@ def test_recorded_tweet_transcript_disagrees_with_youtube_segments():
     assert s < LOW_SIMILARITY
 
 
+def test_single_word_uses_unigrams():
+    assert similarity("hello", "Hello!") == 1.0
+    assert similarity("hello world", "hello") == 0.67  # 2 * 1 / 3, rounded to 2 places
+
+
+def test_reordered_words_score_low():
+    assert similarity("a b c d", "d c b a") < 0.2
+
+
 def test_similarity_is_cheap_on_hour_long_disjoint_text():
     # An hour of speech (~9k words) against unrelated text drawn from the same small vocabulary.
     vocab = [f"w{i}" for i in range(40)]
@@ -128,6 +137,16 @@ def test_attach_replaces_a_stale_cross_check():
     assert attach(stale, TranscriptHint()).cross_check is None
     fresh = attach(stale, TranscriptHint(origin="new", text="a b c"))
     assert fresh.cross_check == CrossCheck(origin="new", text="a b c", similarity=1.0)
+
+
+def with_check(similarity_value: float) -> Transcript:
+    check = CrossCheck(origin="treg", text="one two three", similarity=similarity_value)
+    return timed("alpha beta gamma").model_copy(update={"cross_check": check})
+
+
+def test_disagreement_threshold_is_0_6():
+    assert disagreement(with_check(0.59)) == "transcript sources disagree: 0.59"
+    assert disagreement(with_check(0.60)) is None
 
 
 def test_disagreement_message_under_threshold_only():
