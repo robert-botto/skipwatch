@@ -101,6 +101,8 @@ def test_tester_stop_rules():
     for risky in ("sudo", "git push", "rm -rf", ".env", "_API_KEY", "flagged"):
         assert risky in text, risky
     assert 'cd "<scratch>" &&' in text
+    # the report lives outside scratch, so both outside-scratch rules must exempt it
+    assert text.count("except the report file at the path you were given") == 2
     assert "never modify the skill" in text.lower() or "never modifies the skill" in text.lower()
 
 
