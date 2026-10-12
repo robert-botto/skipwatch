@@ -63,7 +63,7 @@ def _svg(name: str) -> str:
     ET.fromstring(text)  # well-formed
     lowered = text.lower()
     assert "<image" not in lowered and "@import" not in lowered and "@font-face" not in lowered
-    assert "href=\"http" not in lowered.replace("xmlns=\"http", "")
+    assert 'href="http' not in lowered.replace('xmlns="http', "")
     return text
 
 
@@ -87,3 +87,15 @@ def test_how_it_works_uses_the_real_stage_names():
     for check in ("provenance", "redaction", "safety"):
         assert check in light, check
     assert "frame-reader" in light and "skill-critic" in light
+
+
+def test_social_preview_is_1280x640_and_deterministic():
+    path = ASSETS / "social-preview.png"
+    assert path.stat().st_size < 1024 * 1024
+    with Image.open(path) as card:
+        assert card.format == "PNG" and card.size == (1280, 640)
+    make = _script("make_social_preview")
+    first, second = io.BytesIO(), io.BytesIO()
+    make.render(first)
+    make.render(second)
+    assert first.getvalue() == second.getvalue()
