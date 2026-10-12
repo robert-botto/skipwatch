@@ -62,7 +62,7 @@ def test_run_json_resumes_with_yes_to_and_name_under_the_cwd_token():
 def test_no_absolute_paths_or_secrets_outside_quoted_evidence():
     for rel, text in _texts().items():
         assert not re.search(r"/(?:Users|home|private|var/folders|tmp)/", text), rel
-        assert "—" not in text, rel
+        assert "\u2014" not in text, rel
         if rel.startswith(("staging/", "draft/")) or rel.startswith("notes/"):
             continue
         assert "FIXTURE0NLY" not in text or rel == "outline.md", rel
