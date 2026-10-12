@@ -10,7 +10,9 @@ from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import (
     Counts,
+    InstallRecord,
     InstallResult,
+    InstallsFile,
     ListResult,
     Manifest,
     ManifestSource,
@@ -217,3 +219,14 @@ def test_locate_relative_path_is_from_cwd(roots):
     home, cwd = roots
     make_skill(cwd / "skills", "alpha")
     assert listing.locate(str(Path("skills") / "alpha"), cwd, home) == cwd / "skills" / "alpha"
+
+
+def test_list_skips_a_nul_path_in_the_log(roots, sw_home):
+    home, cwd = roots
+    make_skill(home / ".claude/skills", "alpha")
+    sw_home.mkdir(parents=True, exist_ok=True)
+    bad = InstallRecord(
+        name="bad", path="/tmp/bad\x00path", scope="dir", installed_at="2026-01-01T00:00:00Z"
+    )
+    write_model(sw_home / installs.INSTALLS, InstallsFile(installs=[bad]))
+    assert [s.name for s in listing.scan(cwd, home).skills] == ["alpha"]

@@ -51,7 +51,11 @@ def _listed(folder: Path, scope: ListScope, record: InstallRecord | None) -> Lis
 
 
 def scan(cwd: Path, home: Path) -> ListResult:
-    records = {Path(r.path).resolve(): r for r in installs.load().installs}
+    records: dict[Path, InstallRecord] = {}
+    for r in installs.load().installs:
+        path = installs.resolved(r.path)
+        if path is not None:
+            records[path] = r
     found: dict[Path, ListScope] = {}
     for parent, scope in _scope_folders(cwd, home):
         if not parent.is_dir():
