@@ -139,3 +139,14 @@ def test_redact_reads_in_without_following_a_swapped_symlink(fake_home, work, mo
     assert r.exit_code != 0
     assert not out.exists() or "secret" not in out.read_text(encoding="utf-8")
     assert os.path.exists(fake_home / ".ssh" / "id_rsa")
+
+
+def test_check_write_atomic_ignores_a_planted_temp_symlink(fake_home, tmp_path):
+    from skipwatch.checks.runner import write_atomic
+
+    out = tmp_path / "SKILL.md"
+    out.write_text("old\n", encoding="utf-8")
+    link(tmp_path / ".SKILL.md.skipwatch-tmp", fake_home / ".zshrc")
+    write_atomic(out, b"new\n")
+    assert out.read_bytes() == b"new\n"
+    assert (fake_home / ".zshrc").read_text(encoding="utf-8") == ZSHRC
