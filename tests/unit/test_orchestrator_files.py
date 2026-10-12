@@ -1571,7 +1571,7 @@ def test_sharing_reference_commands_and_messages():
     text = flat(SHARING)
     for command in (
         "<ENGINE> list",
-        '<ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json',
+        '<ENGINE> pack "<skill>" -o "<P>/<name>.skillpack.zip" --json',
         '<ENGINE> unpack "<pack or url>" --json',
         logged("check", "<work>") + ' "<staging>" --work "<work>"',
         '<ENGINE> share "<skill>" --json',
@@ -1593,6 +1593,10 @@ def test_sharing_reference_commands_and_messages():
         "This skill came from a local recording, so there is no creator link to share.",
     ):
         assert phrase in text, phrase
+
+
+def test_sharing_has_one_current_directory_placeholder():
+    assert "<cwd>" not in read(SHARING)  # `<P>` is the one name for it
 
 
 def test_sharing_says_what_checksums_prove():

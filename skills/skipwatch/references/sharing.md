@@ -35,9 +35,9 @@ engine printed them, so every list looks the same; never fill in or reword a fie
 ## pack `<skill>`
 
 `<skill>` is an installed skill's name or the path of its folder. `<name>` is that name,
-or the folder's base name for a path. `<cwd>` is the current directory, absolute.
+or the folder's base name for a path.
 
-    <ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json
+    <ENGINE> pack "<skill>" -o "<P>/<name>.skillpack.zip" --json
 
 - Exit 0: print the engine's two lines as given,
   `Packed <name>: <files> files, <KB> KB, sha256 <12 hex>` and `Wrote <path>`, then
