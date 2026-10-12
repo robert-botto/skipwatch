@@ -101,7 +101,10 @@ def test_tester_stop_rules():
         assert word in text, word
     for risky in ("sudo", "git push", "rm -rf", ".env", "_API_KEY", "flagged"):
         assert risky in text, risky
-    assert 'cd "<scratch>" &&' in text
+    # absolute paths first: a `cd ... &&` chain is split by permission rules and prompts
+    assert "Run every command against absolute paths under `<scratch>`" in text
+    assert '`cd "<scratch>" && <command>` only when a tool has no path flag' in text
+    assert "Every Bash command starts with" not in text
     # the report lives outside scratch, so both outside-scratch rules must exempt it
     assert text.count("except the report file at the path you were given") == 2
     assert "never modify the skill" in text.lower() or "never modifies the skill" in text.lower()
