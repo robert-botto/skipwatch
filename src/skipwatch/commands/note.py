@@ -17,14 +17,19 @@ from skipwatch.runner import run_command
 from skipwatch.workdir import write_model
 
 
+def _unprintable(char: str) -> bool:
+    category = unicodedata.category(char)
+    return category[0] == "C" or category in ("Zl", "Zp")
+
+
 def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
     if (degradation is None) == (unread is None):
         raise SkipwatchError(ExitCode.USAGE, "give exactly one of --degradation and --unread")
     field, value = ("degradations", degradation) if unread is None else ("unread", unread)
     assert value is not None
-    # control, format, surrogate, private-use and unassigned characters (category C*) could
-    # reshape the review screen it is printed on
-    if not value.strip() or any(unicodedata.category(c)[0] == "C" for c in value):
+    # control, format, surrogate, private-use and unassigned characters (category C*) and
+    # line or paragraph separators (Zl, Zp) could reshape the review screen it is printed on
+    if not value.strip() or any(_unprintable(c) for c in value):
         raise SkipwatchError(
             ExitCode.USAGE, "the value must be one non-empty line of printable text"
         )

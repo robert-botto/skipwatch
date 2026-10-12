@@ -63,6 +63,8 @@ def test_note_appends_in_order_and_skips_repeats(work):
         ("--degradation", "private\ue000use"),
         ("--degradation", "unassigned\u0378"),
         ("--unread", "f000001 (escape\x1b[31m)"),
+        ("--degradation", "line\u2028separator"),
+        ("--degradation", "paragraph\u2029separator"),
     ],
 )
 def test_note_takes_exactly_one_single_line_value(work, args):
