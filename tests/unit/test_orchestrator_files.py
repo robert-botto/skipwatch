@@ -141,6 +141,24 @@ def test_run_protocol_logs_per_stage():
     assert "run.log" not in text
 
 
+def test_degradations_are_noted_not_remembered():
+    # degradations and unread frames persist in the work folder, so resume keeps them
+    import typer
+
+    from skipwatch.cli import app
+
+    group = typer.main.get_command(app)
+    note = group.commands["note"]  # type: ignore[attr-defined]
+    assert {"--work", "--degradation", "--unread"} <= {o for p in note.params for o in p.opts}
+    run = protocol_flat()
+    assert logged("note") + ' --work "<W>" --degradation "<line>"' in run
+    for stale in ("record `", "recording `", "Rebuild the degradation list", "keep a list of"):
+        assert stale not in run, stale
+    review = flat(REFS / "review-screen.md")
+    assert '[--test-run "<line>"]' in review
+    assert "--degradation" not in review and "--unread" not in review
+
+
 def test_mark_and_validator_exits_are_handled():
     # every mark reports its rc: an unrecorded stage breaks resume
     for path in PROMPT_FILES:
@@ -827,8 +845,10 @@ def test_work_folder_falls_back_inside_the_workspace():
     assert any("--home" in p.opts for p in root.params)  # the engine has the option
     for path in PROMPT_FILES:  # no env-prefixed engine call anywhere
         assert not re.search(r'SKIPWATCH_HOME="[^"]*" <ENGINE>', read(path)), path
-    review = flat(REFS / "review-screen.md")
-    assert "work folder moved into the project" in review
+    # noted in the work folder so the review screen and a resume both see it
+    assert "Note `work folder moved into the project (<path>): home folder not writable`" in (
+        flat(REFS / "run-fallbacks.md")
+    )
 
 
 def test_check_hint_uses_the_full_engine_command():
@@ -1306,7 +1326,9 @@ def test_only_the_provider_named_option_is_cloud_consent():
 def test_cloud_transcript_rebuilds_like_the_whisper_path():
     review = flat(REFS / "review-screen.md")
     # after a cloud transcript the skill is rebuilt from it, as resume does for Whisper
-    assert "stop passing the `no transcript` degradation" in review
+    # noted degradations persist, so the fixed one is removed from the file
+    assert "Write it back without its `no transcript:` line" in review
+    assert "drop the `no transcript:` line as above" in review
     assert "outline and draft rebuilt from the new transcript" in review
     assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
 
@@ -1329,8 +1351,10 @@ def test_redispatch_only_the_missing_frames_and_merge():
 def test_unread_frames_are_reported_not_counted_as_gaps():
     # spec 15: unread frames are said on the review screen; they are not gaps (G1 run)
     review = flat(REFS / "review-screen.md")
-    assert '`--unread "<ids> (<reason>)"`' in review
     assert "Unread frames are not gaps and never block `--yes`" in review
+    # noted when they happen, so a resume keeps them (audit 4 fix 2)
+    note = logged("note") + ' --work "<W>" --unread "<frame ids> (reader failed twice)"'
+    assert note in protocol_flat()
     text = protocol_flat()
     assert "Unread frames are not gaps" in text
     assert "never write a `GAP:` line for a frame that is only unread" in text
@@ -1845,7 +1869,7 @@ def test_stage_9_runs_the_test_under_test_flag_and_names_critic_reasons():
     stage9 = raw.split("## Stage 9: review", 1)[1].split("## Stage 9b", 1)[0]
     stage9 = re.sub(r"\s+", " ", stage9)
     assert "Under `--test`" in stage9 and "before printing the screen" in stage9
-    assert "passing the degradations, unread frames and test-run line" in stage9
+    assert "it reads the noted degradations and unread frames from the work folder" in stage9
 
 
 STAR = "If this saved you an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"
@@ -1966,8 +1990,10 @@ def test_share_exit_2_maps_only_the_messages_it_knows():
 
 def test_critic_reasons_are_exclusive():
     review = flat(REFS / "review-screen.md")
-    assert "pass `critic failed twice`: it replaces `critic not run`" in review
-    assert "Under `--fast` pass nothing for the critic" in review
+    assert "`critic failed twice`, once noted, replaces `critic not run`" in review
+    assert "under `--fast` the engine reports `critic not run` itself" in review
+    run = protocol_flat()
+    assert "note `critic failed twice`" in run
     from skipwatch import review as engine_review
 
     assert engine_review.CRITIC_FAILED == "critic failed twice"
@@ -1978,7 +2004,7 @@ def test_copy_frames_exit_7_drops_the_links_and_continues():
     text = protocol_flat()
     assert "Exit 7 (`frames.json` or a frame file is missing)" in text
     assert "remove those image links from the draft" in text
-    assert "`frames not copied: <the engine's message>` under Unverified" in text
+    assert "note `frames not copied: <the engine's message>`" in text
 
 
 def test_pack_cleanup_removes_the_fallback_test_scratch():

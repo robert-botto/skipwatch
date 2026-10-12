@@ -21,7 +21,8 @@ Write is denied or fails, do the same:
 3. Pass `--home "<P>/.skipwatch"` to every `<ENGINE>` call for the rest of the run, before
    the command (with `--log` in either order), never as a `SKIPWATCH_HOME=` prefix. If
    doctor failed to write `doctor.json` for the same reason, rerun it once with `--home`.
-4. Record `work folder moved into the project (<path>): home folder not writable`.
+4. Note `work folder moved into the project (<path>): home folder not writable` in the new
+   `<W>` (`note --degradation`, with `--home`).
 
 If a later Write is denied (notes, `outline.md`, a draft file), apply the same fallback
 there: re-run the engine stages already done into the new `<W>` with `--home`,

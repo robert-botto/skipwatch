@@ -55,8 +55,8 @@ Write the skill from `skill-template.md`; pick `<name>` by the naming rule unles
 
   It writes `<id>.jpg`, 960 wide. Never copy, resize or Read frames yourself. Exit 64: an
   unknown id or more than 8; fix the list once. Exit 7 (`frames.json` or a frame file is
-  missing): remove those image links from the draft, record
-  `frames not copied: <the engine's message>` under Unverified, and continue. Every image
+  missing): remove those image links from the draft, note
+  `frames not copied: <the engine's message>` (`note --degradation`), and continue. Every image
   link must name a copied file. `--no-frames` skips the folder and its links.
 
 Every prose block goes through `<ENGINE> redact --stdin` before it reaches staging, one
@@ -82,8 +82,8 @@ One critic pass before check, so check's confidence sees its score:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage critique --status running
 
-Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record the
-confidence reason `critic not run`, and go to step 6.
+Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)` and go to step 6;
+the review screen then reports `critic not run` by itself.
 
 1. Keep the pre-critic draft as evidence (it replaces an older copy):
 
@@ -105,8 +105,8 @@ confidence reason `critic not run`, and go to step 6.
        <ENGINE> --log "<W>/logs/validate-critique.log" validate-critique --work "<W>" --skill "<W>/staging/<name>"
 
    Exit 1: re-dispatch the critic once with the same prompt and validate again. A second
-   exit 1: `rm -f "<W>/critique.json"`, record `critic failed twice` as a degradation and
-   a confidence reason, and go to step 6. Exit 7 (`SKILL.md not found` in staging): redo
+   exit 1: `rm -f "<W>/critique.json"`, note `critic failed twice` (`note --degradation`;
+   it replaces `critic not run` on the screen), and go to step 6. Exit 7 (`SKILL.md not found` in staging): redo
    stage 6 step 2 for `SKILL.md`, then validate once more.
 4. Read `<W>/critique.json` once and apply its `fixes` in order, at most 8, to the draft
    copies, never to staging, under "Critic fixes" in `distill-rules.md`. Step `0` means

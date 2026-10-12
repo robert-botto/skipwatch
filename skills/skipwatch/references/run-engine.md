@@ -54,8 +54,12 @@ degrades and continues, or stops with one message.
   `<ENGINE> mark` at their start and end, as shown below, so `resume` sees them. On a
   stop inside one, mark it `--status failed` first. A non-zero `mark` rc stops the run
   with its stderr: an unrecorded stage breaks resume.
-- A missing optional dependency is never fatal: degrade, keep a list of degradations, and
-  stage 9 prints them.
+- A missing optional dependency is never fatal: degrade, and note the degradation at once,
+  so it survives a resume and the review screen shows it:
+
+      <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"
+
+  Unread frames are noted the same way with `--unread "<ids> (<reason>)"`.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.
 - Exit codes: the failure table in SKILL.md, which also covers 64, 70, 78 and the codes
   that mean the engine never started. A second exit 64 for the same command stops with
@@ -159,11 +163,11 @@ so resume can repeat the run. `flags` holds every flag token in order, `--to` ab
    - Print `Transcript: <n> segments from <captions|mlx-whisper|faster-whisper> (<n>s)`,
      saying so when the engine reused a cached transcript.
    - Exit 8 (no captions and no local Whisper): do not ask; continue from frames only,
-     record `no transcript: no captions and no Whisper backend (install: <command from the engine message>)`,
+     note `no transcript: no captions and no Whisper backend (install: <command from the engine message>)`,
      print `Transcript: none, continuing from frames only (<n>s)` and run frames with
      `--dense`. Note the install command and each `cloud-keys` entry in `doctor.json` for
      the review screen's transcription offers. `--yes` never picks one of these options.
-   - Exit 7: the same degradation, recording `no transcript: <the engine's message>`,
+   - Exit 7: the same degradation, noting `no transcript: <the engine's message>`,
      no offer. Exit 3 from transcribe is not a media download: a Whisper model could
      not be downloaded. Degrade the same way with the engine's message plus
      `(retry: /skipwatch resume <W> once online)`, no offer.
@@ -178,7 +182,7 @@ so resume can repeat the run. `flags` holds every flag token in order, `--to` ab
    - Print `Sampling frames: <kept> kept from <m:ss> of video (<n>s)`.
    - Exit 7 (no media, or the video could not be read): stop with
      `No usable content: the video in <input> could not be read. Nothing was written.`
-   - An audio-only file exits 0 with an empty `frames.json`: record
+   - An audio-only file exits 0 with an empty `frames.json`: note
      `no frames: audio-only file` and continue.
 6. Plan, which writes `batches.json`:
 
@@ -234,7 +238,8 @@ bad batch is re-dispatched once:
 - anything else: re-dispatch the whole batch once with the same prompt.
 
 A second failure (the retry fails, or `merge-notes` exits 7) marks those frames unread:
-record `<frame ids> (reader failed twice)` for the review screen's `Unread frames:` line.
-Then:
+note them with
+`<ENGINE> --log "<W>/logs/note.log" note --work "<W>" --unread "<frame ids> (reader failed twice)"`,
+adding `; may hold a step` as `distill-rules.md` says. Then:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage read --status done

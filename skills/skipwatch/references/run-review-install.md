@@ -15,7 +15,8 @@ Placeholders and conventions are in `run-engine.md` (stages 1 to 4); stages 5 to
 Under `--test`, run the test run (stage 9b) after check and before printing the screen.
 
 Print the review screen with the engine's `review` command, as `review-screen.md`
-shows, passing the degradations, unread frames and test-run line recorded so far. Mark
+shows; it reads the noted degradations and unread frames from the work folder, so only a
+test-run line is passed. Mark
 review running as you print the screen, so its timing covers the user's decision:
 
     <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status running
@@ -68,8 +69,8 @@ unless `--test` was also given.
 
        <ENGINE> --log "<W>/logs/validate-test.log" validate-test --work "<W>"
 
-   Exit 1: re-dispatch the tester once; a second exit 1 records `test run failed twice`
-   under Unverified, with no `Test run:` line.
+   Exit 1: re-dispatch the tester once; a second exit 1 notes `test run failed twice`
+   (`note --degradation`), with no `Test run:` line.
 6. `ambiguous at step N`: ask `[repair step N / install as is / cancel]`. Repair edits
    that step's draft copy from the tester's detail and evidence the run already holds,
    redacts it, re-runs check (stage 8) and shows the screen with
@@ -136,9 +137,7 @@ inside `<W>` and is never moved or deleted.
    `run-fallbacks.md`). `<input>` is `run.input`; read `run.flags` as if the user had
    typed them and `run.name` as `--name`. Print `Resuming <W> at <next_stage> (<k> stages
    done)`.
-4. Rebuild the degradation list: no `transcript.json` gives the no-transcript line, an
-   empty `frames.json` gives `no frames: audio-only file`.
-5. Continue from `next_stage`:
+4. Continue from `next_stage` (noted degradations are already in the work folder):
    - `media_present` is false and the stage needs media (`ingest`, `transcribe`, `frames`):
      stage 3 step 3 (ingest) first.
    - `detect` or `ingest`: stage 3 from step 3; no probe or long-video question.

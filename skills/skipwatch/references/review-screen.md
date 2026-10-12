@@ -13,13 +13,13 @@
 
 The engine builds the screen from the run's files. Run it, as one command:
 
-    <ENGINE> review --work "<W>" --skill "<W>/staging/<name>" [--degradation "<line>"]... [--unread "<ids> (<reason>)"]... [--test-run "<line>"]
+    <ENGINE> review --work "<W>" --skill "<W>/staging/<name>" [--test-run "<line>"]
 
 Print its stdout exactly, never edited or rebuilt by hand. Then print the prompt line
 below and, when they apply, the transcription offers; the engine never prints those.
 Exit 7 names a missing or invalid run file: re-run check (stage 8 in `run-distill.md`)
-once, then `review` again; a second exit 7 stops with the engine's line. Exit 64: a `--test-run` value that is not the
-`validate-test` line.
+once, then `review` again; a second exit 7 stops with the engine's line. Exit 64: a
+`--test-run` value that is not the `validate-test` line.
 
 For a pack install (`sharing.md`), use `--work "<work>" --skill "<staging>"`. The engine
 prints the pack variant itself (`pack_confidence`, the pack's claim, the pack file and
@@ -27,20 +27,15 @@ checksum, `none (shared pack)`).
 
 ## What to pass
 
-- `--degradation "<line>"`: once for each degradation recorded during the run, exactly as
-  recorded, for example `no transcript: <the engine's message>`,
-  `no frames: audio-only file`, `frames not copied: <the engine's message>`,
-  `work folder moved into the project (<path>): home folder not writable`,
-  `test run failed twice`. After stage 7 gave up on the critic, pass
-  `critic failed twice`: it replaces `critic not run`. Under `--fast` pass nothing for
-  the critic; the engine reports `critic not run` itself.
-- `--unread "<ids> (<reason>)"`: once for each group of frames a reader failed twice to
-  cover (stage 4 in `run-engine.md`), for example `f006032 (reader failed twice)`, with
-  `; may hold a step` added as `distill-rules.md` says. Unread frames are not gaps and
-  never block `--yes`. An unread cue frame is a `GAP:` line in the skill instead
-  (`GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`) and is
-  not passed here.
 - `--test-run "<line>"`: only after a test run, the line `validate-test` printed.
+
+Degradations and unread frames come from `<W>/degradations.json`, noted during the run
+(`note` in `run-engine.md` conventions), so they survive a resume. `critic failed twice`,
+once noted, replaces `critic not run`; under `--fast` the engine reports
+`critic not run` itself. Unread frames are not gaps and never block `--yes`; they may
+show `may hold a step`. An unread cue frame is a `GAP:` line in the skill instead
+(`GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`) and is
+never noted.
 
 Everything else (triggers, counts, confidence and its reasons, source, provider calls,
 the linked-post, cookies, cross-check and disagreement lines) comes from the run's files.
@@ -103,6 +98,8 @@ offers at the end:
   `transcribe with <Provider> and re-run (sends the audio to <Provider>)`.
 
 The collision prompt gains the same options. `--yes` never picks one of these options.
+When either offer produces a transcript, Read `<W>/degradations.json` and Write it back
+without its `no transcript:` line, so the new screen does not list a fixed problem.
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
   after the user picks it, with the Bash tool's `timeout: 600000` and its output
@@ -119,7 +116,7 @@ The collision prompt gains the same options. `--yes` never picks one of these op
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> --log "<W>/logs/transcribe.log" transcribe --work "<W>" --backend <openai|groq|deepgram>`
   with exactly the backend the user picked, never `auto` (so not through resume). On
-  exit 0, stop passing the `no transcript` degradation, then continue from stage 3
+  exit 0, drop the `no transcript:` line as above, then continue from stage 3
   step 5 in `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt
   from the new transcript, check, and this screen anew. Exit 8 or 3: show the engine's
   line and the prompt line again.
