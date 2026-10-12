@@ -107,7 +107,14 @@ MEDIA_TYPES = ("video/", "application/octet-stream", "binary/octet-stream")
 _REPLY_PREFIX = re.compile(r"^(?:@\w+\s+)+")
 
 
+DISABLE_ENV = "SKIPWATCH_TREG_DISABLED"  # "1": behave as if treg were not installed (tests)
+
+
 def _treg_path() -> str | None:
+    """The treg CLI, or None when it is not on PATH or SKIPWATCH_TREG_DISABLED=1. The variable
+    reaches subprocesses too, so a test running the real CLI can never spend money."""
+    if os.environ.get(DISABLE_ENV) == "1":
+        return None
     return shutil.which("treg")
 
 

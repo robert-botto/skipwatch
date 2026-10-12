@@ -39,15 +39,31 @@ def _block_network(request, monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", guard)
 
 
-@pytest.fixture(autouse=True)
-def _no_real_treg(request, monkeypatch):
-    """treg is a real, paid CLI on a Tier 3 machine: no non-live test may find it on PATH, so
-    ingest under `auto` and doctor never run it. Tests that need treg pass a fake runner."""
-    if request.node.get_closest_marker("live") is not None:
-        return
-    from skipwatch.providers import content_treg
+TREG_DISABLED = "SKIPWATCH_TREG_DISABLED"
+STUB_TREG = "#!/bin/sh\necho 'treg is disabled in tests' >&2\nexit 97\n"
+STUB_TREG_CMD = "@echo treg is disabled in tests 1>&2\r\n@exit /b 97\r\n"
 
-    monkeypatch.setattr(content_treg, "_treg_path", lambda: None)
+
+@pytest.fixture(scope="session")
+def _stub_treg_dir(tmp_path_factory):
+    stub = tmp_path_factory.mktemp("stub-treg")
+    (stub / "treg").write_text(STUB_TREG, encoding="utf-8")
+    (stub / "treg").chmod(0o755)
+    (stub / "treg.cmd").write_text(STUB_TREG_CMD, encoding="utf-8")
+    return stub
+
+
+@pytest.fixture(autouse=True)
+def _no_real_treg(request, monkeypatch, _stub_treg_dir):
+    """treg is a real, paid CLI on a Tier 3 machine: no non-live test may reach it, in this
+    process or in a CLI subprocess (pipeline tests pass os.environ on). SKIPWATCH_TREG_DISABLED
+    makes content_treg report treg missing, and a failing stub comes first on PATH for anything
+    that looks treg up itself. Live tests get neither. Tests that need treg pass a fake runner."""
+    if request.node.get_closest_marker("live") is not None:
+        monkeypatch.delenv(TREG_DISABLED, raising=False)
+        return
+    monkeypatch.setenv(TREG_DISABLED, "1")
+    monkeypatch.setenv("PATH", os.pathsep.join([str(_stub_treg_dir), os.environ.get("PATH", "")]))
 
 
 @pytest.fixture(autouse=True)
