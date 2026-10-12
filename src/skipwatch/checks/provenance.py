@@ -13,13 +13,15 @@ quotes too. [written] quotes must come from the post, thread or links.
 
 Pack mode (ingest.pack set by unpack, nothing else): every structure rule above still holds and
 [spoken] quotes are checked against the pack transcript; [on-screen] and [written] quotes, and
-[spoken] ones when the pack has no transcript, are counted in one non-failing info item.
+[spoken] ones when the pack has no transcript, are counted in one non-failing info item. A
+`pack` field outside a real pack work folder fails provenance; it never runs as either mode.
 """
 
 import re
 import unicodedata
 
 from skipwatch.checks.runner import CheckContext
+from skipwatch.config import skipwatch_home
 from skipwatch.models import CheckItem, CheckResult, FrameNote, VerbatimItem
 from skipwatch.redact import redact_text
 from skipwatch.skillmd import Step, Tag
@@ -232,6 +234,20 @@ def _listed_in_gaps(ctx: CheckContext, number: int) -> bool:
     return re.search(INFERRED_LINE.format(n=number), gaps) is not None
 
 
+def _pack_refusal(ctx: CheckContext) -> str | None:
+    """Why a `pack` field is not honoured here, or None. Fail closed: a pack is checked only in
+    the folder unpack made (under $SKIPWATCH_HOME/packs/, symlinks resolved), which holds no
+    frame notes and no transcript but the one rebuilt from the pack."""
+    work = ctx.work.resolve()
+    if (skipwatch_home() / "packs").resolve() not in work.parents:
+        return "not a pack work folder"
+    if (work / "batches.json").exists() or (work / "notes").exists():
+        return "not a pack work folder"
+    if ctx.transcript is not None and ctx.transcript.origin != "pack":
+        return "not a pack work folder"
+    return None
+
+
 def _pack_skips(ctx: CheckContext, step: Step) -> bool:
     """In a shared pack, quotes with no shipped evidence are not re-verified (M5-M6 issue 1).
     Only a step that already has one tag and a quote counts; the structure rules still bite."""
@@ -281,6 +297,12 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
 
 
 def run(ctx: CheckContext) -> CheckResult:
+    if ctx.pack is not None:
+        refusal = _pack_refusal(ctx)
+        if refusal is not None:
+            return CheckResult(
+                check="provenance", ok=False, items=[CheckItem(msg=f"pack mode refused: {refusal}")]
+            )
     failing = [item for step in ctx.doc.steps for item in _step_items(ctx, step)]
     skipped = sum(1 for step in ctx.doc.steps if _pack_skips(ctx, step))
     info = (

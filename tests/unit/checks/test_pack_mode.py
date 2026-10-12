@@ -6,7 +6,9 @@ from pathlib import Path
 
 from skipwatch.checks import provenance
 from skipwatch.checks.runner import build_context
+from skipwatch.config import skipwatch_home
 from skipwatch.models import CheckResult, Counts, Manifest, ManifestSource
+from tests.unit.checks.conftest import symlink_or_skip
 
 NAME = "run-packdemo"
 
@@ -87,11 +89,15 @@ def _ingest(pack: bool) -> dict:
 
 
 def pack_ctx(
-    tmp_path: Path, skill_md: str, transcript: list[tuple[float, float, str]] | None = None
+    tmp_path: Path,
+    skill_md: str,
+    transcript: list[tuple[float, float, str]] | None = None,
+    work: Path | None = None,
 ) -> tuple[Path, Path]:
-    """A pack work folder as unpack lays it out: ingest.json with `pack`, staging/<name>/,
-    transcript.json (origin "pack") only when the pack shipped references/transcript.md."""
-    work = tmp_path / "packwork"
+    """A pack work folder as unpack lays it out under $SKIPWATCH_HOME/packs/: ingest.json with
+    `pack`, staging/<name>/, transcript.json (origin "pack") only when the pack shipped
+    references/transcript.md. `work` places the same layout somewhere else (forgeries)."""
+    work = work or skipwatch_home() / "packs" / f"{NAME}-20261011-120000"
     staging = work / "staging" / NAME
     staging.mkdir(parents=True)
     (staging / "SKILL.md").write_text(skill_md, encoding="utf-8")
@@ -242,3 +248,68 @@ def test_pack_mode_context_carries_the_pack_origin(tmp_path):
     staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP))
     ctx = build_context(staging, work)
     assert ctx.pack is not None and ctx.pack.manifest == _claims()
+
+
+# ---- the fail-closed guard: a `pack` field is honoured only in a real pack work folder ----
+
+
+def _refused(r: CheckResult) -> None:
+    assert not r.ok and len(r.items) == 1
+    assert r.items[0].step is None and r.items[0].msg.startswith("pack mode refused")
+
+
+def test_pack_guard_forged_pack_in_run_work_folder_fails(tmp_path):
+    # A run folder under work/ whose ingest.json gained a `pack` field: the on-screen quote
+    # would be skipped in pack mode, so the forgery must fail, not pass and not run as a run.
+    forged = skipwatch_home() / "work" / "20261011-120000-x"
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP), work=forged)
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_folder_outside_home_fails(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP), work=tmp_path / "elsewhere")
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_packs_root_itself_fails(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP), work=skipwatch_home() / "packs")
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_symlink_into_packs_fails(tmp_path):
+    real = skipwatch_home() / "work" / "20261011-120000-x"
+    pack_ctx(tmp_path, _skill(ONSCREEN_STEP), work=real)
+    link = skipwatch_home() / "packs" / f"{NAME}-20261011-120000"
+    link.parent.mkdir(parents=True)
+    symlink_or_skip(link, real, is_dir=True)
+    _refused(_run(link / "staging" / NAME, link))
+
+
+def test_pack_guard_notes_present_fails(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP))
+    (work / "notes").mkdir()
+    (work / "notes" / "batch-01.json").write_text(
+        json.dumps({"schema": "skipwatch/notes/1", "batch": 1, "frames": []}), encoding="utf-8"
+    )
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_batches_json_fails(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(ONSCREEN_STEP))
+    (work / "batches.json").write_text(
+        json.dumps({"schema": "skipwatch/batches/1", "batches": []}), encoding="utf-8"
+    )
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_run_transcript_fails(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(SPOKEN_STEP), transcript=PACK_TRANSCRIPT)
+    doc = json.loads((work / "transcript.json").read_text(encoding="utf-8"))
+    doc["origin"] = "captions"
+    (work / "transcript.json").write_text(json.dumps(doc), encoding="utf-8")
+    _refused(_run(staging, work))
+
+
+def test_pack_guard_allows_the_real_pack_folder(tmp_path):
+    staging, work = pack_ctx(tmp_path, _skill(SPOKEN_STEP), transcript=PACK_TRANSCRIPT)
+    assert _run(staging, work).ok
