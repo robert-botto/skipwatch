@@ -83,11 +83,14 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
      `This pack failed its checks. Nothing was installed. The unpacked files are at <staging>.`
      and stop. There is no repair: it is someone else's skill, and editing it would make
      it yours without the author's evidence.
-4. Review: the pack variant of the screen in `review-screen.md`, with `<W>` = `<work>`. The
-   answers, the `--yes` rule (zero safety flags, zero gaps, no collision), the collision
-   prompt and "test it" are the same as in a run; "test it" and `--test` follow the test
-   run in `run-protocol.md` with `<W>` = `<work>`. Install target and collision test as
-   in stage 8 of `run-protocol.md`.
+4. Review: the pack variant of the screen in `review-screen.md`, with `<W>` = `<work>`.
+   It is someone else's skill, so rename is not offered and nothing in it is repaired.
+   The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
+   on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
+   The answers, the `--yes` rule (zero safety flags, zero gaps, no collision) and the
+   install target and collision test are as in stage 8 of `run-protocol.md`. "test it"
+   and `--test` follow the test run in `run-protocol.md` with `<W>` = `<work>`, except
+   that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 
        <ENGINE> install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force] 2>"<work>/logs/install.log"; echo "rc=$?"; tail -n 3 "<work>/logs/install.log"

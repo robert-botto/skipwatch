@@ -1540,3 +1540,19 @@ def test_share_refuses_cookie_skills_without_a_workaround():
     assert "Exit 4: print the engine's line exactly" in section
     assert "never offer a workaround" in section
     assert "cannot be shared" in section
+
+
+def _install_step(n: int) -> str:
+    raw = read(SHARING).split("## install `<pack or url>`", 1)[1].split("\n## ", 1)[0]
+    step = raw.split(f"\n{n}. ", 1)[1].split(f"\n{n + 1}. ", 1)[0]
+    return re.sub(r"\s+", " ", step)
+
+
+def test_pack_review_offers_no_rename_and_no_repair():
+    step = _install_step(4)
+    # someone else's skill: no rename, and an ambiguous test is never repaired here
+    assert "`Install to <target>? [yes / show draft / test it / cancel]`" in step
+    assert "[replace / show draft / test it / cancel]" in step
+    assert "`[install as is / cancel]`" in step
+    assert "rename" in step and "repair" in step  # both named as not offered
+    assert "[yes / show draft / test it / rename / cancel]" not in step
