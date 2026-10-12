@@ -222,9 +222,28 @@ def test_review_screen_example_in_4_3_order():
 
 def test_review_screen_rules():
     text = flat(REFS / "review-screen.md")
-    assert "critic not run" in text and "capped at `medium`" in text  # plan issue 12
+    assert "critic not run" in text
     assert "arrive in M5" not in text  # "test it" runs the test run now
-    assert "R-REV-1" in text
+    # the engine grades confidence (manifest.confidence); a prose copy of the rule drifted
+    assert "the engine computes the grade, so never work it out yourself" in text
+    assert "inferred under 15%" not in text and "one gap or inferred" not in text
+
+
+TRACE_TAG = re.compile(
+    r"\bR-[A-Z]+-\d+|\((?:spec|section|plan issue|spike decision) [\d.]+\)|"
+    r"\b(?:spec|section) \d+(?:\.\d+)?\b|\(\d\.\d(?:, section \d+)?\)|\(M\d\)|\(G\d\b"
+)
+
+
+def test_no_traceability_tags_in_prompt_files():
+    # spec and plan ids cost tokens and Claude cannot resolve them
+    assert TRACE_TAG.search("(R-UX-1)") and TRACE_TAG.search("at most 8 (3.4)")
+    assert TRACE_TAG.search("(plan issue 5)") and TRACE_TAG.search("## X (M3)")
+    for path in [*SKILL.rglob("*.md"), *(ROOT / "agents").glob("*.md")]:
+        if path.name == "platforms.md":
+            continue  # rewritten whole in its own change
+        found = TRACE_TAG.findall(read(path))
+        assert not found, (path, found)
 
 
 def test_platforms():
@@ -898,7 +917,7 @@ def test_referenced_frames_copied_into_staging_before_check():
         "Before stage 7, copy each frame the skill references into "
         "`<W>/staging/<name>/assets/frames/`" in text
     )
-    assert "at most 8 (3.4)" in text
+    assert "at most 8, with the engine" in text
     # copy-frames scales to 960 wide before check hashes the files (plan issue 7)
     assert (
         '<ENGINE> copy-frames --work "<W>" --to "<W>/staging/<name>/assets/frames" <id> ...' in text
@@ -1136,7 +1155,7 @@ def test_context_wins_over_frames():
     text = flat(REFS / "run-protocol.md")
     assert (
         "When `context` and the frames disagree, context wins and the step is tagged "
-        "`[written]` (R-ING-1)" in text
+        "`[written]`" in text
     )
 
 
@@ -1508,8 +1527,6 @@ def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
 
 def test_review_screen_confidence_and_test_run_line():
     review = flat(REFS / "review-screen.md")
-    # 4.3: high needs the critic
-    assert "critic score 8 or more" in review
     for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
         assert reason in review, reason
     # plan issue 22: one optional line directly after Confidence, absent without a test
@@ -1517,7 +1534,7 @@ def test_review_screen_confidence_and_test_run_line():
     line = "  Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>"
     assert line in raw
     assert "directly after `Confidence:`" in review
-    assert "keep the 4.3 shape" in review
+    assert "keep the shape above" in review
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
     assert "`## Test run` of `run-protocol.md`" in answer
     assert "Test it anyway?" in answer

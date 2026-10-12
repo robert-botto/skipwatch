@@ -131,7 +131,7 @@ about itself.
 - Any other exit 2: print the engine's line and stop.
 - Exit 4: print the engine's line exactly (`<name> was made from content fetched with
   your browser cookies, so it cannot be shared`) and stop. Content only the user's login
-  could see is never shared (section 10): never offer a workaround, never write a post
+  could see is never shared: never offer a workaround, never write a post
   yourself.
 - Exit 64 whose message says `pass the path instead`: the engine's line, then stop.
 

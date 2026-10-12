@@ -45,7 +45,7 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   not writable`). `none` only when both lists are empty.
 - **Unread frames:** the frame ids a reader failed twice to cover (run-protocol stage
   4), with the reason, for example `f006032 (reader failed twice)`; `none` when every
-  frame was read. Unread frames are not gaps (section 15): they are not in the gap count
+  frame was read. Unread frames are not gaps: they are not in the gap count
   and never become `GAP:` lines. Unread frames never block `--yes`; the screen says so
   and the confidence reason says `frames unread`. A frame whose `dhash` differs from both
   neighbours shows `may hold a step` in its reason. The exception is an unread cue frame
@@ -55,21 +55,19 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   in `gaps` and blocks `--yes`, and it is not repeated on this line.
 - **Safety flags:** the safety result's `flags` in `check-report.json`, as
   `pipe_to_shell (high) at step 7`. `none` when empty.
-- **Confidence:** `confidence` in `W/staging/<name>/skipwatch.json`. Rule (4.3): `high` is
-  no gaps, inferred under 15% of steps and critic score 8 or more; `medium` is one gap or
-  inferred under 30%; otherwise `low`. With no `critique.json` confidence is capped at
-  `medium`. The reason is `critic not run` only under `--fast`; when stage 6b gave up on
+- **Confidence:** `confidence` in `<W>/staging/<name>/skipwatch.json`, then its reasons:
+  the engine computes the grade, so never work it out yourself. The reason is `critic not run` only under `--fast`; when stage 6b gave up on
   the critic it is only `critic failed twice`, never `critic not run`. A critic score under 8 adds
   `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
   reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
   installable; the reason says why it is low.
 - **Test run:** only when a test ran (the answer "test it", or `--test`), one line
-  directly after `Confidence:`, exactly the line `validate-test` printed (plan issue 22):
+  directly after `Confidence:`, exactly the line `validate-test` printed:
 
       Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>
 
   indented like the other lines. Screens without a test have no such line and keep the
-  4.3 shape.
+  shape above.
 - **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
@@ -89,7 +87,7 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
   `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be
   missing and can raise the cap. When `W/ingest.json` has `from_cache`
-  true, the metadata came from the 7-day run cache (R-TR-3): append
+  true, the metadata came from the 7-day run cache: append
   `; cached from <date>` (the date from the ingest log's cache line, else
   `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
   Cached calls are not billed again. A transcript reused from the cache adds
@@ -117,8 +115,8 @@ each only when it applies:
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
 - **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
-  `--cookies-from-browser`, R-ING-5). The skill came from content only the user's login
-  could see, so it is never packed or shared (section 10); the manifest records it.
+  `--cookies-from-browser`). The skill came from content only the user's login
+  could see, so it is never packed or shared; the manifest records it.
 - **Cross-check:** `transcript.json` has `cross_check` with a `similarity`: print it to 2
   decimals with its `origin` (for example `treg:anyapi.twitter.tweet_transcript`).
 - **Disagreement:** the transcribe log has the engine's
@@ -134,7 +132,7 @@ Installing a pack (`sharing.md`) shows the same screen, in the same line order, 
 `W` the pack work folder `<work>` that unpack printed. These lines differ:
 
 - **Confidence:** the confidence of the pack on this machine, `<pack_confidence>`, is the
-  4.3 rule without a critic score, because the critic did not run here: with the counts in
+  engine's confidence rule without a critic score, because the critic did not run here: with the counts in
   `<work>/check-report.json`, `medium` when there is at least one step, at most one gap
   and inferred under 30% of steps, otherwise `low`, so never `high`. The pack's own claim
   is `claimed_confidence` and `claimed_critic_score` from unpack's JSON (the same values
@@ -163,13 +161,13 @@ Installing a pack (`sharing.md`) shows the same screen, in the same line order, 
   `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / rename / cancel]`
 - Under `--yes` with zero safety flags, zero gaps and no collision: print the screen
   without a prompt line, then `Installing (--yes, nothing to review)`, and install.
-  Anything else under `--yes` shows the prompt and waits (R-REV-1).
+  Anything else under `--yes` shows the prompt and waits.
 
 ## Transcription offers
 
 When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 of
 `run-protocol.md`), the run went on from frames only and the offers wait here, never
-mid-run (R-UX-1). The prompt line gains them at the end:
+mid-run. The prompt line gains them at the end:
 
 - No cloud key in `doctor.json`:
   `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run]`
@@ -184,7 +182,7 @@ under `--yes` a skill that qualifies installs from frames only, and the Unverifi
 still names the install command.
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
-  after the user picks it (R-DOC-1), with the Bash tool's `timeout: 600000`, output to
+  after the user picks it, with the Bash tool's `timeout: 600000`, output to
   `<W>/logs/whisper-install.log`. On rc 0, delete the cached doctor report so the next
   doctor run is fresh: `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`. Then
   run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
@@ -193,7 +191,7 @@ still names the install command.
   can stop it), show the last log line, then tell the user to run it themselves in
   Claude Code as `! <command>` and then `/skipwatch resume <W>`, and show the prompt
   line again.
-- **transcribe with <Provider> and re-run:** R-TR-2. Audio goes to a cloud provider only
+- **transcribe with <Provider> and re-run:** Audio goes to a cloud provider only
   after the user said yes to that provider by name; picking this option, which names
   the provider, is that yes, and nothing else is. Print
   `Sending the audio to <Provider> for transcription.`, then run
