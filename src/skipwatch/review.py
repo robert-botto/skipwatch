@@ -175,6 +175,9 @@ def _confidence(run: _Run) -> str:
             f"the pack claims {claims.confidence}, critic {critic}"
         ]
         return f"{run.report.pack_confidence} ({'; '.join(reasons + _other_reasons(run))})"
+    grade = run.manifest.confidence
+    if grade == "high":
+        return grade  # the spec template: reasons only when not high
     score = run.manifest.critic_score
     reasons = []
     if CRITIC_FAILED in run.inputs.degradations:
@@ -184,7 +187,6 @@ def _confidence(run: _Run) -> str:
     elif score < 8:
         reasons.append(f"critic score {score:.1f}")
     reasons += _other_reasons(run)
-    grade = run.manifest.confidence
     return f"{grade} ({'; '.join(reasons)})" if reasons else grade
 
 
