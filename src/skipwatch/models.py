@@ -455,7 +455,7 @@ class InstallsFile(_Tagged):
 class ExportLogEntry(_Model):
     provider: str
     name: str
-    manifest_sha256: str  # sha256 of the skipwatch.json bytes that were exported
+    manifest_sha256: str  # "sha256:<hex>" of the skipwatch.json bytes that were exported
     ref: str | None = None
     exported_at: str
 
@@ -565,7 +565,7 @@ class UnpackResult(_Tagged):
     name: str
     work: str  # the pack work folder under $SKIPWATCH_HOME/packs/ (issue 1)
     staging: str
-    pack_sha256: str
+    pack_sha256: str  # "sha256:<hex>" of the pack bytes, as in PackOrigin.sha256
     files: int
     fetched_from: str | None = None
     claimed_confidence: Literal["high", "medium", "low"]
