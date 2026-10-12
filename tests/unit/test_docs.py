@@ -230,3 +230,9 @@ def test_readme_states_the_session_start_hook_install():
     assert "300 s" in install and "PyPI" in install
     privacy = text.split("## Privacy", 1)[1].split("\n## ", 1)[0]
     assert "PyPI" in privacy
+
+
+def test_readme_privacy_names_the_run_cache_and_how_to_clear_it():
+    privacy = _readme().split("## Privacy", 1)[1].split("\n## ", 1)[0]
+    assert "The run cache under `~/.skipwatch/cache/` keeps its own copy" in privacy
+    assert "`skipwatch cache --clear` removes it" in privacy
