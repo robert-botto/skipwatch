@@ -77,7 +77,7 @@ INGEST_EXAMPLE = {
 # captions_kind, from_cache and the provider call review fields (M2-A). The dump carries
 # them with their defaults.
 ADDED_CONTEXT_DEFAULTS = {"captions_path": None, "captions_lang": None, "captions_kind": None}
-ADDED_TOP_DEFAULTS = {"from_cache": False, "pack": None}
+ADDED_TOP_DEFAULTS = {"from_cache": False, "notes": [], "pack": None}
 ADDED_CALL_DEFAULTS = {"endpoint": None, "call_id": None, "review": None, "error": None}
 
 
@@ -566,3 +566,14 @@ def test_export_result_round_trip():
     assert ExportResult(name="run-x").results == []
     with pytest.raises(ValidationError):
         ExportItem.model_validate({"provider": "mem0"})
+
+
+def test_ingest_notes_default_empty_and_round_trip():
+    plain = IngestBundle(source=SourceInfo(kind="video", platform="x"), route=Route(context="free"))
+    assert plain.notes == []
+    noted = plain.model_copy(
+        update={"notes": ["video came from a linked post: https://x.com/i/status/2"]}
+    )
+    assert IngestBundle.model_validate_json(noted.model_dump_json(by_alias=True)) == noted
+    with pytest.raises(ValidationError):
+        IngestBundle.model_validate({**plain.model_dump(by_alias=True), "notes": "one string"})

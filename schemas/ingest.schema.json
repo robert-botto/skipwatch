@@ -752,6 +752,14 @@
       ],
       "default": null
     },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
     "pack": {
       "anyOf": [
         {
