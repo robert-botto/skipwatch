@@ -8,7 +8,13 @@ from skipwatch.models import CheckItem, CheckResult
 # The six Agent Skills keys minus allowed-tools, which R-SK-2 bans (plan issue 3).
 PORTABLE_KEYS = ("name", "description", "license", "compatibility", "metadata")
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+MAX_NAME_LEN = 64
 MIN_CREATOR_LEN = 3
+
+
+def is_skill_name(name: str) -> bool:
+    """The skill-name rule: lowercase letters, digits and single hyphens, 1 to 64 chars."""
+    return 1 <= len(name) <= MAX_NAME_LEN and NAME_RE.match(name) is not None
 
 
 def _short(key: object) -> str:
@@ -31,7 +37,7 @@ def _name_items(name: object, ctx: CheckContext) -> list[CheckItem]:
     if not isinstance(name, str) or not name:
         return [CheckItem(msg="name is missing", fix="add name: <verb-led-workflow-name>")]
     items = []
-    if not 1 <= len(name) <= 64:
+    if not 1 <= len(name) <= MAX_NAME_LEN:
         items.append(CheckItem(msg=f"name is {len(name)} chars; the limit is 64"))
     if not NAME_RE.match(name):
         items.append(

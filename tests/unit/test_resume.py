@@ -289,3 +289,45 @@ def test_a_cleaned_text_run_stays_complete(tmp_path, sw_home):
     w.mark("install", "done")
     w.file("ingest.json").unlink()
     assert resume_info(w.path).next_stage is None
+
+
+def test_resume_names_the_skill_from_run_json_over_the_staging_folder(tmp_path):
+    # skill audit 7 fix 2: after a rename, run.json's name is the staging folder to use
+    w = work_at(tmp_path / "w", done=("detect",))
+    run = RunFile(input="https://youtu.be/x", name="new-name", started_at="2026-10-09T12:00:00Z")
+    write_model(w.file("run.json"), run)
+    (w.path / "staging" / "old-name").mkdir(parents=True)
+    (w.path / "staging" / "new-name").mkdir()
+    r = resume(str(w.path))
+    assert r.exit_code == 0, r.output
+    assert f"Resume: skill new-name ({w.path / 'staging' / 'new-name'})" in r.stderr
+
+
+def test_resume_infers_the_skill_from_the_one_staging_folder(tmp_path):
+    w = work_at(tmp_path / "w", done=("detect",), run_json=True)
+    (w.path / "staging" / "fix-bugs").mkdir(parents=True)
+    r = resume(str(w.path))
+    assert f"Resume: skill fix-bugs ({w.path / 'staging' / 'fix-bugs'})" in r.stderr
+    (w.path / "staging" / "other").mkdir()
+    assert "Resume: skill" not in resume(str(w.path)).stderr
+
+
+@pytest.mark.parametrize("name", ["../../etc", "bad\x1b[31m", "Bad"])
+def test_resume_ignores_a_forged_run_json_name(tmp_path, name):
+    # REV8: a name that breaks the skill-name rule is never printed; inference takes over
+    w = work_at(tmp_path / "w", done=("detect",))
+    run = RunFile(input="https://youtu.be/x", name=name, started_at="2026-10-09T12:00:00Z")
+    write_model(w.file("run.json"), run)
+    (w.path / "staging" / "fix-bugs").mkdir(parents=True)
+    r = resume(str(w.path))
+    assert r.exit_code == 0, r.output
+    assert name not in r.stderr and "\x1b" not in r.stderr
+    assert f"Resume: skill fix-bugs ({w.path / 'staging' / 'fix-bugs'})" in r.stderr
+
+
+def test_resume_never_prints_a_staging_folder_that_is_not_a_skill_name(tmp_path):
+    w = work_at(tmp_path / "w", done=("detect",), run_json=True)
+    (w.path / "staging" / "bad\x1b[31m").mkdir(parents=True)
+    r = resume(str(w.path))
+    assert r.exit_code == 0, r.output
+    assert "\x1b" not in r.stderr and "Resume: skill" not in r.stderr

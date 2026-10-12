@@ -7,7 +7,7 @@ from skipwatch.commands.workfiles import home_work_or_pack_folder
 from skipwatch.config import skipwatch_home
 from skipwatch.models import ResumeResult
 from skipwatch.output import emit_json, progress
-from skipwatch.resume import newest_incomplete, resume_info
+from skipwatch.resume import newest_incomplete, resume_info, skill_name
 from skipwatch.runner import run_command
 
 
@@ -26,6 +26,9 @@ def _resume(work: Path | None, json_out: bool) -> int:
             progress(f"Resume: {work} is complete ({done} stages done)")
         else:
             progress(f"Resume: {work} at {result.next_stage} ({done} stages done)")
+        skill = skill_name(work, result.run)
+        if skill is not None:
+            progress(f"Resume: skill {skill} ({work / 'staging' / skill})")
     if json_out:
         emit_json(result)
     return 0
