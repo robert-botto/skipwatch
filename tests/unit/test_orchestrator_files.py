@@ -1345,8 +1345,9 @@ def test_cloud_transcript_rebuilds_like_the_whisper_path():
     review = flat(REFS / "review-screen.md")
     # after a cloud transcript the skill is rebuilt from it, as resume does for Whisper
     # noted degradations persist, so the fixed one is removed from the file
-    assert "Write it back without its `no transcript:` line" in review
-    assert "drop the `no transcript:` line as above" in review
+    assert logged("note") + ' --work "<W>" --clear "no transcript:"' in review
+    assert "clear the `no transcript:` line as above" in review
+    assert "Write it back" not in review
     assert "outline and draft rebuilt from the new transcript" in review
     assert _before(review, "--backend <openai|groq|deepgram>", "rebuilt from the new transcript")
 

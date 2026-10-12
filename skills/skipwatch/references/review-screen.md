@@ -98,8 +98,9 @@ offers at the end:
   `transcribe with <Provider> and re-run (sends the audio to <Provider>)`.
 
 The collision prompt gains the same options. `--yes` never picks one of these options.
-When either offer produces a transcript, Read `<W>/degradations.json` and Write it back
-without its `no transcript:` line, so the new screen does not list a fixed problem.
+When either offer produces a transcript, remove the fixed problem from the screen:
+
+    <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --clear "no transcript:"
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
   after the user picks it, with the Bash tool's `timeout: 600000` and its output
@@ -116,7 +117,7 @@ without its `no transcript:` line, so the new screen does not list a fixed probl
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> --log "<W>/logs/transcribe.log" transcribe --work "<W>" --backend <openai|groq|deepgram>`
   with exactly the backend the user picked, never `auto` (so not through resume). On
-  exit 0, drop the `no transcript:` line as above, then continue from stage 3
+  exit 0, clear the `no transcript:` line as above, then continue from stage 3
   step 5 in `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt
   from the new transcript, check, and this screen anew. Exit 8 or 3: show the engine's
   line and the prompt line again.
