@@ -87,3 +87,6 @@ redistributed. Rights stay with the creators.
   `npx tsc`. Its `replies_min` is 0: logged out, X shows two author self-thread posts
   (previous tip, next tip, each quoting a status link) but no author reply to another
   account.
+  Its `links_min` is also 0 (2026-10-11): the post's only t.co link points to its own
+  media, which link extraction correctly drops, so the free and treg routes both yield no
+  links (found by the M4-A live run).

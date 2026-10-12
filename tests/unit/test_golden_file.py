@@ -116,7 +116,9 @@ def test_g2_has_context_minimums(golden):
     context = golden["videos"][1]["expected"]["context"]
     assert set(context) == {"thread_min", "replies_min", "links_min"}
     assert all(isinstance(n, int) and n >= 0 for n in context.values())
-    assert sum(context.values()) >= 3
+    # Pinned to what both routes really yield (M4-A live run, 2026-10-11): the self-thread,
+    # no author replies, and no links (the only t.co link is the post's own media).
+    assert context == {"thread_min": 2, "replies_min": 0, "links_min": 0}
 
 
 def test_urls_have_no_share_tracking_parameters(golden):
