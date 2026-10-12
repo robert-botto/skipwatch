@@ -619,9 +619,25 @@ Then print two lines:
     Installed to <path>. Try it: "<first trigger phrase>".
     This skill credits <author, or "the video's creator">. Source: <url or file name>.
 
-Then delete `<W>/media/` unless `--keep-media`, and delete `<W>/draft/`:
-`rm -rf "<W>/media" "<W>/draft"`. Only those folders: the user's original file is never
-inside `<W>` and is never moved or deleted.
+Then the star nudge, printed once per SkipWatch home and never again (plan issue 23). Run
+it exactly as written; the shell, not you, decides whether it prints:
+
+    test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged" || { echo "If this saved you an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"; touch "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"; }
+
+Print its output line when there is one. When the run moved into the project, put
+`export SKIPWATCH_HOME="<P>/.skipwatch"; ` in front of that command, so the marker lands
+in the home the run uses. Then print one more line (4.1):
+
+    /skipwatch share <name> prints a thank-you post for the creator.
+
+Then delete `<W>/media/` unless `--keep-media`: `rm -rf "<W>/media"`. Delete the drafts
+and the test scratch folder unless the environment sets `SKIPWATCH_KEEP_DRAFTS=1`, which
+acceptance runs use to keep `draft-pre-critic` for the step diff:
+
+    test "$SKIPWATCH_KEEP_DRAFTS" = 1 || rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run"
+
+Only those folders: the user's original file is never inside `<W>` and is never moved or
+deleted.
 
 ## Resume
 

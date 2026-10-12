@@ -857,7 +857,7 @@ def test_resume_command():
 def test_media_kept_for_resume_on_failure():
     text = flat(REFS / "run-protocol.md")
     assert "keep `<W>/media/` on every stop" in text  # 3.4 media retention
-    assert 'rm -rf "<W>/media" "<W>/draft"' in text
+    assert 'rm -rf "<W>/media"' in text
 
 
 def test_review_screen_reports_cache():
@@ -1446,3 +1446,26 @@ def test_stage_8_runs_the_test_under_test_flag_and_names_critic_reasons():
     assert "Under `--test`" in stage8 and "before printing the screen" in stage8
     for reason in ("`critic not run`", "`critic failed twice`", "`critic score <s>`"):
         assert reason in stage8, reason
+
+
+STAR = (
+    'test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged" || { echo "If this saved you '
+    'an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"; '
+    'touch "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"; }'
+)
+
+
+def test_stage_9_star_nudge_share_line_and_draft_cleanup():
+    raw = read(REFS / "run-protocol.md")
+    stage9 = re.sub(r"\s+", " ", raw.split("## Stage 9: install", 1)[1].split("\n## Resume", 1)[0])
+    # plan issue 23: once per home, after the two install lines
+    assert STAR in stage9
+    assert _before(stage9, "Then print two lines", ".star-nudged")
+    assert "/skipwatch share <name> prints a thank-you post for the creator." in stage9
+    # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
+    cleanup = (
+        'test "$SKIPWATCH_KEEP_DRAFTS" = 1 || '
+        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run"'
+    )
+    assert cleanup in stage9
+    assert "SKIPWATCH_KEEP_DRAFTS" in stage9
