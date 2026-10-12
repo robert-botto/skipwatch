@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:01.000 --> 00:00:04.805
+In this tutorial we set up a tiny demo project in the terminal.
+
+00:00:09.000 --> 00:00:12.078
+First, type this command in the terminal and run it.
+
+00:00:16.000 --> 00:00:18.129
+You should see the words project ready.
+
+00:00:24.000 --> 00:00:27.119
+Next, paste this prompt into the prompt box.
+
+00:00:31.000 --> 00:00:33.332
+The assistant answers with a short poem.
+
+00:00:39.000 --> 00:00:41.947
+Then copy your API key into the settings panel.
+
+00:00:49.000 --> 00:00:51.579
+Finally, click run to see the result.
+
+00:00:55.000 --> 00:00:56.519
+That is the whole workflow.

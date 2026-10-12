@@ -1,0 +1,19 @@
+# Runner note: Bash and Write are gated tools. Run this case with
+#   --scaffold --allow-tools Bash Write
+# --scaffold copies the good fixture pack (tests/fixtures/packs) into the sandbox cwd;
+# without the tool grant the skill cannot reach the engine. --case is not repeatable (the
+# last one wins), so run this case on its own: --case pack-yes-holds.
+# The slash prompt does not go through the Skill tool, so no grader scores Skill use.
+# --yes installs a pack only when no quoted step went unverified (sharing.md step 4). The
+# reference pack has three [on-screen] steps, which a pack cannot re-verify (it carries no
+# frame notes), so the run must unpack, check, show the pack review screen with
+# "3 quoted steps not re-verified (shared pack)" and install nothing.
+schema_version: "1.0"
+name: pack-yes-holds
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: "/skipwatch install run-skipdemo-tutorial.skillpack.zip --yes --to ./installed"
+  max_turns: 60
+  timeout_seconds: 900
+  allowed_tools: [Skill, Bash, Read, Write, Agent, Glob]

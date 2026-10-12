@@ -1,0 +1,46 @@
+{
+  "schema": "skipwatch/ingest/1",
+  "source": {
+    "kind": "file",
+    "platform": "local",
+    "url": null,
+    "canonical_url": null,
+    "path": "__CWD__/tutorial-60s.mp4",
+    "author": null,
+    "author_name": null,
+    "title": "tutorial-60s",
+    "posted_at": null,
+    "duration_s": 60.0
+  },
+  "context": {
+    "post_text": null,
+    "thread": [],
+    "author_replies": [],
+    "links": [],
+    "captions_available": true,
+    "captions_path": "captions/tutorial-60s.en.vtt",
+    "captions_lang": null,
+    "captions_kind": null
+  },
+  "media": {
+    "path": "__CWD__/tutorial-60s.mp4",
+    "width": 1280,
+    "height": 720,
+    "fps": 10.0,
+    "has_audio": true
+  },
+  "transcript_hint": {
+    "origin": "none",
+    "text": null
+  },
+  "provider_calls": [],
+  "route": {
+    "context": "local",
+    "media": "local",
+    "fallbacks": []
+  },
+  "fetched_with_cookies": false,
+  "from_cache": false,
+  "notes": [],
+  "pack": null
+}
