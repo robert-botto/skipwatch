@@ -9,9 +9,9 @@ from typer.testing import CliRunner
 from skipwatch import cli
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode
-from skipwatch.models import StagesFile
+from skipwatch.models import RunFile, StagesFile
 from skipwatch.resume import newest_incomplete
-from skipwatch.workdir import read_model
+from skipwatch.workdir import read_model, write_model
 
 
 def new_work(*args):
@@ -27,6 +27,9 @@ def test_new_work_creates_the_folder_under_skipwatch_home(sw_home):
     assert re.fullmatch(r"youtube-com-abc-12-\d{8}-\d{6}", work.name)
     assert (work / "logs").is_dir() and (work / "draft").is_dir()
     read_model(work / "stages.json", StagesFile)  # the engine's own work-folder layout
+    assert newest_incomplete(sw_home) is None  # no run.json yet: nothing to repeat
+    run = RunFile(input="https://youtu.be/x", started_at="2026-10-09T12:00:00Z")
+    write_model(work / "run.json", run)
     assert newest_incomplete(sw_home) == work  # resume finds it where new-work put it
 
 
