@@ -90,6 +90,20 @@ def _remove(path: Path) -> None:
         path.unlink()
 
 
+def _install_root(given: Path) -> Path:
+    """--to resolved: never a symlink itself, never inside the home's work/ or packs/, where
+    the engine's own guarded folders live (adversarial review REV6 item 4)."""
+    if given.is_symlink():
+        raise SkipwatchError(ExitCode.USAGE, f"--to {given} is a symlink")
+    resolved = given.resolve()
+    for area in ("work", "packs"):
+        if resolved.is_relative_to((skipwatch_home() / area).resolve()):
+            raise SkipwatchError(
+                ExitCode.USAGE, f"--to {given} is inside the SkipWatch home's {area}/ folder"
+            )
+    return resolved
+
+
 def install(
     staging: Path,
     scope: Scope | None,
@@ -110,7 +124,7 @@ def install(
         scope = load_config().install.scope
     cwd = cwd or Path.cwd()
     if to is not None:
-        to = (cwd / to).resolve()
+        to = _install_root(cwd / to)
     target, resolved = target_dir(scope, to, name, cwd, home or Path.home())
 
     backup: Path | None = None

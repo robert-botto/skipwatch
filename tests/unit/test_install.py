@@ -437,3 +437,31 @@ def test_install_still_succeeds_when_log_raises_value_error(roots, tmp_path, mon
     assert r.exit_code == 0, r.stderr
     assert "could not record the install: embedded null byte" in r.stderr
     assert (home / ".claude/skills" / NAME / "SKILL.md").exists()
+
+
+# ---- --to never lands in the engine's own work areas (adversarial review REV6 item 4) ----
+
+
+def test_install_to_inside_the_home_work_or_packs_is_64(roots, tmp_path, sw_home):
+    staging = make_staging(tmp_path)
+    for area in ("work", "packs"):
+        run = sw_home / area / "demo-20261012-120000"
+        run.mkdir(parents=True)
+        for dest in (sw_home / area, run, run / "staging"):
+            r = run_cli(str(staging), "--to", str(dest))
+            assert r.exit_code == ExitCode.USAGE, (dest, r.output)
+            assert not (dest / NAME).exists(), dest
+
+
+def test_install_to_a_symlinked_folder_is_64(roots, tmp_path):
+    staging = make_staging(tmp_path)
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(real, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    r = run_cli(str(staging), "--to", str(link))
+    assert r.exit_code == ExitCode.USAGE, r.output
+    assert not (real / NAME).exists()
