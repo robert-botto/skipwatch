@@ -4,6 +4,7 @@
 (skill audit 4 fix 2). Repeats are skipped; order is kept.
 """
 
+import unicodedata
 from pathlib import Path
 from typing import Annotated
 
@@ -21,8 +22,12 @@ def _value(degradation: str | None, unread: str | None) -> tuple[str, str]:
         raise SkipwatchError(ExitCode.USAGE, "give exactly one of --degradation and --unread")
     field, value = ("degradations", degradation) if unread is None else ("unread", unread)
     assert value is not None
-    if not value.strip() or "\n" in value or "\r" in value:
-        raise SkipwatchError(ExitCode.USAGE, "the value must be one non-empty line")
+    # control, format, surrogate, private-use and unassigned characters (category C*) could
+    # reshape the review screen it is printed on
+    if not value.strip() or any(unicodedata.category(c)[0] == "C" for c in value):
+        raise SkipwatchError(
+            ExitCode.USAGE, "the value must be one non-empty line of printable text"
+        )
     return field, value
 
 

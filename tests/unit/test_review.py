@@ -444,4 +444,4 @@ def test_an_invalid_degradations_file_is_exit_7_naming_it(tmp_path):
     (work / "degradations.json").write_text("{not json", encoding="utf-8")
     r = review(work, staging)
     assert r.exit_code == ExitCode.NO_CONTENT
-    assert "degradations.json" in r.stderr
+    assert "degradations.json" in r.stderr and "delete" in r.stderr

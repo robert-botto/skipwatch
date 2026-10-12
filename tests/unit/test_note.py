@@ -56,6 +56,13 @@ def test_note_appends_in_order_and_skips_repeats(work):
         ("--degradation", ""),
         ("--degradation", "   "),
         ("--unread", "two\nlines"),
+        ("--degradation", "tab\there"),
+        ("--degradation", "nul\x00byte"),
+        ("--degradation", "zero\u200bwidth"),
+        ("--degradation", "bidi\u202eflip"),
+        ("--degradation", "private\ue000use"),
+        ("--degradation", "unassigned\u0378"),
+        ("--unread", "f000001 (escape\x1b[31m)"),
     ],
 )
 def test_note_takes_exactly_one_single_line_value(work, args):
@@ -74,4 +81,5 @@ def test_note_on_an_invalid_file_is_exit_7_and_leaves_it(work):
     (work / "degradations.json").write_text("{not json", encoding="utf-8")
     r = note(work, "--degradation", "x")
     assert r.exit_code == ExitCode.NO_CONTENT
+    assert "delete" in r.stderr and "degradations.json" in r.stderr
     assert (work / "degradations.json").read_text() == "{not json"

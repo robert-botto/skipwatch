@@ -74,7 +74,14 @@ def _required(path: Path, cls: type[M]) -> M:
 def read_degradations(work: Path) -> DegradationsFile:
     """What `note` recorded, or nothing; a broken file is exit 7 with its name."""
     path = work / DEGRADATIONS_FILE
-    return read_work_file(path, DegradationsFile) if path.is_file() else DegradationsFile()
+    if not path.is_file():
+        return DegradationsFile()
+    try:
+        return read_work_file(path, DegradationsFile)
+    except SkipwatchError as exc:
+        raise SkipwatchError(
+            exc.code, f"{exc.message}; delete {path} and note the degradations again"
+        ) from exc
 
 
 def _with_noted(work: Path, inputs: ReviewInputs) -> ReviewInputs:
