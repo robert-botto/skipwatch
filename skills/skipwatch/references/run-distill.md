@@ -90,12 +90,14 @@ a time:
 
 1. Write the raw file with the Write tool to `<W>/draft/<path>`, for example
    `<W>/draft/SKILL.md` or `<W>/draft/references/source.md`.
-2. Redact it into staging, file to file:
+2. Make the staging folder for that file once, as its own Bash call, with the folder
+   written out (for example `mkdir -p "<W>/staging/<name>/references"`), then redact the
+   file into staging:
 
-       mkdir -p "$(dirname "<W>/staging/<name>/<path>")"; <ENGINE> redact --stdin < "<W>/draft/<path>" > "<W>/staging/<name>/<path>" 2>>"<W>/logs/redact.log"; echo "rc=$?"
+       <ENGINE> --log "<W>/logs/redact.log" redact --stdin < "<W>/draft/<path>" > "<W>/staging/<name>/<path>"
 
 3. A non-zero rc means the staged file is incomplete: re-run once, then stop with the last
-   line of `redact.log`.
+   log line the engine printed.
 
 No shell ever parses the draft text, and nothing passes through your context twice. To
 change a staged file later (check repairs, rename), edit its draft copy and redact it into
@@ -117,9 +119,10 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 (step 6).
 
 1. Keep the draft as it was before the critic, the evidence that the critic changed a
-   step. On a resume, replace an older copy:
+   step. On a resume, replace an older copy. Two Bash calls:
 
-       rm -rf "<W>/draft-pre-critic" && cp -R "<W>/draft" "<W>/draft-pre-critic"; echo "rc=$?"
+       rm -rf "<W>/draft-pre-critic"
+       cp -R "<W>/draft" "<W>/draft-pre-critic"
 
 2. Dispatch one Agent call with agent type `skipwatch:skill-critic` and no other. The
    prompt contains exactly these lines, with `<W>` and `<name>` filled in:
@@ -135,7 +138,7 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 3. Validate its file with the engine before you trust it. The engine
    checks the five rubric lines and the step numbers and rewrites `score` as their mean:
 
-       <ENGINE> validate-critique --work "<W>" --skill "<W>/staging/<name>" 2>"<W>/logs/validate-critique.log"; echo "rc=$?"; cat "<W>/logs/validate-critique.log"
+       <ENGINE> validate-critique --work "<W>" --skill "<W>/staging/<name>"
 
    Exit 0 prints `critique valid: score <s>, <n> fixes`. Exit 1 names what is wrong:
    re-dispatch the critic once with the same prompt and validate again. A second exit 1
@@ -167,7 +170,7 @@ Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record
 
 ## Stage 8: check
 
-    <ENGINE> check "<W>/staging/<name>" --work "<W>" --json >"<W>/logs/check.json" 2>"<W>/logs/check.log"; echo "rc=$?"; tail -n 8 "<W>/logs/check.log"
+    <ENGINE> check "<W>/staging/<name>" --work "<W>" --json >"<W>/logs/check.json"
 
 The check writes `<W>/check-report.json` and `<W>/staging/<name>/skipwatch.json`, and
 applies redaction again over the whole folder.

@@ -35,11 +35,17 @@ conventions below.
 
       <ENGINE> --log "<W>/logs/frames.log" frames --work "<W>"
 
-  The log is `<W>/logs/<stage>.log`, rewritten on each call. stdout and `--json` output
+  The log is `<W>/logs/<stage>.log`, rewritten on each call (so `mark.log` holds only the
+  last mark). stdout and `--json` output
   are unchanged. At the end the engine prints `rc=<n> elapsed=<s>s` and the log's last 3
   lines on stderr: its summary and, on failure, its error message and any install
   command. No `rc=` line means the engine never started (the wrapper or uv failed): take
   the exit code the Bash tool reports, with the stderr it shows.
+- Every engine call is one simple command: the engine with its arguments, `--log` and,
+  where shown, a redirect to a file. Never chain `;`, `&&`, `|` or `2>&1` onto it:
+  permission rules match each piece of a chain on its own, so a chained call is denied.
+  A separate step (`mkdir`, reading a file) is its own Bash call. A command without
+  `--log` prints its messages on stderr; its exit code is the one the Bash tool reports.
 - Progress output: every line printed during a run is one line naming the stage and the
   elapsed seconds, for example
   `Sampling frames: 21 kept from 1:00 of video (4s)`. One line per stage. No tables, no
@@ -97,14 +103,21 @@ conventions below.
 
 Run doctor only when `$SKIPWATCH_HOME/doctor.json` (default `$HOME/.skipwatch/doctor.json`)
 is missing or older than 24 h. The file's mtime is the timestamp; there is no date field.
-Capture the engine's own exit code and stderr, not those of a later command:
+First, one Bash call:
 
-    H="${SKIPWATCH_HOME:-$HOME/.skipwatch}"; if [ -n "$(find "$H/doctor.json" -mmin -1440 2>/dev/null)" ]; then echo "doctor: cached"; else err=$(<ENGINE> doctor --json 2>&1 >/dev/null); rc=$?; echo "doctor rc=$rc"; if [ "$rc" -ne 0 ]; then printf '%s\n' "$err" | tail -n 5; fi; fi; grep -m1 '"tier"' "$H/doctor.json"
+    find "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json" -mmin -1440
 
-- `doctor: cached` or `doctor rc=0`: print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
-- `doctor rc=127` (no synced environment and `uv` not installed): stop with
+- It prints the path: doctor is cached. Read the tier with
+  `grep -m1 '"tier"' "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"` and print
+  `SkipWatch: checking tools... Tier <tier> (<n>s)`.
+- It prints nothing (missing or stale): run doctor as its own Bash call,
+
+      <ENGINE> doctor --json
+
+  Exit 0: take `tier` from its JSON and print the same line. Exit 127 (no synced
+  environment and `uv` not installed): stop with
   `SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/`.
-- Any other non-zero code: the engine cannot start. Stop with the last stderr line shown.
+  Any other non-zero exit: the engine cannot start. Stop with the last stderr line shown.
 
 ## Stage 2: work folder and arguments
 
@@ -117,7 +130,7 @@ at 14.02.11.mov` gives `screen-recording-2026-10-09-at-14-02-11`;
 `https://www.youtube.com/watch?v=AbC_12` gives `youtube-com-abc-12`. Then let the engine create the work folder, with `logs/`, `draft/`
 and `stages.json`, under its own home, and take `<W>` only from its output:
 
-    <ENGINE> new-work --slug <slug> --json; echo "rc=$?"
+    <ENGINE> new-work --slug <slug> --json
 
 `<W>` is the `work` value, copied exactly. Never build the work path by hand and never
 expand `$HOME` yourself: the engine's home is `SKIPWATCH_HOME` when that is set (eval and
@@ -212,8 +225,8 @@ Run each with `--log`, as the conventions show:
      for a URL.
    - Exit 2: stop with `Unsupported source: <engine message>.` The message names what was
      tried: the URL's platform, or the file extension and the supported ones.
-   - Exit 3: print every route line from `<W>/logs/ingest.log` (each route tried and its
-     reason, so `tail -n 20` rather than 3), then the likely fix the engine names (upgrade
+   - Exit 3: Read `<W>/logs/ingest.log` and print every route line (each route tried
+     and its reason, not only the 3 lines of the summary), then the likely fix the engine names (upgrade
      yt-dlp, pass `--cookies-from-browser`, or the content is private), and stop. You
      never offer `--provider treg` for Facebook: treg returns no Facebook media (`platforms.md`), so it cannot be a download fallback there.
    - Exit 4: print the engine's message, then
@@ -339,7 +352,7 @@ Validate all notes files with the engine, without reading them into context. A f
 must parse as `skipwatch/notes/1`, carry its batch id, and cover exactly the batch's
 frames (a reader that wrote the wrong batch fails here):
 
-    <ENGINE> validate-notes --work "<W>" 2>"<W>/logs/validate-notes.log"; echo "rc=$?"; cat "<W>/logs/validate-notes.log"
+    <ENGINE> validate-notes --work "<W>"
 
 Exit 0: all valid. Exit 1: one line per bad batch (`batch 2: missing notes/batch-02.json`,
 `batch 3: frames missing f000310`). Exit 7: `batches.json` is missing; re-run stage 3's
@@ -353,7 +366,7 @@ Each bad batch is re-dispatched once, in the way its line calls for:
   with `.json` replaced by `.retry.json`, for example `notes/batch-02.retry.json`. Then
   fold it in and validate again:
 
-      <ENGINE> merge-notes --work "<W>" --batch <id> 2>>"<W>/logs/validate-notes.log"; echo "rc=$?"
+      <ENGINE> merge-notes --work "<W>" --batch <id>
 
   and run validate-notes again. Never re-dispatch the whole batch for a few missing
   frames: the reader would read its other frames twice.

@@ -109,10 +109,10 @@ def test_run_protocol_doctor_cached_by_mtime():
     text = protocol_flat()
     assert "doctor.json" in text and "24 h" in text
     assert "-mmin -1440" in text  # mtime, since doctor.json has no timestamp field
-    # the engine's own exit code and stderr are captured, so the 127 branch can fire
-    assert "err=$(<ENGINE> doctor --json 2>&1 >/dev/null); rc=$?" in text
-    assert "doctor rc=127" in text
-    assert "doctor --json >/dev/null 2>&1" not in text
+    # doctor is its own Bash call, so its exit code (127: uv missing) is the tool's
+    assert "\n      <ENGINE> doctor --json\n" in "\n".join(read(f) for f in RUN_FILES)
+    assert "Exit 127 (no synced environment and `uv` not installed)" in text
+    assert "err=$(" not in text and "doctor --json >/dev/null 2>&1" not in text
 
 
 def test_run_protocol_logs_per_stage():
@@ -131,6 +131,37 @@ def test_mark_and_validator_exits_are_handled():
     assert "A non-zero `mark` rc stops the run with its stderr" in text
     assert "Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2" in text
     assert "A second exit 64 for the same command stops" in text
+
+
+def _without_placeholders(command: str) -> str:
+    """Drop `[optional | parts]` and `<a|b>` placeholders, whose bars are not pipes."""
+    command = re.sub(r"\[[^\]]*\]", "", command)
+    return re.sub(r"<[^<>]*>", "", command)
+
+
+def _engine_command_lines() -> list[tuple[Path, str]]:
+    """Every engine command in a code block or code span of the skill's files."""
+    found = []
+    for path in SKILL.rglob("*.md"):
+        text = read(path)
+        lines = [line.strip() for line in text.splitlines() if line.startswith("    ")]
+        spans = re.findall(r"`([^`\n]*<ENGINE>[^`\n]*)`", text)
+        for command in [*lines, *spans]:
+            if "<ENGINE> " in command:
+                found.append((path, command))
+    return found
+
+
+def test_every_engine_call_is_one_simple_command():
+    # permission rules split on ; && | and match each part: a chained engine call is denied
+    commands = _engine_command_lines()
+    assert len(commands) >= 25
+    for path, command in commands:
+        after = _without_placeholders(command.split("<ENGINE>", 1)[1])
+        for chain in (";", "&&", "|", "2>", "$("):
+            assert chain not in after, (path.name, command)
+    assert not re.search(r";|&&|\||2>", _without_placeholders("x <ENGINE> install [--a|b] <a|b>"))
+    assert re.search(r";", _without_placeholders('<ENGINE> doctor; echo "rc=$?"'))
 
 
 def test_engine_times_and_logs_stages_itself():
@@ -179,8 +210,8 @@ def test_run_protocol_redaction_and_check_loop():
     assert "Every prose block goes through `<ENGINE> redact --stdin`" in text  # R-CHK-2
     # the draft reaches redact through files only: no shell ever parses draft text
     assert (
-        '<ENGINE> redact --stdin < "<W>/draft/<path>" > "<W>/staging/<name>/<path>" '
-        '2>>"<W>/logs/redact.log"' in text
+        '<ENGINE> --log "<W>/logs/redact.log" redact --stdin < "<W>/draft/<path>" '
+        '> "<W>/staging/<name>/<path>"' in text
     )
     assert "A second exit 1 stops" in text  # 8.7
     assert "Exit 5" in text
@@ -921,7 +952,7 @@ def test_ingest_passes_provider_and_cookies_only_from_flags():
 
 def test_ingest_url_failures_are_explained():
     text = protocol_flat()
-    assert "Exit 3: print every route line" in text  # section 15
+    assert "Exit 3: Read `<W>/logs/ingest.log` and print every route line" in text
     assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
     assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text
     skill = flat(SKILL / "SKILL.md")
@@ -1506,7 +1537,7 @@ SHARING = REFS / "sharing.md"
 def test_sharing_reference_commands_and_messages():
     text = flat(SHARING)
     for command in (
-        '<ENGINE> list 2>&1; echo "rc=$?"',
+        "<ENGINE> list",
         '<ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json',
         '<ENGINE> unpack "<pack or url>" --json',
         '<ENGINE> check "<staging>" --work "<work>" --json',

@@ -78,7 +78,7 @@ guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run `<ENGINE> doctor 2>&1` and print its report first,
+If the first argument is `doctor`, run `<ENGINE> doctor` as one command and print its report first,
 unchanged, inside a code block, before any commentary (its stderr and stdout, starting
 with the `Tier` line). Do not install anything. If the report lists missing
 pieces, offer each install command and run only the ones the user accepts.

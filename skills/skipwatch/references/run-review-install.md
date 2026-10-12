@@ -63,7 +63,7 @@ in a scratch folder and reports where it got stuck. A test run never happens und
    Worked example, with its placeholders filled with harmless sample values (a sample
    project name, `example.com`, a placeholder key), never the user's real names, keys or
    paths.
-2. Make the scratch folder: `mkdir -p "<W>/test-run"; echo "rc=$?"`, and Write
+2. Make the scratch folder: `mkdir -p "<W>/test-run"`, and Write
    `<W>/test-run/.write-probe` with the content `ok`. If that Write is denied, use
    `<P>/.skipwatch/test-run-<name>` instead (stage 2's fallback, with its `.gitignore`).
    `<scratch>` is the folder in use.
@@ -85,7 +85,7 @@ in a scratch folder and reports where it got stuck. A test run never happens und
 
 5. Validate the report with the engine and print its line:
 
-       <ENGINE> validate-test --work "<W>" 2>&1; echo "rc=$?"
+       <ENGINE> validate-test --work "<W>"
 
    Exit 0 prints exactly one line: `Test run: completed`, `Test run: blocked at step <n> (<detail>)`
    or `Test run: ambiguous at step <n> (<detail>)`. That line goes on the review screen
@@ -154,7 +154,7 @@ done. A stage left `running` by a killed process counts as not done.
 1. Run stage 1 (doctor) as usual. Then, with `<dir>` resolved to an absolute path when
    given:
 
-       <ENGINE> resume "<dir>" --json; echo "rc=$?"
+       <ENGINE> resume "<dir>" --json
 
    Without a folder, leave out `"<dir>"`: the engine picks the newest incomplete work
    folder under `${SKIPWATCH_HOME:-$HOME/.skipwatch}/work`. If that finds nothing and
