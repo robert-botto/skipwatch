@@ -11,8 +11,7 @@
 - Answers
 - Old patterns
 
-The review screen has a fixed shape so users learn to scan it and tests can parse it.
-Print it exactly in this line order, with these prefixes, every time:
+Print it exactly in this line order, with these prefixes:
 
 ```
 Skill ready for review: <name>
@@ -50,68 +49,50 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 
 - **Triggers:** the first three quoted phrasings in the description.
 - **Steps and gaps:** `counts` in `<W>/check-report.json`.
-- **Unverified:** this line summarises the skill's `Unverified and gaps` section plus
-  the run's degradations: each inferred step as `step N (<reason>)` and
-  each degradation from the run (for example `no transcript: Whisper not installed
-  (install: <command>)`, or `work folder moved into the project (<path>): home folder
-  not writable`). `none` only when both lists are empty.
-- **Unread frames:** the frame ids a reader failed twice to cover (stage
-  4 in `run-engine.md`), with the reason, for example `f006032 (reader failed twice)`; `none` when every
-  frame was read. Unread frames are not gaps: they are not in the gap count
-  and never become `GAP:` lines. Unread frames never block `--yes`; the screen says so
-  and the confidence reason says `frames unread`. A frame whose `dhash` differs from both
-  neighbours shows `may hold a step` in its reason. The exception is an unread cue frame
-  (`reason` `cue` in `frames.json`): it may hold the only copy of a command, so it is a
-  gap line in the skill,
-  `GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`, counts
-  in `gaps` and blocks `--yes`, and it is not repeated on this line.
-- **Safety flags:** the safety result's `flags` in `check-report.json`, as
-  `pipe_to_shell (high) at step 7`. `none` when empty.
+- **Unverified:** summarises the skill's `Unverified and gaps` section plus the run's
+  degradations: each inferred step as `step N (<reason>)`, each degradation as recorded
+  (for example `work folder moved into the project (<path>): home folder not writable`).
+- **Unread frames:** frame ids a reader failed twice to cover, with the reason, for
+  example `f006032 (reader failed twice)`; `none` when every frame was read. Unread frames
+  are not gaps and never become `GAP:` lines. Unread frames never block `--yes`; the
+  confidence reason says `frames unread`. The rules for `may hold a step` and for unread
+  cue frames, which are gaps
+  (`GAP: frame <id> at mm:ss was not read (cue: "<transcript window snippet>")`) and not
+  repeated here, are in `distill-rules.md`.
+- **Safety flags:** the safety result's `flags`, as `pipe_to_shell (high) at step 7`.
 - **Confidence:** `confidence` in `<W>/staging/<name>/skipwatch.json`, then its reasons:
-  the engine computes the grade, so never work it out yourself. The reason is `critic not run` only under `--fast`; when stage 7 gave up on
-  the critic it is only `critic failed twice`, never `critic not run`. A critic score under 8 adds
-  `critic score <s>` (`critic_score` in `skipwatch.json`, one decimal). Add every other
-  reason that applies (`1 gap`, `no transcript`, `frames unread`). A `low` skill is still
-  installable; the reason says why it is low.
-- **Test run:** only when a test ran (the answer "test it", or `--test`), one line
-  directly after `Confidence:`, exactly the line `validate-test` printed:
+  the engine computes the grade, so never work it out yourself. The reason is
+  `critic not run` only under `--fast`; when stage 7 gave up on the critic it is only
+  `critic failed twice`, never `critic not run`. A critic score under 8 adds
+  `critic score <s>` (`critic_score`, one decimal). Add every other reason that applies
+  (`1 gap`, `no transcript`, `frames unread`).
+- **Test run:** only after a test, one line directly after `Confidence:`, exactly as
+  `validate-test` printed it:
 
       Test run: <completed | blocked at step N (reason) | ambiguous at step N (what)>
 
-  indented like the other lines. Screens without a test have no such line and keep the
-  shape above.
-- **Source:** `source` in `<W>/ingest.json`; a local file has author `local file` and date
-  `undated` unless the file carries them. A URL source shows its title, its author handle
-  and its post date.
-- **Provider calls:** `<W>/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
-  `ok`, `endpoint`, `call_id` and `review`. The free route logs its own rows there too
-  (`provider` `free`, cost 0). Only rows whose `provider` is `treg` count; no treg rows
-  means `none (free route)`. Otherwise
-  `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts the treg rows,
-  each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
-  computed from `calls.json`, never from `treg balance`, which you never run or print. For
-  example `treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)`.
-  Two kinds of treg row add nothing to the total: `media.get` rows, the download of a
-  treg media URL, shown as `media.get $0.0000`; and rows whose `error` is `cost cap`,
-  which never ran, shown as `<op> refused (cost cap)`. Every other treg row counts with
-  its `cost_usd`, even one without a `call_id`. When `route.fallbacks` in
-  `<W>/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
-  cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
-  `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be
-  missing and can raise the cap. When `<W>/ingest.json` has `from_cache`
-  true, the metadata came from the 7-day run cache: append
-  `; cached from <date>` (the date from the ingest log's cache line, else
-  `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
-  Cached calls are not billed again. A transcript reused from the cache adds
-  `; transcript cached (<origin>)`. Audio the user sent to a cloud provider adds
+  Screens without a test keep the shape above.
+- **Source:** `source` in `<W>/ingest.json`: title, author handle and post date; a local
+  file is `local file` and `undated` unless it carries them.
+- **Provider calls:** rows of `<W>/calls.json` (`provider`, `op`, `cost_usd`, `error`).
+  Only rows whose `provider` is `treg` count; no treg rows means `none (free route)`.
+  Otherwise `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts
+  the treg rows and the total is the sum of their `cost_usd`, never from `treg balance`.
+  For example
+  `treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)`.
+  `media.get` rows show as `media.get $0.0000`, and rows whose `error` is `cost cap` show
+  as `<op> refused (cost cap)`; both add nothing. When `<W>/ingest.json`
+  `route.fallbacks` has `treg: cost cap reached`, append
+  `; treg cost cap reached ($<max_cost_usd>)` (`[providers.treg] max_cost_usd`, default
+  `$0.05`). When it has `from_cache` true, append `; cached from <date>` (else
+  `cached from an earlier run`); cached calls are not billed again. A cached transcript
+  adds `; transcript cached (<origin>)`; audio sent to a cloud provider adds
   `<provider> transcription (billed to your <ENV VAR> key)`.
-- **Draft:** `<W>/staging/<name>/`.
-- **Target:** always an absolute path; `--to` was resolved when the arguments were read.
+- **Draft:** `<W>/staging/<name>/`. **Target:** always absolute.
 
 ## Extra lines
 
-Zero or more of these lines come right after the `Draft:` line, before the blank line,
-each only when it applies:
+Each only when it applies, right after the `Draft:` line:
 
 ```
   video came from a linked post: <url>
@@ -120,45 +101,34 @@ each only when it applies:
   transcript sources disagree: <similarity>
 ```
 
-- **Linked post:** the run recorded that the video came from a linked post (stage 3 in
-  `run-engine.md`): the line is copied exactly from `notes` in `<W>/ingest.json`
-  (an older cache keeps it elsewhere: "Old patterns" at the end). `source` describes the linked
-  post, so the `Source:` line names the linked post's author, and so does the
-  attribution.
-- **Cookies:** `<W>/ingest.json` has `fetched_with_cookies` true (the user passed
-  `--cookies-from-browser`). The skill came from content only the user's login
-  could see, so it is never packed or shared; the manifest records it.
-- **Cross-check:** `transcript.json` has `cross_check` with a `similarity`: print it to 2
-  decimals with its `origin` (for example `treg:anyapi.twitter.tweet_transcript`).
-- **Disagreement:** the transcribe log has the engine's
-  `Transcribe: warning: transcript sources disagree:` line; copy its
-  `transcript sources disagree: <similarity>` part exactly. The engine warns only when
-  two measures are both low, so never compute the similarity yourself or warn without
-  that line. Steps still come from the timed transcript; the line tells the user to check
-  the spoken steps.
+- **Linked post:** copied exactly from `notes` in `<W>/ingest.json` (an older cache
+  keeps it elsewhere: "Old patterns"). The `Source:` line and the attribution then
+  names the linked post's author.
+- **Cookies:** `fetched_with_cookies` true in `<W>/ingest.json`; such a skill is never
+  packed or shared.
+- **Cross-check:** `cross_check` in `transcript.json`: its `similarity` to 2 decimals and
+  its `origin`.
+- **Disagreement:** copy the `transcript sources disagree: <similarity>` part of the
+  engine's `Transcribe: warning: transcript sources disagree:` line exactly; never
+  compute the similarity yourself or warn without that line.
 
 ## Pack variant
 
-Installing a pack (`sharing.md`) shows the same screen, in the same line order, with
-`<W>` the pack work folder `<work>` that unpack printed. These lines differ:
+Installing a pack (`sharing.md`) shows the same screen with `<W>` = `<work>`. These lines
+differ:
 
-- **Confidence:** the confidence of the pack on this machine, `<pack_confidence>`, is the
-  engine's confidence rule without a critic score, because the critic did not run here: with the counts in
-  `<work>/check-report.json`, `medium` when there is at least one step, at most one gap
-  and inferred under 30% of steps, otherwise `low`, so never `high`. The pack's own claim
-  is `claimed_confidence` and `claimed_critic_score` from unpack's JSON (the same values
-  as `pack.manifest` in `<work>/ingest.json`). Print
+- **Confidence:** `<pack_confidence>` comes from the counts in `<work>/check-report.json`
+  without a critic score: `medium` with at least one step, at most one gap and inferred
+  under 30% of steps, otherwise `low`, so never `high` (`skipwatch.json` keeps the pack's
+  claim). The pack's claim is `claimed_confidence` and `claimed_critic_score` from unpack's JSON. Print
   `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claim>, critic <score or none>)`,
   then any other reason that applies after a `; `.
 - **Unverified:** add `<k> quoted steps not re-verified (shared pack)` from the
-  provenance result's info item in `<work>/check-report.json`: a pack carries no reader
-  notes and no post text, so its `[on-screen]` and `[written]` quotes cannot be checked
-  again here. Its `[spoken]` quotes are checked against the transcript the pack carries.
-- **Source:** as usual from `source` in `<work>/ingest.json`, then
-  `(from pack <file>, sha256 <12 hex>)`: `<file>` is `pack.file` and `<12 hex>` the first
-  12 hex characters of `pack.sha256` after its `sha256:` prefix.
-- **Provider calls:** `none (shared pack)`; installing a pack calls no provider.
-- **Unread frames:** `none`; nothing was read on this machine.
+  provenance result's info item in `<work>/check-report.json` (a pack's `[on-screen]`
+  and `[written]` quotes cannot be re-checked here).
+- **Source:** as usual, then `(from pack <file>, sha256 <12 hex>)`: `pack.file` and the
+  first 12 hex characters of `pack.sha256` after `sha256:`.
+- **Provider calls:** `none (shared pack)`. **Unread frames:** `none`.
 
 ```
   Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)
@@ -176,64 +146,51 @@ Installing a pack (`sharing.md`) shows the same screen, in the same line order, 
 
 ## Transcription offers
 
-When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 in
-`run-engine.md`), the run went on from frames only and the offers wait here, never
-mid-run. The prompt line gains them at the end:
+After transcribe exit 8 (no captions and no local Whisper), the prompt line gains these
+offers at the end:
 
 - No cloud key in `doctor.json`:
   `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run]`
-- Each key listed under `cloud-keys` in `doctor.json` adds one option, naming the
-  provider (`OPENAI_API_KEY` is OpenAI `openai`, `GROQ_API_KEY` is Groq `groq`,
-  `DEEPGRAM_API_KEY` is Deepgram `deepgram`):
-  `transcribe with <Provider> and re-run (sends the audio to <Provider>)`, for example
-  `Install to <target>? [yes / show draft / test it / rename / cancel / install Whisper and re-run / transcribe with OpenAI and re-run (sends the audio to OpenAI)]`
+- Each key under `cloud-keys` in `doctor.json` (`OPENAI_API_KEY` is OpenAI `openai`,
+  `GROQ_API_KEY` Groq `groq`, `DEEPGRAM_API_KEY` Deepgram `deepgram`) adds
+  `transcribe with <Provider> and re-run (sends the audio to <Provider>)`.
 
-The collision prompt gains the same options. `--yes` never picks one of these options:
-under `--yes` a skill that qualifies installs from frames only, and the Unverified line
-still names the install command.
+The collision prompt gains the same options. `--yes` never picks one of these options.
 
 - **install Whisper and re-run:** the install command the engine printed. Run it only
-  after the user picks it, with the Bash tool's `timeout: 600000`, output to
-  `<W>/logs/whisper-install.log`. On rc 0, delete the cached doctor report so the next
-  doctor run is fresh: `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`. Then
-  run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
-  the `## Resume` section of `run-review-install.md` says; frames, readers, draft and check run
-  again and this screen is shown anew. On any other rc (the Bash sandbox or no network
-  can stop it), show the last log line, then tell the user to run it themselves in
-  Claude Code as `! <command>` and then `/skipwatch resume <W>`, and show the prompt
+  after the user picks it, with the Bash tool's `timeout: 600000`. On rc 0, delete the
+  cached doctor report, `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`, run
+  `<ENGINE> resume "<W>" --json` and continue from `next_stage` as `## Resume` in
+  `run-review-install.md` says. On any other rc, show the last line, tell the user to
+  run `! <command>` in Claude Code and then `/skipwatch resume <W>`, and show the prompt
   line again.
-- **transcribe with <Provider> and re-run:** Audio goes to a cloud provider only
-  after the user said yes to that provider by name; picking this option, which names
-  the provider, is that yes, and nothing else is. Print
+- **transcribe with <Provider> and re-run:** audio goes to a cloud provider only after
+  the user said yes to that provider by name; picking this option, which names the
+  provider, is that yes, and nothing else is. Print
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> --log "<W>/logs/transcribe.log" transcribe --work "<W>" --backend <openai|groq|deepgram>`
-  with exactly the backend the user picked, never `auto`. On exit 0, remove the
-  `no transcript` entry from Unverified, then continue from stage 3 step 5 in
-  `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt from
-  the new transcript, check, and this screen anew, the same rebuild the Whisper path
-  gets from resume. `resume` would run transcribe under `auto`, which never picks a
-  cloud backend. Exit 8
-  (key rejected) or 3 (request failed): show the engine's line and the prompt line again.
+  with exactly the backend the user picked, never `auto` (so not through resume). On
+  exit 0, remove the `no transcript` entry from Unverified, then continue from stage 3
+  step 5 in `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt
+  from the new transcript, check, and this screen anew. Exit 8 or 3: show the engine's
+  line and the prompt line again.
 
 ## Answers
 
-- **yes / replace:** run install (stage 10 in `run-review-install.md`); add `--force` only for
-  replace. No install happens without this explicit answer in this run, except the `--yes`
-  case above.
-- **show draft:** print `<W>/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
-- **test it:** run the test run, stage 9b in `run-review-install.md` (it asks
-  `Test it anyway?` first when there are safety flags), then show the whole screen again
-  with its `Test run:` line, and the prompt.
-- **rename:** ask for the new name, check it against the naming rule in
-  `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
-  staging folder `<W>/staging/<new name>/` (stage 6 in `run-distill.md`), re-run check,
-  then show the whole screen again with the new target.
-- **cancel:** mark review done at once, so the cancelled run is not offered for resume:
+- **yes / replace:** stage 10 in `run-review-install.md`; `--force` only for replace.
+  No install happens without this explicit answer in this run, except the `--yes` case
+  above.
+- **show draft:** Read `<W>/staging/<name>/SKILL.md` and print it, then the prompt line.
+- **test it:** stage 9b in `run-review-install.md` (it asks `Test it anyway?` first when
+  there are safety flags), then the whole screen again with its `Test run:` line.
+- **rename:** ask for the name, check it against the naming rule in `distill-rules.md`,
+  set `name:` in the draft SKILL.md, redact the draft into `<W>/staging/<new name>/`,
+  re-run check, and show the screen again with the new target.
+- **cancel:** mark review done at once, so the run is not offered for resume:
 
       <ENGINE> --log "<W>/logs/mark.log" mark --work "<W>" --stage review --status done
 
-  Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
-  installed and `<W>` is kept.
+  Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop.
 - Anything else: re-show the prompt line once with the five answers.
 
 ## Old patterns
