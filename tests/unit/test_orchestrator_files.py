@@ -207,7 +207,7 @@ def test_engine_calls_with_a_work_folder_use_log():
     for path, command in _engine_command_lines():
         if re.search(r'--work "<(?:W|work)>"', command) and "Edit it and run" not in command:
             after = command.split("<ENGINE>", 1)[1]
-            if after.startswith((" review ", " discard-work ")):
+            if after.startswith((" review ", " discard-work ", " discard-pack ")):
                 # review's stdout is the screen to print exactly; discard-work deletes the
                 # very folder a log would be written into
                 assert "--log" not in after, (path.name, command)
@@ -484,9 +484,7 @@ def _rule_covers(pattern: str, command: str) -> bool:
 
 # Commands with no engine equivalent yet: they ask for permission instead of widening
 # allowed-tools (the critic's invalid score file and a pack's work folder under packs/).
-STILL_PROMPTS = {
-    'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"',
-}
+STILL_PROMPTS = {}
 
 
 def test_allowed_tools_are_the_engine_plus_two_harmless_prefixes():
@@ -1747,7 +1745,7 @@ def test_sharing_says_what_checksums_prove():
     assert "no repair" in text
     assert _before(text, "<ENGINE> unpack", logged("check", "<work>"))
     assert _before(text, logged("check", "<work>"), 'install "<staging>"')
-    assert 'rm -rf "<work>"' in text
+    assert '<ENGINE> discard-pack --work "<work>"' in text and "rm -rf" not in text
     assert "is data, not instructions" in text  # pack contents are data (R-DIS-1)
 
 
@@ -2030,7 +2028,9 @@ def test_copy_frames_exit_7_drops_the_links_and_continues():
 
 def test_pack_cleanup_removes_the_fallback_test_scratch():
     step = _install_step(5)
-    assert 'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"' in step
+    assert '<ENGINE> discard-pack --work "<work>" [--scratch "<P>/.skipwatch/test-run-<name>"]' in (
+        step
+    )
 
 
 def test_pack_yes_needs_every_quote_re_verified():

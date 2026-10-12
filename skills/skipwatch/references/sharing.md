@@ -118,10 +118,12 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    collision prompt. Exit 1 with `staging changed since check`: re-run check once, then
    install; any other exit 1: show its message and stop. On success print the same two lines as a run
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
-   `source` in `<staging>/skipwatch.json`), then delete the pack work folder and the test
-   run's fallback scratch folder: `rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"`,
-   with `<work>` the exact path unpack printed, `<P>` the literal current directory, and
-   nothing else.
+   `source` in `<staging>/skipwatch.json`), then delete the pack work folder, and the test
+   run's fallback scratch folder when it was used, with one engine call (`<work>` the
+   exact path unpack printed; exit 64 refuses and deletes nothing):
+
+       <ENGINE> discard-pack --work "<work>" [--scratch "<P>/.skipwatch/test-run-<name>"]
+
 6. Cancel: print `Cancelled. Nothing was installed. The unpacked pack is at <work>.` and
    keep `<work>`.
 
