@@ -3,10 +3,19 @@ import json
 import pytest
 from typer.testing import CliRunner
 
+from skipwatch import runcache
 from skipwatch import transcribe as transcribe_module
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.models import IngestBundle, IngestContext, Route, Segment, SourceInfo, Transcript
+from skipwatch.models import (
+    IngestBundle,
+    IngestContext,
+    MediaInfo,
+    Route,
+    Segment,
+    SourceInfo,
+    Transcript,
+)
 from skipwatch.providers.transcribe_captions import CaptionsBackend
 from skipwatch.transcribe import mark_silence, select_backend
 from skipwatch.workdir import WorkDir, read_model, write_model
@@ -222,3 +231,36 @@ def test_captions_lang_from_ingest_wins_over_file_name(tmp_path):
     write_model(w.file("ingest.json"), bundle.model_copy(update={"context": ctx}))
     assert transcribe(w).exit_code == 0
     assert read_model(w.file("transcript.json"), Transcript).language == "pt"
+
+
+def _seed_cached_transcript(tmp_path, bundle: IngestBundle) -> None:
+    seed = tmp_path / "seed.json"
+    write_model(seed, Transcript(origin="captions", segments=[Segment(start=0, end=5, text="hi")]))
+    runcache.remember_transcript(bundle, seed)
+    assert runcache.cached_transcript(bundle, "auto", None) is not None  # the seed is a hit
+
+
+@pytest.mark.parametrize(
+    ("kind", "media"),
+    [
+        ("text", None),
+        ("video", MediaInfo(path="media/video.mp4", has_audio=False)),
+    ],
+    ids=["text-source", "no-audio"],
+)
+def test_nothing_to_transcribe_is_exit_7_even_with_a_cached_transcript(
+    tmp_path, sw_home, kind, media
+):
+    url = "https://example.com/post/1"
+    bundle = IngestBundle(
+        source=SourceInfo(kind=kind, platform="generic", url=url, canonical_url=url),
+        media=media,
+        route=Route(context="free", media="free" if media else None),
+    )
+    _seed_cached_transcript(tmp_path, bundle)
+    w = WorkDir(tmp_path / "w")
+    w.ensure()
+    write_model(w.file("ingest.json"), bundle)
+    r = transcribe(w)
+    assert r.exit_code == ExitCode.NO_CONTENT == 7, r.output
+    assert not w.file("transcript.json").exists()

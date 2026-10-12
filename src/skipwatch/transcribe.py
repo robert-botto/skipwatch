@@ -23,17 +23,23 @@ def _whisper_hint() -> str:
     return extra_command(os.environ.get("CLAUDE_PLUGIN_ROOT"), extra)
 
 
-def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
-    """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+def refuse_nothing_to_transcribe(bundle: IngestBundle) -> None:
+    """Exit 7 before any cache lookup or backend: a text source, or media with no audio track
+    and no captions, has nothing to transcribe, install or upload."""
     if bundle.source.kind == "text":
         # Before any backend, so a text source never gets install advice (exit 8).
         raise SkipwatchError(ExitCode.NO_CONTENT, "text source: nothing to transcribe")
-    backends = transcription_backends()
-    captions = backends.get("captions")
+    captions = transcription_backends().get("captions")
     has_captions = captions is not None and captions.available(bundle)
     if bundle.media is not None and not media_has_audio(bundle) and not has_captions:
         # Before any backend, explicit ones too: nothing to install and nothing to upload.
         raise SkipwatchError(ExitCode.NO_CONTENT, "the video has no audio track")
+
+
+def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
+    """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    refuse_nothing_to_transcribe(bundle)
+    backends = transcription_backends()
     if requested == "auto":
         ranked = sorted(
             (b for b in backends.values() if not b.cloud and b.auto_rank is not None),
@@ -92,6 +98,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
     bundle = read_model(ingest_json, IngestBundle)
 
     def body() -> Transcript:
+        refuse_nothing_to_transcribe(bundle)  # never serve a cached transcript for these
         hit = runcache.cached_transcript(bundle, backend, model)  # R-TR-3
         if hit is not None:
             cached, age = hit
