@@ -1788,6 +1788,20 @@ def test_sharing_reference_commands_and_messages():
         assert phrase in text, phrase
 
 
+def test_sharing_maps_the_new_exit_64_refusals():
+    from skipwatch import pack
+
+    text = flat(SHARING)
+    # the engine's own refusal prefix (pack.py), so the generic 64 retry never applies
+    assert "will not write the pack to {out}" in Path(pack.__file__).read_text(encoding="utf-8")
+    assert "Exit 64 whose message starts `will not write the pack to`" in text
+    assert (
+        "Exit 64 deletes nothing: print the engine's line, then `The unpacked pack is at <work>.`"
+        in (text)
+    )
+    assert "exit 64 refuses and deletes nothing" not in text
+
+
 def test_sharing_has_one_current_directory_placeholder():
     assert "<cwd>" not in read(SHARING)  # `<P>` is the one name for it
 

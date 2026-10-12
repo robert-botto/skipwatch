@@ -54,6 +54,8 @@ or the folder's base name for a path.
   exit 2 (a path that is not a skill folder): the engine's line.
 - Exit 64 whose message says `pass the path instead`: several installed skills share that
   name. Print the engine's line (it lists their paths) and stop.
+- Exit 64 whose message starts `will not write the pack to`: print the engine's line and
+  stop (a file that is not an earlier pack, or a symlink, already has that name).
 
 Never edit, zip or copy the skill folder yourself; only the engine writes packs.
 
@@ -120,9 +122,12 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
    `source` in `<staging>/skipwatch.json`), then delete the pack work folder, and the test
    run's fallback scratch folder when it was used, with one engine call (`<work>` the
-   exact path unpack printed; exit 64 refuses and deletes nothing):
+   exact path unpack printed):
 
        <ENGINE> discard-pack --work "<work>" [--scratch "<P>/.skipwatch/test-run-<name>"]
+
+   Exit 64 deletes nothing: print the engine's line, then
+   `The unpacked pack is at <work>.`, and stop.
 
 6. Cancel: print `Cancelled. Nothing was installed. The unpacked pack is at <work>.` and
    keep `<work>`.
