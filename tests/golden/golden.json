@@ -49,7 +49,7 @@
         "context": {
           "thread_min": 2,
           "replies_min": 0,
-          "links_min": 1
+          "links_min": 0
         }
       }
     },
