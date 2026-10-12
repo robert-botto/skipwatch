@@ -1471,7 +1471,8 @@ def test_stage_9_star_nudge_share_line_and_draft_cleanup():
     # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
     cleanup = (
         'test "$SKIPWATCH_KEEP_DRAFTS" = 1 || '
-        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run"'
+        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" '
+        '"<P>/.skipwatch/test-run-<name>"'
     )
     assert cleanup in stage9
     assert "SKIPWATCH_KEEP_DRAFTS" in stage9
@@ -1582,3 +1583,8 @@ def test_copy_frames_exit_7_drops_the_links_and_continues():
     assert "Exit 7 (`frames.json` or a frame file is missing)" in text
     assert "remove those image links from the draft" in text
     assert "`frames not copied: <the engine's message>` under Unverified" in text
+
+
+def test_pack_cleanup_removes_the_fallback_test_scratch():
+    step = _install_step(5)
+    assert 'rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"' in step

@@ -639,7 +639,11 @@ Then delete `<W>/media/` unless `--keep-media`: `rm -rf "<W>/media"`. Delete the
 and the test scratch folder unless the environment sets `SKIPWATCH_KEEP_DRAFTS=1`, which
 acceptance runs use to keep `draft-pre-critic` for the step diff:
 
-    test "$SKIPWATCH_KEEP_DRAFTS" = 1 || rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run"
+    test "$SKIPWATCH_KEEP_DRAFTS" = 1 || rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<P>/.skipwatch/test-run-<name>"
+
+`<P>/.skipwatch/test-run-<name>` is the test run's fallback scratch folder (`## Test run`
+step 2), written with the literal current directory; when it was never made, `rm -rf`
+skips it.
 
 Only those folders: the user's original file is never inside `<W>` and is never moved or
 deleted.
