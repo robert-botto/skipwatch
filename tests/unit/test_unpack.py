@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 import warnings
 import zipfile
@@ -7,12 +8,16 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from typer.testing import CliRunner
 
 from skipwatch import pack as pack_mod
+from skipwatch.checks.runner import run_all
 from skipwatch.cli import app
 from skipwatch.commands import unpack as unpack_cmd
 from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.install import install
+from skipwatch.manifest import pack_refusal
 from skipwatch.models import IngestBundle, Manifest, Transcript, UnpackResult
 from skipwatch.pack import pack_skill, read_pack, transcript_from_markdown, unpack
 from skipwatch.workdir import write_model
@@ -426,3 +431,31 @@ def test_unpack_cli_https_fetches_into_a_temp_folder(tmp_path, sw_home, monkeypa
     parsed = UnpackResult.model_validate(json.loads(result.stdout))
     assert parsed.fetched_from == url
     assert not seen["dir"].exists()  # the download is deleted afterwards
+
+
+def test_run_install_pack_unpack_check_round_trip(tmp_path, sw_home):
+    """A skill that passed check as a run, installed, packed and unpacked, passes check again
+    under M5-B's pack guard, and its skipwatch.json comes back byte-identical."""
+    fixtures = Path(__file__).resolve().parents[1] / "fixtures" / "skills"
+    skill_name = "run-skipdemo-tutorial"
+    work = tmp_path / "work"
+    shutil.copytree(fixtures / "work", work)
+    staging = work / "staging" / skill_name
+    shutil.copytree(fixtures / "good" / skill_name, staging)
+    frame = staging / "assets" / "frames" / "f000250.jpg"
+    frame.parent.mkdir(parents=True)
+    Image.new("RGB", (960, 540), (30, 30, 30)).save(frame, "JPEG")
+    assert run_all(staging, work).passed
+    installed = install(staging, None, tmp_path / "skills", False)
+    packed = pack_skill(Path(installed.path), tmp_path / "p.skillpack.zip")
+
+    result = unpack(Path(packed.path), None, now=NOW)
+    unpacked = Path(result.staging)
+    report = run_all(unpacked, Path(result.work))
+    assert report.passed, [(r.check, [i.msg for i in r.items]) for r in report.results]
+    ingest = IngestBundle.model_validate_json((Path(result.work) / "ingest.json").read_bytes())
+    assert ingest.pack is not None
+    assert pack_refusal(unpacked, Path(result.work), ingest.pack) is None  # pack mode honoured
+    repacked = install(unpacked, None, tmp_path / "again", False)
+    again = Path(repacked.path) / "skipwatch.json"
+    assert again.read_bytes() == (Path(installed.path) / "skipwatch.json").read_bytes()
