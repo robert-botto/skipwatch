@@ -229,7 +229,7 @@ def test_run_protocol_ux_rules():
     assert "one line naming the stage and the elapsed seconds" in text  # R-UX-2
     assert "No question is asked except the review prompt" in text  # R-UX-1
     assert "A missing optional dependency is never fatal" in text  # R-TIER-2
-    assert "64 usage error" in text
+    assert "the failure table in SKILL.md" in text  # exit codes are handled in one place
 
 
 def test_run_protocol_yes_gate():
@@ -601,7 +601,7 @@ def test_engine_defined_once_in_skill_md():
 def test_non_engine_exit_codes_mapped():
     # uv panics (101), missing or unrunnable commands (127, 126) and uv's own argument
     # errors mean the engine never started; the protocol stops instead of guessing.
-    for path in (SKILL / "SKILL.md", REFS / "run-engine.md"):
+    for path in (SKILL / "SKILL.md",):  # the one exit table; run files point to it
         text = flat(path)
         for code in ("101", "126", "127"):
             assert code in text, (path, code)
@@ -1735,29 +1735,27 @@ def test_stage_9_runs_the_test_under_test_flag_and_names_critic_reasons():
         assert reason in stage9, reason
 
 
-STAR = (
-    'test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged" || { echo "If this saved you '
-    'an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"; '
-    'touch "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"; }'
-)
+STAR = "If this saved you an hour, a star helps others find it: https://github.com/robert-botto/skipwatch"
 
 
 def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     raw = protocol()
     stage10 = raw.split("## Stage 10: install", 1)[1].split("\n## Resume", 1)[0]
     stage10 = re.sub(r"\s+", " ", stage10)
-    # plan issue 23: once per home, after the two install lines
+    # once per home, after the two install lines; the marker test is its own Bash call
     assert STAR in stage10
+    assert 'test -e "${SKIPWATCH_HOME:-$HOME/.skipwatch}/.star-nudged"' in stage10
+    assert "Only when it does not exist" in stage10
     assert _before(stage10, "Then print two lines", ".star-nudged")
     assert "/skipwatch share <name> prints a thank-you post for the creator." in stage10
     # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
     cleanup = (
-        'test "$SKIPWATCH_KEEP_DRAFTS" = 1 || '
-        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" '
-        '"<P>/.skipwatch/test-run-<name>"'
+        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<P>/.skipwatch/test-run-<name>"'
     )
     assert cleanup in stage10
-    assert "SKIPWATCH_KEEP_DRAFTS" in stage10
+    assert "Unless the environment sets `SKIPWATCH_KEEP_DRAFTS=1`" in stage10
+    # no shell chains: each cleanup step is its own call
+    assert "||" not in stage10 and "&& echo" not in stage10
 
 
 def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
