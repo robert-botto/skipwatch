@@ -111,9 +111,8 @@ def test_live_x_reply_linking_a_video_credits_the_linked_post(tmp_path, sw_home)
         bundle = IngestBundle.model_validate_json(r.stdout)
         reply_id = LINKING_REPLY.rsplit("/", 1)[-1]
         assert bundle.source.canonical_url != f"https://x.com/i/status/{reply_id}"
-        assert bundle.route.fallbacks == [
-            f"video came from a linked post: {bundle.source.canonical_url}"
-        ]
+        assert bundle.notes == [f"video came from a linked post: {bundle.source.canonical_url}"]
+        assert bundle.route.fallbacks == []
         assert bundle.context.thread and reply_id in bundle.context.thread[0]
         assert bundle.context.links[0].url == bundle.source.canonical_url
         assert bundle.media is not None and bundle.media.has_audio

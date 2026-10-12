@@ -1,7 +1,14 @@
 from typer.testing import CliRunner
 
 from skipwatch.cli import app
-from skipwatch.models import Batch, BatchesFile, FrameNote, NotesFile
+from skipwatch.models import (
+    Batch,
+    BatchesFile,
+    FrameNote,
+    NotesError,
+    NotesFile,
+    ValidateNotesResult,
+)
 from skipwatch.workdir import write_model
 
 
@@ -92,3 +99,57 @@ def test_validate_notes_passes(tmp_path):
 def test_validate_notes_passes_with_zero_batches(tmp_path):
     w = make_work(tmp_path, {})
     assert run(w).exit_code == 0
+
+
+def run_json(w):
+    r = CliRunner().invoke(app, ["validate-notes", "--work", str(w), "--json"])
+    return r, ValidateNotesResult.model_validate_json(r.stdout)
+
+
+def test_validate_notes_json_reports_every_bad_batch(tmp_path):
+    w = make_work(tmp_path, {1: ["f000100"], 2: ["f000200"], 3: ["f000300", "f000310"]})
+    write_model(
+        w / "notes/batch-02.json",
+        NotesFile(batch=4, frames=[FrameNote(id="f000200", t=20.0, shows="other")]),
+    )
+    write_notes(w, 3, ["f000300", "f000999"])
+    r, result = run_json(w)
+    assert r.exit_code == 1
+    assert result.ok is False and result.batches == 3
+    assert result.errors == [
+        NotesError(batch=1, message="missing notes/batch-01.json"),
+        NotesError(batch=2, field="batch", message="batch id is 4, expected 2"),
+        NotesError(batch=3, frame="f000310", message="missing"),
+        NotesError(batch=3, frame="f000999", message="unexpected"),
+    ]
+
+
+def test_validate_notes_json_keeps_the_validation_error_location(tmp_path):
+    w = make_work(tmp_path, {1: ["f000100"]})
+    (w / "notes/batch-01.json").write_text(
+        '{"schema": "skipwatch/notes/1", "batch": 1,'
+        ' "frames": [{"id": "f000100", "t": "soon", "shows": "terminal"}]}'
+    )
+    r, result = run_json(w)
+    assert r.exit_code == 1
+    [error] = result.errors
+    assert error.batch == 1 and error.field == "frames.0.t"
+    assert error.message.startswith("invalid notes/batch-01.json")
+
+
+def test_validate_notes_json_malformed_json_has_no_field(tmp_path):
+    w = make_work(tmp_path, {1: ["f000100"]})
+    (w / "notes/batch-01.json").write_text('{"schema": "skipwatch/notes/1", "batch": 1')
+    r, result = run_json(w)
+    assert r.exit_code == 1
+    [error] = result.errors
+    assert error.field is None and error.message.startswith("invalid notes/batch-01.json")
+
+
+def test_validate_notes_json_passes(tmp_path):
+    w = make_work(tmp_path, {1: ["f000100"], 2: ["f000200"]})
+    write_notes(w, 1, ["f000100"])
+    write_notes(w, 2, ["f000200"])
+    r, result = run_json(w)
+    assert r.exit_code == 0, r.output
+    assert result == ValidateNotesResult(ok=True, batches=2)
