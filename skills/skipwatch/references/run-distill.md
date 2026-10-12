@@ -7,8 +7,8 @@
 - Stage 7: critique
 - Stage 8: check
 
-Placeholders and conventions are in `run-engine.md` (stages 1 to 4); stages 9 to 10 and
-Resume are in `run-review-install.md`. The rules for tags, verbatim text, gaps, naming
+Placeholders and conventions are in `run-engine.md` (stages 1 to 4); stages 9 to 10 are in
+`run-review-install.md`. The rules for tags, verbatim text, gaps, naming
 and critic fixes are in `distill-rules.md`.
 
 ## Stage 5: outline

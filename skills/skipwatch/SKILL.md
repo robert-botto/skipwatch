@@ -87,6 +87,9 @@ Follow the run files in order, reading each when its stage starts:
 stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.md`
 (9 to 10 and resume). Load the other references when a run file reaches them:
 
+- `references/run-branches.md` when a run file points to one of its sections (long
+  video, failed probe or ingest, special sources, no transcript, frames exits, reader
+  retries) and for `resume`.
 - `references/run-fallbacks.md` when the work folder cannot be written.
 - `references/distill-rules.md` before writing the outline.
 - `references/skill-template.md` before drafting the skill.
@@ -113,7 +116,7 @@ Copy this checklist and tick it as the run goes; the numbers are the run files' 
 ## resume
 
 `/skipwatch resume [dir]` continues an interrupted run: read `references/run-engine.md`
-(conventions), run `<ENGINE> resume` as `## Resume` in `references/run-review-install.md`
+(conventions), run `<ENGINE> resume` as `## Resume` in `references/run-branches.md`
 says, then carry on from its `next_stage` with the flags saved in `run.json`.
 
 ## Rules that hold in every stage

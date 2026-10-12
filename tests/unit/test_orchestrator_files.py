@@ -24,6 +24,7 @@ INJECTION_2 = (
 
 RUN_FILES = [
     REFS / "run-engine.md",
+    REFS / "run-branches.md",
     REFS / "run-fallbacks.md",
     REFS / "run-distill.md",
     REFS / "run-review-install.md",
@@ -70,6 +71,22 @@ def test_all_references_exist():
     names = ("skill-template", "distill-rules", "review-screen", "platforms", "sharing")
     for name in (*names, "run-engine", "run-distill", "run-review-install"):
         assert (REFS / f"{name}.md").is_file(), name
+
+
+PER_RUN = ("run-engine", "run-distill", "run-review-install", "distill-rules", "skill-template")
+
+
+def test_every_run_loads_under_8000_words():
+    # rare branches, resume and fallbacks live in files read only when they happen
+    files = [SKILL / "SKILL.md", *(REFS / f"{n}.md" for n in PER_RUN), REFS / "review-screen.md"]
+    total = sum(len(read(path).split()) for path in files)
+    assert total < 8000, total
+    assert len(read(REFS / "run-engine.md").split()) < 1400
+    engine = read(REFS / "run-engine.md")
+    for branch in ("Long video", "Probe and ingest exits", "Sources", "Reader retries"):
+        assert f"`## {branch}" in engine, branch  # a pointer, the text moved
+        assert f"\n## {branch}\n" in read(REFS / "run-branches.md"), branch
+    assert "\n## Resume\n" in read(REFS / "run-branches.md")
 
 
 def test_rare_fallbacks_live_out_of_the_main_run():
@@ -1202,7 +1219,7 @@ def test_ingest_passes_provider_and_cookies_only_from_flags():
 def test_ingest_url_failures_are_explained():
     text = protocol_flat()
     # probe fails before ingest ran, so its route lines are in probe.log
-    assert "reading `<W>/logs/probe.log` where that says `ingest.log`" in text
+    assert "reading `<W>/logs/probe.log` where this says `ingest.log`" in text
     assert "Exit 3: Read `<W>/logs/ingest.log` and print every route line" in text
     assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
     assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text

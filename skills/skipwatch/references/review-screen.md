@@ -106,7 +106,7 @@ When either offer produces a transcript, remove the fixed problem from the scree
   after the user picks it, as it is (no redirect), with the Bash tool's `timeout: 600000`.
   On rc 0, refresh the doctor report with `<ENGINE> doctor --json` (with `--home
   "<P>/.skipwatch"` when the run moved), then run `<ENGINE> resume "<W>" --json` and
-  continue from `next_stage` as `## Resume` in `run-review-install.md` says. On any other
+  continue from `next_stage` as `## Resume` in `run-branches.md` says. On any other
   rc, show the last line of its stderr, tell the user to run `! <command>` in Claude Code
   and then `/skipwatch resume <W>`, and show the prompt line again.
 - **transcribe with <Provider> and re-run:** audio goes to a cloud provider only after

@@ -5,7 +5,6 @@
 - Stage 9: review
 - Stage 9b: test run
 - Stage 10: install
-- Resume
 
 Placeholders and conventions are in `run-engine.md` (stages 1 to 4); stages 5 to 8 are in
 `run-distill.md`.
@@ -116,43 +115,3 @@ scratch folder:
 On cancel and on any stop, these files stay for resume; the stop or cancel line adds `Work
 files at <W> may hold unredacted text from the video.` The user's original file is never
 inside `<W>` and is never moved or deleted.
-
-## Resume
-
-`/skipwatch resume [dir]` continues from the first stage that is not done; a stage left
-`running` counts as not done.
-
-1. Run stage 1, then, with `<dir>` absolute when given:
-
-       <ENGINE> resume "<dir>" --json
-
-   Without a folder, leave out `"<dir>"`; the engine picks the newest incomplete run. If
-   that finds nothing and `<P>/.skipwatch/work` exists, run it once more as
-   `<ENGINE> --home "<P>/.skipwatch" resume --json`.
-2. Read `work`, `next_stage`, `completed`, `run`, `media_present`.
-   - `next_stage` is null: print `SkipWatch: nothing to resume.` and stop.
-   - Exit 2, or exit 64 with a message naming `<dir>` (a folder outside the home): print
-     `SkipWatch: <dir> is not a SkipWatch work folder.` and stop.
-   - Exit 7: print the engine's line, then `Start a new run with the original source.`
-     and stop.
-   - `run` is null: print
-     `SkipWatch: <work> has no run.json; start a new run with the original source.` and stop.
-3. Set `<W>` to `work` (under `<P>/.skipwatch`: pass `--home "<P>/.skipwatch"` as in
-   `run-fallbacks.md`). `<input>` is `run.input`; read `run.flags` as if the user had
-   typed them and `run.name` as `--name`. Print `Resuming <W> at <next_stage> (<k> stages
-   done)`.
-4. Continue from `next_stage` (noted degradations are already in the work folder):
-   - `media_present` is false and the stage needs media (`ingest`, `transcribe`, `frames`):
-     stage 3 step 3 (ingest) first.
-   - `detect` or `ingest`: stage 3 from step 3; no probe or long-video question.
-   - `transcribe`, `frames`, `plan`: that step of stage 3, then the rest.
-   - `read` or `distill`: run `validate-notes` (stage 4) and re-dispatch readers only for
-     batches whose notes file is missing or invalid, then stage 5.
-   - `critique`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, then stage 8;
-     otherwise as `read`. `<name>` is the one folder under `<W>/staging/`.
-   - `check`: stage 8 when that `SKILL.md` exists, otherwise stage 5.
-   - `review` or `install`: stage 8 (staging may have been edited), then stage 9.
-   - a text source never runs transcribe, frames, plan or read; the engine's
-     `next_stage` already skips them: it is the first of distill, critique, check, review
-     and install not yet done, and `distill` (or `critique` with nothing staged) goes
-     straight to stage 5 with no `validate-notes`.
