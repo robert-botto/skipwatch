@@ -10,7 +10,7 @@ import typer
 
 from skipwatch.checks.frontmatter import is_skill_name
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.install import Scope, scope_target
+from skipwatch.install import Scope, install_root, scope_target
 from skipwatch.runner import run_command
 
 _HOME_VAR = re.compile(r"^\$(HOME|\{HOME\})(?=/|$)")
@@ -33,7 +33,7 @@ def _target_free(to: str | None, name: str | None, target: str | None, scope: Sc
     elif target is None and to is not None and name is not None:
         if not is_skill_name(name):
             raise SkipwatchError(ExitCode.USAGE, f"--name {name!r} is not a skill name")
-        path = Path(os.path.abspath(_expand(to))) / name
+        path = install_root(Path.cwd() / _expand(to)) / name
     elif target is None and to is None and name is not None:
         if not is_skill_name(name):
             raise SkipwatchError(ExitCode.USAGE, f"--name {name!r} is not a skill name")

@@ -95,7 +95,7 @@ def _remove(path: Path) -> None:
         path.unlink()
 
 
-def _install_root(given: Path) -> Path:
+def install_root(given: Path) -> Path:
     """--to resolved: never a symlink itself, never inside the home's work/ or packs/, where
     the engine's own guarded folders live (adversarial review REV6 item 4)."""
     if given.is_symlink():
@@ -128,7 +128,7 @@ def install(
     cwd = cwd or Path.cwd()
     home = home or Path.home()
     if to is not None:
-        target, resolved = target_dir(scope, _install_root(cwd / to), name, cwd, home)
+        target, resolved = target_dir(scope, install_root(cwd / to), name, cwd, home)
     else:
         target, resolved = scope_target(scope, name, cwd, home)
 

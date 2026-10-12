@@ -12,7 +12,8 @@ from skipwatch.install import scope_target
 
 
 @pytest.fixture
-def home(tmp_path, monkeypatch) -> Path:
+def home(tmp_path, monkeypatch, sw_home) -> Path:
+    """sw_home, as install's tests use: the default test home maps work/ onto tmp_path."""
     home = tmp_path / "fakehome"
     (home / ".claude" / "skills").mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
@@ -133,3 +134,21 @@ def test_a_bad_scope_combination_is_64(home, cwd, args):
 def test_an_unknown_scope_is_a_parse_error(home, cwd):
     r = free("--scope", "nosuch", "--name", "fix-bugs")
     assert r.exit_code == 2 and r.stdout == ""  # 64 through cli.main
+
+
+def test_a_symlinked_to_is_64_like_install(home, cwd):
+    link = home / "linked"
+    try:
+        link.symlink_to(home / ".claude" / "skills")
+    except OSError as exc:
+        pytest.skip(f"cannot create symlinks here: {exc}")
+    r = free("--to", str(link), "--name", "fix-bugs")
+    assert r.exit_code == ExitCode.USAGE and r.stdout == ""
+
+
+@pytest.mark.parametrize("area", ["work", "packs"])
+def test_a_to_inside_the_home_work_or_packs_is_64_like_install(home, cwd, sw_home, area):
+    inside = sw_home / area / "run"
+    inside.mkdir(parents=True)
+    r = free("--to", str(inside), "--name", "fix-bugs")
+    assert r.exit_code == ExitCode.USAGE and r.stdout == ""
