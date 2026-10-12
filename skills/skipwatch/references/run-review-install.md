@@ -105,7 +105,9 @@ and create the marker with `touch` on the same path. Then print:
 Cleanup, each its own Bash call: `rm -rf "<W>/media"` unless `--keep-media`. Unless the
 environment sets `SKIPWATCH_KEEP_DRAFTS=1` (check with `printenv SKIPWATCH_KEEP_DRAFTS`;
 acceptance runs keep `draft-pre-critic`), run
-`rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<P>/.skipwatch/test-run-<name>"`.
+`rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<W>/notes" "<W>/frames" "<W>/outline.md" "<W>/critique.json" "<P>/.skipwatch/test-run-<name>"`.
+On cancel and on any stop, these files stay for resume; the stop or cancel line adds
+`Work files at <W> may hold unredacted text from the video.`
 The user's original file is never inside `<W>` and is never moved or deleted.
 
 ## Resume

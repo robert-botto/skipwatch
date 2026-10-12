@@ -134,7 +134,8 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 ## When the engine stops
 
 This table is the one place exit codes are handled; the run files add only stage-specific
-messages. Show one line, keep `<W>` and `<W>/media/`, print the path, and stop. Never
+messages. Show one line, keep `<W>` and `<W>/media/`, print the path and
+`Work files at <W> may hold unredacted text from the video.`, and stop. Never
 retry a failed stage with different inputs to get past it.
 
 | Exit | Stage | Tell the user |

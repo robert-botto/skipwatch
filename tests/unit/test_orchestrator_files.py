@@ -1772,9 +1772,16 @@ def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     assert _before(stage10, "Then print two lines", ".star-nudged")
     assert "/skipwatch share <name> prints a thank-you post for the creator." in stage10
     # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
+    # notes, frames, outline and critique quote secrets verbatim: deleted after install
     cleanup = (
-        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<P>/.skipwatch/test-run-<name>"'
+        'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" "<W>/notes" "<W>/frames" '
+        '"<W>/outline.md" "<W>/critique.json" "<P>/.skipwatch/test-run-<name>"'
     )
+    warning = "`Work files at <W> may hold unredacted text from the video.`"
+    assert warning in stage10
+    for path in (SKILL / "SKILL.md", REFS / "review-screen.md"):
+        assert warning in flat(path), path  # the stop line and the cancel line
+    assert "can contain secrets shown in the video" in read(README_PATH)
     assert cleanup in stage10
     assert "Unless the environment sets `SKIPWATCH_KEEP_DRAFTS=1`" in stage10
     # no shell chains: each cleanup step is its own call
