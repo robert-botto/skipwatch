@@ -1,5 +1,6 @@
-"""Provider registry: content providers (`content_*.py` defining PROVIDER) and transcription
-backends (`transcribe_*.py` defining BACKENDS).
+"""Provider registry: content providers (`content_*.py` defining PROVIDER), transcription
+backends (`transcribe_*.py` defining BACKENDS) and export providers (`export_*.py` defining
+PROVIDER).
 
 content_free is the shared yt-dlp library the adapters use, not a provider, so it is skipped.
 Backend modules import heavy libraries (faster_whisper, mlx_whisper) lazily inside
@@ -14,7 +15,7 @@ from types import ModuleType
 
 from skipwatch import providers
 from skipwatch.output import progress
-from skipwatch.providers.base import ContentProvider, TranscriptionBackend
+from skipwatch.providers.base import ContentProvider, ExportProvider, TranscriptionBackend
 
 NOT_A_PROVIDER = {"content_free"}
 
@@ -51,6 +52,19 @@ def _backends() -> dict[str, TranscriptionBackend]:
     return found
 
 
+@cache
+def _export_providers() -> dict[str, ExportProvider]:
+    found: dict[str, ExportProvider] = {}
+    for module in _modules("export_"):
+        provider = getattr(module, "PROVIDER", None)
+        if provider is None:
+            continue
+        if provider.name in found:
+            raise RuntimeError(f"export provider {provider.name} is registered twice")
+        found[provider.name] = provider
+    return dict(sorted(found.items()))
+
+
 def content_providers() -> list[ContentProvider]:
     """Every registered content provider, sorted by name."""
     return list(_content_providers())
@@ -58,3 +72,8 @@ def content_providers() -> list[ContentProvider]:
 
 def transcription_backends() -> dict[str, TranscriptionBackend]:
     return dict(_backends())
+
+
+def export_providers() -> dict[str, ExportProvider]:
+    """Every registered export provider by name, sorted by name."""
+    return dict(_export_providers())
