@@ -38,8 +38,9 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 ## Where each line comes from
 
 - **Triggers:** the first three quoted phrasings in the description.
-- **Steps and gaps:** `counts` in `W/check-report.json`.
-- **Unverified:** each inferred step as `step N (<reason>)` and
+- **Steps and gaps:** `counts` in `<W>/check-report.json`.
+- **Unverified:** this line summarises the skill's `Unverified and gaps` section plus
+  the run's degradations: each inferred step as `step N (<reason>)` and
   each degradation from the run (for example `no transcript: Whisper not installed
   (install: <command>)`, or `work folder moved into the project (<path>): home folder
   not writable`). `none` only when both lists are empty.
@@ -68,10 +69,10 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 
   indented like the other lines. Screens without a test have no such line and keep the
   shape above.
-- **Source:** `source` in `W/ingest.json`; a local file has author `local file` and date
+- **Source:** `source` in `<W>/ingest.json`; a local file has author `local file` and date
   `undated` unless the file carries them. A URL source shows its title, its author handle
   and its post date.
-- **Provider calls:** `W/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
+- **Provider calls:** `<W>/calls.json`, one row per call with `provider`, `op`, `cost_usd`,
   `ok`, `endpoint`, `call_id` and `review`. The free route logs its own rows there too
   (`provider` `free`, cost 0). Only rows whose `provider` is `treg` count; no treg rows
   means `none (free route)`. Otherwise
@@ -83,17 +84,17 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   treg media URL, shown as `media.get $0.0000`; and rows whose `error` is `cost cap`,
   which never ran, shown as `<op> refused (cost cap)`. Every other treg row counts with
   its `cost_usd`, even one without a `call_id`. When `route.fallbacks` in
-  `W/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
+  `<W>/ingest.json` has `treg: cost cap reached`, the run stopped calling treg at the per-run
   cap, `[providers.treg] max_cost_usd` in `config.toml` (default `$0.05`): append
   `; treg cost cap reached ($<max_cost_usd>)`, so the user knows some context may be
-  missing and can raise the cap. When `W/ingest.json` has `from_cache`
+  missing and can raise the cap. When `<W>/ingest.json` has `from_cache`
   true, the metadata came from the 7-day run cache: append
   `; cached from <date>` (the date from the ingest log's cache line, else
   `cached from an earlier run`), for example `none (free route); cached from 2026-10-07`.
   Cached calls are not billed again. A transcript reused from the cache adds
   `; transcript cached (<origin>)`. Audio the user sent to a cloud provider adds
   `<provider> transcription (billed to your <ENV VAR> key)`.
-- **Draft:** `W/staging/<name>/`.
+- **Draft:** `<W>/staging/<name>/`.
 - **Target:** always an absolute path; `--to` was resolved when the arguments were read.
 
 ## Extra lines
@@ -109,12 +110,12 @@ each only when it applies:
 ```
 
 - **Linked post:** the run recorded that the video came from a linked post (stage 3 of
-  `run-protocol.md`): the line is copied exactly from `notes` in `W/ingest.json`,
+  `run-protocol.md`): the line is copied exactly from `notes` in `<W>/ingest.json`,
   falling back to `route.fallbacks` only for a bundle cached before the engine moved the
   note there (its `notes` does not hold the line). `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
-- **Cookies:** `W/ingest.json` has `fetched_with_cookies` true (the user passed
+- **Cookies:** `<W>/ingest.json` has `fetched_with_cookies` true (the user passed
   `--cookies-from-browser`). The skill came from content only the user's login
   could see, so it is never packed or shared; the manifest records it.
 - **Cross-check:** `transcript.json` has `cross_check` with a `similarity`: print it to 2
@@ -129,7 +130,7 @@ each only when it applies:
 ## Pack variant
 
 Installing a pack (`sharing.md`) shows the same screen, in the same line order, with
-`W` the pack work folder `<work>` that unpack printed. These lines differ:
+`<W>` the pack work folder `<work>` that unpack printed. These lines differ:
 
 - **Confidence:** the confidence of the pack on this machine, `<pack_confidence>`, is the
   engine's confidence rule without a critic score, because the critic did not run here: with the counts in
@@ -209,18 +210,18 @@ still names the install command.
 - **yes / replace:** run install (stage 10 of `run-protocol.md`); add `--force` only for
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
-- **show draft:** print `W/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
+- **show draft:** print `<W>/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
 - **test it:** run the test run, stage 9b of `run-protocol.md` (it asks
   `Test it anyway?` first when there are safety flags), then show the whole screen again
   with its `Test run:` line, and the prompt.
 - **rename:** ask for the new name, check it against the naming rule in
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
-  staging folder `W/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
+  staging folder `<W>/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
   then show the whole screen again with the new target.
 - **cancel:** mark review done at once, so the cancelled run is not offered for resume:
 
       <ENGINE> mark --work "<W>" --stage review --status done 2>>"<W>/logs/mark.log"
 
   Then print `Cancelled. Draft kept at <W>/staging/<name>/.` and stop. Nothing is
-  installed and `W` is kept.
+  installed and `<W>` is kept.
 - Anything else: re-show the prompt line once with the five answers.

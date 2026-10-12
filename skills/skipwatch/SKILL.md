@@ -70,7 +70,7 @@ Flags and what they do:
 | `--name <skill-name>` | skill name and work folder slug, instead of deriving them |
 | `--thorough` | frames `--per-minute 5 --max 150` |
 | `--yes` | install without the prompt only when safety flags, gaps and collisions are all zero |
-| `--keep-media` | keep `W/media/` after a successful install |
+| `--keep-media` | keep `<W>/media/` after a successful install |
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
 | `--provider free\|treg\|auto` | content providers for a URL (default `auto`: treg too when logged in); treg calls are paid, capped per run and listed on the review screen, so `--provider free` avoids them; ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used |
@@ -121,7 +121,7 @@ Copy this checklist and tick it as the run goes; the numbers are the protocol's 
 
 `/skipwatch resume [dir]` continues an interrupted run: run `<ENGINE> resume` as the
 `## Resume` section of `references/run-protocol.md` says, then carry on from its
-`next_stage` with the flags saved in `run.json`. Failed runs keep `W/media/` for this.
+`next_stage` with the flags saved in `run.json`. Failed runs keep `<W>/media/` for this.
 
 ### How a run talks
 

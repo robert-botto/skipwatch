@@ -621,6 +621,17 @@ def test_exit_127_and_78_each_have_one_row():
     assert "for exit 78 above" not in skill
 
 
+def test_one_placeholder_style_and_two_confidences_kept_apart():
+    for path in PROMPT_FILES:
+        found = re.findall(r"(?<![<\w])W(?:/|`)", read(path))
+        assert not found, (path, found)  # always `<W>`, never a bare W
+    assert "skipwatch redact --stdin" not in read(REFS / "skill-template.md")
+    review = flat(REFS / "review-screen.md")
+    assert "summarises the skill's `Unverified and gaps` section" in review
+    reader = flat(ROOT / "agents/frame-reader.md")
+    assert "not the skill's confidence grade" in reader
+
+
 def test_exit_7_has_one_wording_per_stage():
     # SKILL.md defers to the stage's own message, so the two files never disagree
     skill = read(SKILL / "SKILL.md")
@@ -1252,7 +1263,7 @@ def test_protocol_matches_the_merged_m3_engine():
     assert "cached before" in text and "`route.fallbacks`" in text
     review = flat(REFS / "review-screen.md")
     linked = review.split("**Linked post:**", 1)[1].split("- **", 1)[0]
-    assert "`notes` in `W/ingest.json`" in linked
+    assert "`notes` in `<W>/ingest.json`" in linked
     assert "falling back to `route.fallbacks` only for a bundle cached before" in linked
     assert "post id in `source.canonical_url`" not in text  # the engine decides, not you
     # transcribe refuses a text bundle with exit 7 and this message
