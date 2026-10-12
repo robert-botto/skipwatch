@@ -32,7 +32,8 @@ def provider_calls_line(
     if items:
         total = sum(cost for _, cost in items)
         listed = ", ".join(text for text, _ in items)
-        line = f"treg: {len(items)} calls, ${total:.4f} ({listed})"
+        noun = "call" if len(items) == 1 else "calls"
+        line = f"treg: {len(items)} {noun}, ${total:.4f} ({listed})"
     else:
         line = FREE_ROUTE
     if CAP_REACHED in ingest.route.fallbacks:

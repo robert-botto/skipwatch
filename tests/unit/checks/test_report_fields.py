@@ -73,6 +73,12 @@ def test_calls_line_m4_example():
     assert provider_calls_line(M4_CALLS, _ingest(), 0.05) == M4_LINE
 
 
+def test_calls_line_one_call_is_singular():
+    assert provider_calls_line(M4_CALLS[:1], _ingest(), 0.05) == (
+        "treg: 1 call, $0.0038 (x.thread $0.0038)"
+    )
+
+
 def test_calls_line_no_rows_is_the_free_route():
     assert provider_calls_line([], _ingest(), 0.05) == "none (free route)"
 
