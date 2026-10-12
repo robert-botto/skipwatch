@@ -184,7 +184,12 @@ def test_engine_calls_with_a_work_folder_use_log():
     # --log prints rc, elapsed and the last log lines, so no call needs a shell chain
     for path, command in _engine_command_lines():
         if re.search(r'--work "<(?:W|work)>"', command) and "Edit it and run" not in command:
-            assert command.split("<ENGINE>", 1)[1].startswith(" --log "), (path.name, command)
+            after = command.split("<ENGINE>", 1)[1]
+            if after.startswith(" review "):
+                # its stdout is the screen to print exactly; an rc= line must not join it
+                assert "--log" not in after, (path.name, command)
+                continue
+            assert after.startswith(" --log "), (path.name, command)
 
 
 def test_engine_times_and_logs_stages_itself():
@@ -350,11 +355,9 @@ def test_review_screen_example_in_4_3_order():
 def test_review_screen_rules():
     text = flat(REFS / "review-screen.md")
     # the engine prints the screen; Claude never assembles it from the run files
-    command = (
-        '<ENGINE> --log "<W>/logs/review.log" review --work "<W>" --skill "<W>/staging/<name>"'
-    )
+    command = '<ENGINE> review --work "<W>" --skill "<W>/staging/<name>"'
     assert command in text
-    assert "Print its output exactly, never edited or rebuilt by hand" in text
+    assert "Print its stdout exactly, never edited or rebuilt by hand" in text
     for hand in (
         "Where each line comes from",
         "first three quoted phrasings",

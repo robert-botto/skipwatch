@@ -13,9 +13,9 @@
 
 The engine builds the screen from the run's files. Run it, as one command:
 
-    <ENGINE> --log "<W>/logs/review.log" review --work "<W>" --skill "<W>/staging/<name>" [--degradation "<line>"]... [--unread "<ids> (<reason>)"]... [--test-run "<line>"]
+    <ENGINE> review --work "<W>" --skill "<W>/staging/<name>" [--degradation "<line>"]... [--unread "<ids> (<reason>)"]... [--test-run "<line>"]
 
-Print its output exactly, never edited or rebuilt by hand. Then print the prompt line
+Print its stdout exactly, never edited or rebuilt by hand. Then print the prompt line
 below and, when they apply, the transcription offers; the engine never prints those.
 Exit 7 names a missing or invalid run file: re-run check (stage 8 in `run-distill.md`)
 once, then `review` again; a second exit 7 stops with the engine's line. Exit 64: a `--test-run` value that is not the
