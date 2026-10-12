@@ -170,9 +170,38 @@
     "counts": {
       "$ref": "#/$defs/Counts"
     },
+    "pack_confidence": {
+      "anyOf": [
+        {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pack Confidence"
+    },
     "passed": {
       "title": "Passed",
       "type": "boolean"
+    },
+    "provider_calls_line": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Calls Line"
     },
     "results": {
       "items": {

@@ -138,20 +138,28 @@ def store(home: Path, key: str, source: str, files: dict[str, Path], now: dateti
     return new
 
 
-def _read_cached(key: str | None, name: str, cls: type[M]) -> tuple[M, int] | None:
-    """(model, entry age in whole hours) for a fresh entry holding a valid `name`."""
+def _read_entry(key: str | None, name: str, cls: type[M]) -> tuple[M, CacheEntry] | None:
+    """(model, entry) for a fresh entry holding a valid `name`."""
     if key is None:
         return None
-    now = utcnow()
     folder = _folder(skipwatch_home(), key)
-    entry = _fresh_entry(folder, now)
+    entry = _fresh_entry(folder, utcnow())
     if entry is None or name not in entry.files:
         return None
     try:
         model = read_model(folder / name, cls)
     except (OSError, ValidationError):  # removed or rewritten by another run: a miss
         return None
-    age = _aware(now) - _aware(datetime.fromisoformat(entry.created_at))
+    return model, entry
+
+
+def _read_cached(key: str | None, name: str, cls: type[M]) -> tuple[M, int] | None:
+    """(model, entry age in whole hours) for a fresh entry holding a valid `name`."""
+    found = _read_entry(key, name, cls)
+    if found is None:
+        return None
+    model, entry = found
+    age = _aware(utcnow()) - _aware(datetime.fromisoformat(entry.created_at))
     return model, int(age.total_seconds() // 3600)
 
 
@@ -205,10 +213,10 @@ def cached_ingest(fresh: IngestBundle, providers: list[str], cookies: bool) -> I
         return None
     cookies = cookies or fresh.fetched_with_cookies
     key = cache_key(fresh.source, cookies, providers)
-    found = _read_cached(key, "ingest.json", IngestBundle)
+    found = _read_entry(key, "ingest.json", IngestBundle)
     if found is None:
         return None
-    cached = found[0]
+    cached, entry = found
     if cached.fetched_with_cookies and not cookies:
         return None
     if any(_failed(c) for c in cached.provider_calls):
@@ -228,6 +236,7 @@ def cached_ingest(fresh: IngestBundle, providers: list[str], cookies: bool) -> I
             "route": fresh.route.model_copy(update={"context": cached.route.context}),
             "fetched_with_cookies": fresh.fetched_with_cookies or cached.fetched_with_cookies,
             "from_cache": True,
+            "cached_at": entry.created_at,
         }
     )
 

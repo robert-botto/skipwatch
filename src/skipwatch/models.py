@@ -180,6 +180,7 @@ class IngestBundle(_Tagged):
     route: Route
     fetched_with_cookies: bool = False
     from_cache: bool = False
+    cached_at: str | None = None  # a cache hit: when that entry was first stored (UTC ISO)
     notes: list[str] = []  # free-form provenance, e.g. "video came from a linked post: <url>"
     pack: "PackOrigin | None" = None  # set only by unpack; the one switch for pack mode
 
@@ -318,6 +319,11 @@ class CheckReport(_Tagged):
     passed: bool
     results: list[CheckResult]
     counts: Counts
+    # Pack mode only: the engine's grade without a critic (never high); skipwatch.json keeps
+    # the pack's claimed confidence.
+    pack_confidence: Literal["high", "medium", "low"] | None = None
+    # The review screen's `Provider calls:` line, ready to print (calls_line.py).
+    provider_calls_line: str | None = None
 
 
 # ---- skipwatch.json (7.6) ----

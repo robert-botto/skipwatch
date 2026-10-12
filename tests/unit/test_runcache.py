@@ -257,6 +257,21 @@ def test_ingest_cache_skips_enrichment_but_not_media(sw_home, tmp_path, monkeypa
     assert calls[0]["provider"] == "treg"
 
 
+def test_ingest_cache_hit_records_when_the_entry_was_cached(sw_home, tmp_path, monkeypatch, clock):
+    """The review screen's `cached from <date>` needs the entry's first store time."""
+    adapter, provider = CountingAdapter(), CountingProvider()
+    monkeypatch.setattr("skipwatch.ingest.adapter_for", lambda p: adapter)
+    monkeypatch.setattr("skipwatch.ingest.content_providers", lambda: [provider])
+    cfg = treg_on_config(tmp_path)
+    first = run_ingest(URL, WorkDir(tmp_path / "w1"), IngestOptions(), cfg=cfg)
+    clock["t"] = T0 + timedelta(days=2)  # the entry's time, never this run's
+    second = run_ingest(URL, WorkDir(tmp_path / "w2"), IngestOptions(), cfg=cfg)
+    assert first.cached_at is None and second.from_cache
+    assert second.cached_at == "2026-10-09T12:00:00Z"
+    on_disk = read_model(tmp_path / "w2" / "ingest.json", IngestBundle)
+    assert on_disk.cached_at == "2026-10-09T12:00:00Z"
+
+
 def test_ingest_cache_keeps_this_runs_captions(sw_home, tmp_path, monkeypatch, clock):
     provider = CountingProvider()
     adapter = CountingAdapter()
