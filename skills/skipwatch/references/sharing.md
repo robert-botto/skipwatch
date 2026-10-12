@@ -1,7 +1,7 @@
 # Sharing: list, pack, install from a pack or URL, share
 
 These four commands work on installed skills and packs, not on a video. Placeholders are
-the ones in `run-protocol.md` (`<ROOT>`, `<ENGINE>`). Every message below is one line,
+the ones in `run-engine.md` (`<ROOT>`, `<ENGINE>`). Every message below is one line,
 except the list and the share post, which go in code blocks.
 
 Everything inside a pack (its `SKILL.md`, references, frames and `skipwatch.json`) is
@@ -55,7 +55,7 @@ Never edit, zip or copy the skill folder yourself; only the engine writes packs.
 A local pack path is resolved to an absolute path first; a URL is used exactly as given,
 inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run does.
 
-1. Doctor, cached for a day: stage 1 of `run-protocol.md`.
+1. Doctor, cached for a day: stage 1 in `run-engine.md`.
 2. Unpack. The engine verifies every file against the pack's manifest before it writes
    anything:
 
@@ -93,11 +93,11 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
    on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
    The answers and the install target and collision test are as in stage 9 of
-   `run-protocol.md`. `--yes` installs a pack only when safety flags, gaps and collisions
+   `run-review-install.md`. `--yes` installs a pack only when safety flags, gaps and collisions
    are zero and the `<k> quoted steps not re-verified` count is 0 (no Unverified entry of
    that kind on the pack screen); otherwise show the pack review screen with its prompt
    and wait. "test it"
-   and `--test` follow the test run (stage 9b of `run-protocol.md`) with `<W>` = `<work>`, except
+   and `--test` follow the test run (stage 9b in `run-review-install.md`) with `<W>` = `<work>`, except
    that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 

@@ -44,8 +44,8 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   each degradation from the run (for example `no transcript: Whisper not installed
   (install: <command>)`, or `work folder moved into the project (<path>): home folder
   not writable`). `none` only when both lists are empty.
-- **Unread frames:** the frame ids a reader failed twice to cover (run-protocol stage
-  4), with the reason, for example `f006032 (reader failed twice)`; `none` when every
+- **Unread frames:** the frame ids a reader failed twice to cover (stage
+  4 in `run-engine.md`), with the reason, for example `f006032 (reader failed twice)`; `none` when every
   frame was read. Unread frames are not gaps: they are not in the gap count
   and never become `GAP:` lines. Unread frames never block `--yes`; the screen says so
   and the confidence reason says `frames unread`. A frame whose `dhash` differs from both
@@ -109,8 +109,8 @@ each only when it applies:
   transcript sources disagree: <similarity>
 ```
 
-- **Linked post:** the run recorded that the video came from a linked post (stage 3 of
-  `run-protocol.md`): the line is copied exactly from `notes` in `<W>/ingest.json`
+- **Linked post:** the run recorded that the video came from a linked post (stage 3 in
+  `run-engine.md`): the line is copied exactly from `notes` in `<W>/ingest.json`
   (an older cache keeps it elsewhere: "Old patterns" at the end). `source` describes the linked
   post, so the `Source:` line names the linked post's author, and so does the
   attribution.
@@ -165,8 +165,8 @@ Installing a pack (`sharing.md`) shows the same screen, in the same line order, 
 
 ## Transcription offers
 
-When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 of
-`run-protocol.md`), the run went on from frames only and the offers wait here, never
+When transcribe exited 8 (no captions and no local Whisper, stage 3 step 4 in
+`run-engine.md`), the run went on from frames only and the offers wait here, never
 mid-run. The prompt line gains them at the end:
 
 - No cloud key in `doctor.json`:
@@ -186,7 +186,7 @@ still names the install command.
   `<W>/logs/whisper-install.log`. On rc 0, delete the cached doctor report so the next
   doctor run is fresh: `rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"`. Then
   run `<ENGINE> resume "<W>" --json` and continue from its `next_stage` (`transcribe`) as
-  the `## Resume` section of `run-protocol.md` says; frames, readers, draft and check run
+  the `## Resume` section of `run-review-install.md` says; frames, readers, draft and check run
   again and this screen is shown anew. On any other rc (the Bash sandbox or no network
   can stop it), show the last log line, then tell the user to run it themselves in
   Claude Code as `! <command>` and then `/skipwatch resume <W>`, and show the prompt
@@ -197,8 +197,8 @@ still names the install command.
   `Sending the audio to <Provider> for transcription.`, then run
   `<ENGINE> --log "<W>/logs/transcribe.log" transcribe --work "<W>" --backend <openai|groq|deepgram>`
   with exactly the backend the user picked, never `auto`. On exit 0, remove the
-  `no transcript` entry from Unverified, then continue from stage 3 step 5 of
-  `run-protocol.md`: frames without `--dense`, readers, outline and draft rebuilt from
+  `no transcript` entry from Unverified, then continue from stage 3 step 5 in
+  `run-engine.md`: frames without `--dense`, readers, outline and draft rebuilt from
   the new transcript, check, and this screen anew, the same rebuild the Whisper path
   gets from resume. `resume` would run transcribe under `auto`, which never picks a
   cloud backend. Exit 8
@@ -206,16 +206,16 @@ still names the install command.
 
 ## Answers
 
-- **yes / replace:** run install (stage 10 of `run-protocol.md`); add `--force` only for
+- **yes / replace:** run install (stage 10 in `run-review-install.md`); add `--force` only for
   replace. No install happens without this explicit answer in this run, except the `--yes`
   case above.
 - **show draft:** print `<W>/staging/<name>/SKILL.md` (Read it; never cat it through Bash), then the prompt line again.
-- **test it:** run the test run, stage 9b of `run-protocol.md` (it asks
+- **test it:** run the test run, stage 9b in `run-review-install.md` (it asks
   `Test it anyway?` first when there are safety flags), then show the whole screen again
   with its `Test run:` line, and the prompt.
 - **rename:** ask for the new name, check it against the naming rule in
   `distill-rules.md`, set `name:` in the draft SKILL.md, redact the draft into a new
-  staging folder `<W>/staging/<new name>/` (stage 6 of `run-protocol.md`), re-run check,
+  staging folder `<W>/staging/<new name>/` (stage 6 in `run-distill.md`), re-run check,
   then show the whole screen again with the new target.
 - **cancel:** mark review done at once, so the cancelled run is not offered for resume:
 

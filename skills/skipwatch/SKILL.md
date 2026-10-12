@@ -70,7 +70,7 @@ Flags and what they do:
 | `--no-frames` | no `assets/frames/` in the generated skill (readers still read frames) |
 | `--provider free\|treg\|auto` | content providers for a URL. Default `auto` is the free route; it adds treg only when `config.toml` has `[providers.treg] enabled = true`. `treg` forces treg. treg calls are paid, capped per run and listed on the review screen; `--provider free` never makes one. Ignored for a local file |
 | `--cookies-from-browser <browser>` | passed to probe and ingest for a URL; the only way cookies are ever used |
-| `--fast` | skip the critic (stage 7 of `run-protocol.md`); confidence is then at most `medium` |
+| `--fast` | skip the critic (stage 7 in `run-distill.md`); confidence is then at most `medium` |
 | `--test` | test run before the review screen (never on a flagged skill without asking) |
 
 A flag not in this table is a usage error: reply with the usage line and stop. Do not
@@ -85,9 +85,11 @@ pieces, offer each install command and run only the ones the user accepts.
 
 ## Run the pipeline
 
-Follow `references/run-protocol.md` exactly. Read it now, before the first stage. It has
-the commands, the progress lines, the failure handling and the timing pattern. Load the
-other references when the protocol reaches them:
+Follow the run files in order, reading each when its stage starts:
+`references/run-engine.md` (stages 1 to 4, read it now: placeholders and conventions for
+every stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.md`
+(9 to 10 and resume). They hold the commands, progress lines and failure handling. Load
+the other references when a run file reaches them:
 
 - `references/distill-rules.md` before writing the outline (tags, verbatim, gaps,
   redaction, naming).
@@ -97,7 +99,7 @@ other references when the protocol reaches them:
 - `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
   text posts) and whenever a source behaves unexpectedly.
 
-Copy this checklist and tick it as the run goes; the numbers are the protocol's stages:
+Copy this checklist and tick it as the run goes; the numbers are the run files' stages:
 
 ```
 - [ ] 1 doctor (cached)
@@ -115,7 +117,8 @@ Copy this checklist and tick it as the run goes; the numbers are the protocol's 
 ## resume
 
 `/skipwatch resume [dir]` continues an interrupted run: run `<ENGINE> resume` as the
-`## Resume` section of `references/run-protocol.md` says, then carry on from its
+`## Resume` section of `references/run-review-install.md` says (read
+`references/run-engine.md` first for the conventions), then carry on from its
 `next_stage` with the flags saved in `run.json`. Failed runs keep `<W>/media/` for this.
 
 ### How a run talks
@@ -132,7 +135,7 @@ Copy this checklist and tick it as the run goes; the numbers are the protocol's 
   user said yes to that provider by name, and then only with `--backend <name>`. `--yes`
   is never that consent.
 - Long stages run with the Bash tool's `timeout: 600000`, or in the background with
-  polling past 500 s (run-protocol.md conventions).
+  polling past 500 s (`run-engine.md` conventions).
 - Never fail a run for a missing optional dependency. Degrade, keep going, and say so on
   the review screen. Example: no captions, no Whisper and the install declined
   means frames only, with the install command listed under Unverified.
@@ -145,7 +148,7 @@ context bounded and keeps untrusted pixels out of the session that holds Bash.
 
 Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says: do not start other agents; and states a time budget.
 Use the namespaced agent types `skipwatch:frame-reader`, `skipwatch:skill-critic` and
-`skipwatch:skill-tester`, with the prompts `run-protocol.md` gives (5 minutes for readers
+`skipwatch:skill-tester`, with the prompts the run files give (5 minutes for readers
 and the critic, 10 for the tester).
 
 Dispatch one reader per batch in `batches.json`, all in one message so they run in
@@ -156,7 +159,7 @@ failure marks its frames unread and the review screen says so.
 
 - Every prose block passes through `<ENGINE> redact --stdin` before it reaches staging.
   Write the raw file to `<W>/draft/` with Write, then redact it file to file
-  into staging, as `run-protocol.md` stage 6 shows. Never put draft or video text inside
+  into staging, as stage 6 in `run-distill.md` shows. Never put draft or video text inside
   a Bash command; no shell ever parses it.
 - Verbatim means verbatim: copy prompts, commands, code and settings exactly as
   the notes give them; `[illegible at mm:ss]` for what cannot be read.
@@ -183,7 +186,7 @@ with different inputs to get past it.
 | 2 | probe, ingest | `Unsupported source: <engine message>.` It names the platform or the extension tried. |
 | 3 | probe, ingest | `Download failed:` then every route line and its reason, then the fix the engine names. |
 | 4 | probe, ingest | `This content is private or needs a login: <engine message>.` then `Re-run with --cookies-from-browser <browser> if you can open it logged in.` |
-| 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message `run-protocol.md` gives for that stage (ingest, frames, or no transcript and no frames) |
+| 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message `run-engine.md` gives for that stage (ingest, frames, or no transcript and no frames) |
 | 3, 7 or 8 | transcribe | do not stop: continue from frames only and list `no transcript: <the engine's message>` under Unverified; exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"`, with `<ENGINE>` expanded to the full command (plain `skipwatch` is not on PATH). |

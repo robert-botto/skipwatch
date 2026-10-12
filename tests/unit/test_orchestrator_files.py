@@ -22,6 +22,18 @@ INJECTION_2 = (
 )
 
 
+RUN_FILES = [REFS / "run-engine.md", REFS / "run-distill.md", REFS / "run-review-install.md"]
+
+
+def protocol() -> str:
+    """The three run files in stage order, so ordering checks span the split."""
+    return "\n".join(read(path) for path in RUN_FILES)
+
+
+def protocol_flat() -> str:
+    return re.sub(r"\s+", " ", protocol())
+
+
 def logged(stage: str, work: str = "<W>") -> str:
     """An engine stage run with the engine's own log and timer (`--log` before the command)."""
     return f'{ENGINE} --log "{work}/logs/{stage}.log" {stage}'
@@ -50,8 +62,16 @@ def body(path: Path) -> str:
 
 
 def test_all_references_exist():
-    for name in ("run-protocol", "skill-template", "distill-rules", "review-screen", "platforms"):
+    names = ("skill-template", "distill-rules", "review-screen", "platforms", "sharing")
+    for name in (*names, "run-engine", "run-distill", "run-review-install"):
         assert (REFS / f"{name}.md").is_file(), name
+
+
+def test_run_protocol_is_split_into_three_run_files():
+    # read whole, one stage group at a time, each linked straight from SKILL.md
+    assert not (REFS / "run-protocol.md").exists()
+    for path in [*SKILL.rglob("*.md"), *(ROOT / "agents").glob("*.md")]:
+        assert "run-protocol" not in read(path), path
 
 
 def test_no_em_dash_in_orchestrator_files():
@@ -62,7 +82,7 @@ def test_no_em_dash_in_orchestrator_files():
 
 
 def test_run_protocol_stage_commands():
-    text = read(REFS / "run-protocol.md")
+    text = protocol()
     for stage in ("ingest", "transcribe", "frames", "plan", "install", "probe"):
         assert logged(stage) in text, stage
     for stage in ("check", "doctor --json"):
@@ -72,7 +92,7 @@ def test_run_protocol_stage_commands():
 
 
 def test_run_protocol_doctor_cached_by_mtime():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "doctor.json" in text and "24 h" in text
     assert "-mmin -1440" in text  # mtime, since doctor.json has no timestamp field
     # the engine's own exit code and stderr are captured, so the 127 branch can fire
@@ -82,7 +102,7 @@ def test_run_protocol_doctor_cached_by_mtime():
 
 
 def test_run_protocol_logs_per_stage():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "<W>/logs/<stage>.log" in text
     assert "run.log" not in text
 
@@ -93,7 +113,7 @@ def test_mark_and_validator_exits_are_handled():
         for line in read(path).splitlines():
             if re.search(r"<ENGINE> (?:--log \S+ )?mark ", line):
                 assert '--log "<W>/logs/mark.log" mark ' in line, (path, line)
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "A non-zero `mark` rc stops the run with its stderr" in text
     assert "Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2" in text
     assert "A second exit 64 for the same command stops" in text
@@ -106,20 +126,20 @@ def test_engine_times_and_logs_stages_itself():
         assert "T0=" not in text and "date +%s" not in text, path
         for log, command in re.findall(r'--log "[^"]*/logs/([a-z-]+)\.log" ([a-z-]+)', text):
             assert log == command, (path, log, command)  # one log per stage, named after it
-    protocol = flat(REFS / "run-protocol.md")
+    protocol = protocol_flat()
     assert "`rc=<n> elapsed=<s>s`" in protocol and "last 3 lines" in protocol
     assert "No `rc=` line means the engine never started" in protocol
 
 
 def test_run_protocol_frames_exit_7_and_audio_only():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Exit 7 (no media, or the video could not be read)" in text
     assert "audio-only file exits 0 with an empty `frames.json`" in text
 
 
 def test_run_protocol_work_path():
     # G5 golden run: a hand-built path ignored SKIPWATCH_HOME; the engine makes the folder
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "<ENGINE> new-work --slug <slug> --json" in text
     assert "take `<W>` only from its output" in text
     assert "Never build the work path by hand" in text
@@ -127,7 +147,7 @@ def test_run_protocol_work_path():
 
 
 def test_run_protocol_parallel_readers_and_r_dis_4():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "agent type `skipwatch:frame-reader`" in text
     assert "use `frame-reader` if" not in text  # no un-namespaced fallback
     assert "Output path: <W>/<notes_path>" in text and "verbatim" in text
@@ -141,7 +161,7 @@ def test_run_protocol_parallel_readers_and_r_dis_4():
 
 
 def test_run_protocol_redaction_and_check_loop():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Every prose block goes through `<ENGINE> redact --stdin`" in text  # R-CHK-2
     # the draft reaches redact through files only: no shell ever parses draft text
     assert (
@@ -153,7 +173,7 @@ def test_run_protocol_redaction_and_check_loop():
 
 
 def test_run_protocol_ux_rules():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "one line naming the stage and the elapsed seconds" in text  # R-UX-2
     assert "No question is asked except the review prompt" in text  # R-UX-1
     assert "A missing optional dependency is never fatal" in text  # R-TIER-2
@@ -161,7 +181,7 @@ def test_run_protocol_ux_rules():
 
 
 def test_run_protocol_yes_gate():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert (
         "Under `--yes`, install without asking only if safety flags, gaps and name "
         "collisions are all zero" in text
@@ -330,7 +350,8 @@ def test_skill_md_description_says_what_and_when():
 
 def test_skill_md_body():
     text = flat(SKILL / "SKILL.md")
-    assert "references/run-protocol.md" in text
+    for run_file in RUN_FILES:
+        assert f"references/{run_file.name}" in text, run_file
     assert "frame-reader" in text
     assert INJECTION_1 in text
     assert "Never Read a frame image yourself" in text  # R-DIS-4
@@ -528,7 +549,7 @@ def test_engine_defined_once_in_skill_md():
 def test_non_engine_exit_codes_mapped():
     # uv panics (101), missing or unrunnable commands (127, 126) and uv's own argument
     # errors mean the engine never started; the protocol stops instead of guessing.
-    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+    for path in (SKILL / "SKILL.md", REFS / "run-engine.md"):
         text = flat(path)
         for code in ("101", "126", "127"):
             assert code in text, (path, code)
@@ -552,7 +573,7 @@ def test_instructions_without_the_backstory():
     skill = flat(SKILL / "SKILL.md")
     assert "Never invoke uv yourself to run the engine" in skill
     assert "fails inside the Bash sandbox" not in skill
-    protocol = flat(REFS / "run-protocol.md")
+    protocol = protocol_flat()
     assert "can have different permissions" not in protocol
     assert "before check takes the file hashes" not in protocol
 
@@ -563,7 +584,7 @@ def test_no_heredoc_in_prompt_files():
 
 
 def test_video_text_never_in_bash():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "never appears inside a Bash command" in text
 
 
@@ -641,7 +662,7 @@ def test_every_tool_used_grader_is_covered():
 
 def test_work_folder_falls_back_inside_the_workspace():
     # eval sandboxes confine writes to the workspace, so $HOME/.skipwatch may be read-only
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "If `new-work` fails" in text
     assert 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work --slug <slug> --json' in text
     assert 'SKIPWATCH_HOME="$PWD/.skipwatch"' in text
@@ -653,7 +674,7 @@ def test_work_folder_falls_back_inside_the_workspace():
 def test_check_hint_uses_the_full_engine_command():
     # `skipwatch` is on PATH only after an optional `uv tool install`
     hint = 'Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"'
-    for path in (SKILL / "SKILL.md", REFS / "run-protocol.md"):
+    for path in (SKILL / "SKILL.md", REFS / "run-distill.md"):
         text = flat(path)
         assert hint in text, path
         assert "run skipwatch check" not in text and "run: skipwatch check" not in text, path
@@ -693,7 +714,7 @@ def test_exit_7_has_one_wording_per_stage():
     # SKILL.md defers to the stage's own message, so the two files never disagree
     skill = read(SKILL / "SKILL.md")
     [row] = [line for line in skill.splitlines() if line.startswith("| 7 |")]
-    assert "the message `run-protocol.md` gives for that stage" in row
+    assert "the message `run-engine.md` gives for that stage" in row
     assert "No usable content" not in skill
 
 
@@ -718,7 +739,7 @@ def test_doctor_grant_agrees_between_plan_and_eval():
 
 
 def test_stage_2_probes_the_write_tool():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # mkdir through Bash can succeed where the Write tool is denied (eval sandboxes)
     assert "use the Write tool to write `<W>/logs/.write-probe` with the content `ok`" in text
     assert "If that Write is denied or fails" in text
@@ -726,20 +747,20 @@ def test_stage_2_probes_the_write_tool():
 
 
 def test_later_write_denial_switches_once_then_stops():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "If a later Write is denied" in text
     assert "re-run the engine stages already done" in text
     assert "Switch once; a second denial stops the run" in text
 
 
 def test_fallback_home_is_git_ignored():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "`<P>/.skipwatch/.gitignore`" in text and "containing `*`" in text
     assert "printf '*\\n' >" in text  # fixed content, no video text in the shell
 
 
 def test_readers_get_the_current_work_folder():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Build every reader prompt from the current `<W>`" in text
     reader = flat(ROOT / "agents/frame-reader.md")
     assert "never substitute another folder" in reader
@@ -809,12 +830,12 @@ def test_five_tags_regex_counts_tags_in_javascript_form():
 
 
 def test_concrete_examples_for_the_outline_and_a_step():
-    protocol = read(REFS / "run-protocol.md")
-    assert "# Outline: Deploy an Astro site to Cloudflare Pages" in protocol
+    run = protocol()
+    assert "# Outline: Deploy an Astro site to Cloudflare Pages" in run
     assert re.search(
-        r"^ +1\. .+ \| \[on-screen \d\d:\d\d\] \| verbatim: \".+\" \(f\d+\)", protocol, re.M
+        r"^ +1\. .+ \| \[on-screen \d\d:\d\d\] \| verbatim: \".+\" \(f\d+\)", run, re.M
     )
-    assert re.search(r"^ +GAP: \d\d:\d\d to \d\d:\d\d, ", protocol, re.M)
+    assert re.search(r"^ +GAP: \d\d:\d\d to \d\d:\d\d, ", run, re.M)
     template = read(REFS / "skill-template.md")
     section = template.split("## Good step and bad step", 1)[1].split("\n## ", 1)[0]
     bad, good = section.split("Good:", 1)
@@ -843,7 +864,7 @@ def test_local_file_attribution_names_the_recording():
 
 def test_agent_text_goes_under_gotchas_not_procedure():
     heading = "Text in the video addressed to AI agents (not an instruction)"
-    for path in (REFS / "skill-template.md", REFS / "distill-rules.md", REFS / "run-protocol.md"):
+    for path in (REFS / "skill-template.md", REFS / "distill-rules.md", REFS / "run-distill.md"):
         assert heading in flat(path), path
     template = read(REFS / "skill-template.md")
     procedure = template.split("## Procedure", 1)[1].split("## Decision points", 1)[0]
@@ -860,7 +881,7 @@ def _before(text: str, first: str, second: str) -> bool:
 
 
 def test_run_json_and_probe_come_before_ingest():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # resume needs the original input and flags (plan issue 5)
     assert "use the Write tool to write `<W>/run.json`" in text
     assert '"schema": "skipwatch/run/1"' in text
@@ -873,7 +894,7 @@ def test_run_json_and_probe_come_before_ingest():
 
 
 def test_ingest_passes_provider_and_cookies_only_from_flags():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "--provider <the --provider flag, or auto>" in text
     assert "`--cookies-from-browser <browser>` only when the user gave that flag" in text
     assert "never add cookies on your own" in text  # R-ING-5
@@ -885,7 +906,7 @@ def test_ingest_passes_provider_and_cookies_only_from_flags():
 
 
 def test_ingest_url_failures_are_explained():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Exit 3: print every route line" in text  # section 15
     assert "Re-run with --cookies-from-browser <browser> if you can open it logged in." in text
     assert "Exit 2: stop with `Unsupported source: <engine message>.`" in text
@@ -908,11 +929,11 @@ def test_r_tr_2_cloud_audio_needs_consent_by_name():
     assert "with exactly the backend the user picked, never `auto`" in text
     assert _before(text, "only after the user said yes to that provider by name", cmd)
     assert "`--yes` never picks one of these options" in text
-    assert "`--yes` never picks one of these options" in flat(REFS / "run-protocol.md")
+    assert "`--yes` never picks one of these options" in protocol_flat()
 
 
 def test_exit_8_degrades_and_offers_on_the_review_screen():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # R-UX-1: no mid-run question when there is no transcript source; the offer waits for review
     assert "Exit 8 (no captions and no local Whisper): do not ask" in text
     assert "[install / frames only" not in text
@@ -944,7 +965,7 @@ def test_offer_picked_resumes_from_transcribe():
 
 
 def test_questions_allowed_in_a_run_are_listed():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "No question is asked except the review prompt" in text  # R-UX-1
     assert "one named exception" in text
     assert "two named exceptions" not in text
@@ -955,7 +976,7 @@ def test_questions_allowed_in_a_run_are_listed():
 
 
 def test_long_video_question_only_without_yes():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "without `--yes`, ask once `Continue? [yes / cancel]`" in text
     assert "Under `--yes` do not ask" in text
     # N1: an unknown estimate is said, not invented
@@ -963,7 +984,7 @@ def test_long_video_question_only_without_yes():
 
 
 def test_long_stages_avoid_the_bash_timeout():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "120 s" not in text  # Claude knows the Bash default; only the instruction stays
     assert "timeout: 600000" in text
     assert "run that stage with `run_in_background`" in text
@@ -975,7 +996,7 @@ def test_long_stages_avoid_the_bash_timeout():
 
 
 def test_transcribe_exit_3_and_7_quote_the_engine():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # S1: exit 7 has several causes; quote the engine instead of guessing one
     assert "captions file had no usable text" not in text
     assert "no transcript: <the engine's message>" in text
@@ -984,13 +1005,13 @@ def test_transcribe_exit_3_and_7_quote_the_engine():
 
 
 def test_thorough_uses_the_large_whisper_model():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "--model large-v3-turbo" in text  # 3.4 faster-whisper under --thorough
     assert "`whisper-mlx`" in text
 
 
 def test_silent_video_path():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert '`"silent": true`' in text
     assert "Silent video: leaning on frames and post text." in text
     assert "prefer `[on-screen]` and `[written]` tags" in text
@@ -1000,8 +1021,8 @@ def test_resume_command():
     skill = flat(SKILL / "SKILL.md")
     assert "| `resume` | the resume section below |" in skill
     assert "`<ENGINE> resume`" in skill
-    text = flat(REFS / "run-protocol.md")
-    assert "## Resume" in read(REFS / "run-protocol.md")
+    text = protocol_flat()
+    assert "## Resume" in protocol()
     assert '<ENGINE> resume "<dir>" --json' in text
     for field in ("`next_stage`", "`run`", "`media_present`", "`completed`"):
         assert field in text, field
@@ -1011,7 +1032,7 @@ def test_resume_command():
 
 
 def test_media_kept_for_resume_on_failure():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "keep `<W>/media/` on every stop" in text  # 3.4 media retention
     assert 'rm -rf "<W>/media"' in text
 
@@ -1024,14 +1045,14 @@ def test_review_screen_reports_cache():
 
 
 def test_check_retry_removes_or_fixes_an_unredactable_file():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "the single retry removes or fixes that file" in text  # 8.7
     for kind in ("archive", "binary", "secret in its file name", "split across lines"):
         assert kind in text, kind
 
 
 def test_referenced_frames_copied_into_staging_before_check():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert (
         "Before stage 8, copy each frame the skill references into "
         "`<W>/staging/<name>/assets/frames/`" in text
@@ -1075,7 +1096,7 @@ def test_doctor_case_judges_three_samples():
 
 
 def test_safety_rules_have_negative_and_ordering_guards():
-    text = read(REFS / "run-protocol.md")
+    text = protocol()
     # R-ING-5: every engine command that mentions cookies has them as an optional [..] part
     cookie_lines = [
         line
@@ -1086,7 +1107,7 @@ def test_safety_rules_have_negative_and_ordering_guards():
     for line in cookie_lines:
         assert "[--cookies-from-browser <browser>]" in line, line
     # R-TR-2: no command line in any reference sends audio to a cloud backend under auto
-    for path in (REFS / "run-protocol.md", REFS / "review-screen.md", SKILL / "SKILL.md"):
+    for path in (*RUN_FILES, REFS / "review-screen.md", SKILL / "SKILL.md"):
         for line in read(path).splitlines():
             assert not re.search(r"--backend (openai|groq|deepgram)\b", line), (path, line)
     # R-REV-1: no install without the user's answer, and --yes only with nothing to review
@@ -1118,7 +1139,7 @@ def test_cloud_transcript_rebuilds_like_the_whisper_path():
 
 
 def test_redispatch_only_the_missing_frames_and_merge():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # a reader that skipped one frame of 20 gets those frames read again, not the batch
     assert "dispatch one reader for just those frame ids" in text
     assert "`notes/batch-02.retry.json`" in text
@@ -1137,7 +1158,7 @@ def test_unread_frames_are_reported_not_counted_as_gaps():
     assert "Unread frames are not gaps" in review
     assert "Unread frames never block `--yes`" in review
     assert "each unread frame range" not in review  # no longer under Unverified
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Unread frames are not gaps" in text
     assert "never write a `GAP:` line for a frame that is only unread" in text
     assert "unread frames do not count" in text  # the --yes gate in stage 8
@@ -1167,7 +1188,7 @@ def test_frame_reader_writes_one_entry_per_listed_frame():
 
 
 def test_claude_stages_are_marked_in_stages_json():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
 
     def mark(stage, status):
         return logged("mark") + f' --work "<W>" --stage {stage} --status {status}'
@@ -1203,7 +1224,7 @@ def test_unread_cue_frames_stay_gaps_and_others_are_informational():
     rules = flat(REFS / "distill-rules.md")
     assert "`reason` is `cue`" in rules
     assert "differs from both neighbours" in rules
-    assert "unread frames do not count, except unread cue frames" in flat(REFS / "run-protocol.md")
+    assert "unread frames do not count, except unread cue frames" in protocol_flat()
 
     def gaps(line):
         return counts_for(parse(f"---\nname: x\n---\n\n## Unverified and gaps\n\n- {line}\n")).gaps
@@ -1217,7 +1238,7 @@ REVIEW_DONE = logged("mark") + ' --work "<W>" --stage review --status done'
 
 def test_review_done_only_after_install_or_cancel():
     # a failed or interrupted install must stay resumable, so yes waits for install exit 0
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "mark review done only after install exits 0" in text
     assert _before(text, logged("install") + ' "<W>/staging/<name>"', REVIEW_DONE)
     assert "before stage 9, so a finished" not in text
@@ -1229,23 +1250,23 @@ def test_review_done_only_after_install_or_cancel():
 
 def test_review_running_marked_when_the_screen_is_printed():
     # the review stage's timing must not include check (stage 7)
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     running = logged("mark") + ' --work "<W>" --stage review --status running'
     assert _before(text, "Print the review screen in the exact format", running)
     assert "as you print the review screen" in text
-    stage9 = read(REFS / "run-protocol.md").split("## Stage 9: review", 1)[1]
+    stage9 = protocol().split("## Stage 9: review", 1)[1]
     assert not stage9.lstrip().startswith("<ENGINE> --log")
 
 
 def test_install_is_marked_done_after_it_succeeds():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     install_done = logged("mark") + ' --work "<W>" --stage install --status done'
     assert _before(text, logged("install") + ' "<W>/staging/<name>"', install_done)
     assert _before(text, install_done, "Then print two lines")
 
 
 def test_critique_is_marked_around_the_critic_not_unconditionally():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     running = logged("mark") + ' --work "<W>" --stage critique --status running'
     done = logged("mark") + ' --work "<W>" --stage critique --status done'
     assert "# no critic before M5" not in text
@@ -1261,7 +1282,7 @@ def test_critique_is_marked_around_the_critic_not_unconditionally():
 
 
 def test_text_sources_skip_the_video_stages():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert '`source.kind` is `"text"`' in text
     assert "skip transcribe, frames, plan and read" in text
     assert "`context.post_text`, `context.thread` and `context.links`" in text
@@ -1273,7 +1294,7 @@ def test_text_sources_skip_the_video_stages():
 
 
 def test_context_wins_over_frames():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert (
         "When `context` and the frames disagree, context wins and the step is tagged "
         "`[written]`" in text
@@ -1281,7 +1302,7 @@ def test_context_wins_over_frames():
 
 
 def test_linked_video_post_credits_the_linked_author():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "the video came from a linked post" in text
     review = flat(REFS / "review-screen.md")
     assert "  video came from a linked post: <url>" in read(REFS / "review-screen.md")
@@ -1297,7 +1318,7 @@ def test_cookies_runs_cannot_be_packed():
 
 
 def test_platform_specific_failures():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Instagram often needs a login. Re-run with --cookies-from-browser <browser>." in text
     assert "This post has no video. Enable treg (Tier 3) to read text posts." in text
     # Facebook media comes from the free route only (spike decision 4)
@@ -1325,12 +1346,12 @@ def test_no_hand_built_skipwatch_home_paths():
         assert "$HOME/.skipwatch" not in text, path
         assert "~/.skipwatch" not in text, path
         assert "${SKIPWATCH_HOME:-$HOME/.skipwatch}/work/" not in read(path), path
-    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    resume = protocol_flat().split("## Resume", 1)[1]
     assert "Set `<W>` to `work`" in resume  # resume's folder comes from the engine too
 
 
 def test_protocol_matches_the_merged_m3_engine():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # M5 decision 3: the X adapter writes the linked-post note into IngestBundle.notes;
     # bundles cached before that change still carry it in route.fallbacks
     assert "`notes` in `ingest.json` has `video came from a linked post: <url>`" in text
@@ -1339,7 +1360,7 @@ def test_protocol_matches_the_merged_m3_engine():
     linked = review.split("**Linked post:**", 1)[1].split("- **", 1)[0]
     assert "`notes` in `<W>/ingest.json`" in linked
     # the legacy cache branch lives once, at the end, out of the main flow
-    for path in (REFS / "run-protocol.md", REFS / "review-screen.md"):
+    for path in (REFS / "run-engine.md", REFS / "review-screen.md"):
         main, old = read(path).split("\n## Old patterns\n", 1)
         assert "route.fallbacks` instead of `notes`" in old, path
         assert "cached before" not in main, path
@@ -1350,7 +1371,7 @@ def test_protocol_matches_the_merged_m3_engine():
 
 def test_fallback_removes_the_abandoned_work_folder():
     # an orphan folder under the old home would be picked by a no-folder resume
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert 'rm -rf "<W>"' in text
     assert "only the exact path `new-work` printed" in text
     assert _before(text, 'rm -rf "<W>"', 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work')
@@ -1358,14 +1379,14 @@ def test_fallback_removes_the_abandoned_work_folder():
 
 def test_text_resume_continues_from_the_first_missing_late_stage():
     # restarting a text run at stage 5 would redo distill and overwrite staging
-    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    resume = protocol_flat().split("## Resume", 1)[1]
     assert "the engine's `next_stage` already skips them" in resume
     assert "the first of distill, critique, check, review and install not yet done" in resume
     assert "go to stage 5, or" not in resume
 
 
 def test_slug_rule_is_spelled_out():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "map every character outside `[a-z0-9-]` to `-`" in text
     assert "collapse repeated hyphens, trim hyphens from both ends" in text
     assert "cut to 80 characters for a file stem and 40 for a URL" in text
@@ -1402,7 +1423,7 @@ def test_treg_cost_cap_is_surfaced():
     assert "`treg: cost cap reached`" in review  # the engine's route.fallbacks entry
     assert "`; treg cost cap reached ($<max_cost_usd>)`" in review
     assert "`[providers.treg] max_cost_usd`" in review
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "treg cost cap reached" in text  # said in the ingest progress line too
 
 
@@ -1412,7 +1433,7 @@ def test_cross_check_flags_disagreement_and_is_never_a_step_source():
     assert "  transcript sources disagree: <similarity>" in review_raw
     review = flat(REFS / "review-screen.md")
     assert "`Transcribe: warning: transcript sources disagree:`" in review  # engine's line
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "`cross_check` only to flag disagreements, never as a step source" in text
     assert "`context.thread` and `context.author_replies`" in text
     # the engine warns only when Dice and overlap are both low; never recompute it
@@ -1420,7 +1441,7 @@ def test_cross_check_flags_disagreement_and_is_never_a_step_source():
 
 
 def test_provider_flag_and_treg_login_message():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "--provider <the --provider flag, or auto>" in text  # passthrough, unchanged
     # the engine's own exit 8 line (ingest.py), quoted exactly, then the free-route hint
     assert "treg is not installed or not logged in: run `treg login`" in text
@@ -1523,11 +1544,11 @@ def test_skill_md_checklist_matches_the_protocol_stages():
     assert "Copy this checklist and tick it as the run goes" in skill
     items = re.findall(r"^- \[ \] (\d+) ", skill, re.M)
     assert items == [str(n) for n in range(1, 11)]
-    protocol = read(REFS / "run-protocol.md")
-    stages = re.findall(r"^## Stage (\d+): ", protocol, re.M)
+    run = protocol()
+    stages = re.findall(r"^## Stage (\d+): ", run, re.M)
     assert stages == items  # one checklist line per numbered stage, same numbers
     for stale in ("6b", "## Test run\n"):
-        assert stale not in protocol, stale
+        assert stale not in run, stale
 
 
 def test_skill_md_routes_sharing_commands_and_m5_flags():
@@ -1552,20 +1573,20 @@ CRITIC_PROMPT = [
 
 
 def test_stage_7_dispatches_the_critic_with_the_exact_prompt():
-    raw = read(REFS / "run-protocol.md")
+    raw = protocol()
     assert "## Stage 7: critique" in raw
     stage = raw.split("## Stage 7: critique", 1)[1].split("\n## Stage 8", 1)[0]
     assert "agent type `skipwatch:skill-critic`" in stage
     lines = [line.strip() for line in stage.splitlines()]
     start = lines.index(CRITIC_PROMPT[0])
     assert lines[start : start + len(CRITIC_PROMPT)] == CRITIC_PROMPT
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert _before(text, "## Stage 6: draft", "## Stage 7: critique")
     assert _before(text, "## Stage 7: critique", "## Stage 8: check")
 
 
 def test_stage_7_keeps_evidence_validates_and_degrades():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # plan issue 19: the pre-critic draft is the evidence that the critic changed a step
     assert 'cp -R "<W>/draft" "<W>/draft-pre-critic"' in text
     assert _before(text, 'cp -R "<W>/draft" "<W>/draft-pre-critic"', "skipwatch:skill-critic")
@@ -1582,7 +1603,7 @@ def test_stage_7_keeps_evidence_validates_and_degrades():
 
 
 def test_fast_skips_the_critic():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Critic pass: skipped (--fast)" in text
     assert "`critic not run`" in text
 
@@ -1600,7 +1621,7 @@ TESTER_PROMPT = [
 
 
 def test_test_run_dispatches_the_tester_and_validates_its_report():
-    raw = read(REFS / "run-protocol.md")
+    raw = protocol()
     assert "\n## Stage 9b: test run\n" in raw
     section = raw.split("\n## Stage 9b: test run\n", 1)[1].split("\n## ", 1)[0]
     assert "agent type `skipwatch:skill-tester`" in section
@@ -1618,7 +1639,7 @@ def test_test_run_dispatches_the_tester_and_validates_its_report():
 
 
 def test_test_run_asks_before_flagged_steps_and_repairs_once():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     # plan issue 21: one question, and the tester stops before the flagged steps
     assert "Test it anyway? The tester stops before steps <list>. [yes / no]" in text
     assert "A test run never happens under `--yes` unless `--test` was also given" in text
@@ -1628,7 +1649,7 @@ def test_test_run_asks_before_flagged_steps_and_repairs_once():
 
 
 def test_stage_9_runs_the_test_under_test_flag_and_names_critic_reasons():
-    raw = read(REFS / "run-protocol.md")
+    raw = protocol()
     stage9 = raw.split("## Stage 9: review", 1)[1].split("## Stage 9b", 1)[0]
     stage9 = re.sub(r"\s+", " ", stage9)
     assert "Under `--test`" in stage9 and "before printing the screen" in stage9
@@ -1644,25 +1665,25 @@ STAR = (
 
 
 def test_stage_10_star_nudge_share_line_and_draft_cleanup():
-    raw = read(REFS / "run-protocol.md")
+    raw = protocol()
     stage10 = raw.split("## Stage 10: install", 1)[1].split("\n## Resume", 1)[0]
-    stage9 = re.sub(r"\s+", " ", stage10)
+    stage10 = re.sub(r"\s+", " ", stage10)
     # plan issue 23: once per home, after the two install lines
-    assert STAR in stage9
-    assert _before(stage9, "Then print two lines", ".star-nudged")
-    assert "/skipwatch share <name> prints a thank-you post for the creator." in stage9
+    assert STAR in stage10
+    assert _before(stage10, "Then print two lines", ".star-nudged")
+    assert "/skipwatch share <name> prints a thank-you post for the creator." in stage10
     # acceptance item 4 reads draft-pre-critic after the run, so the env var keeps both
     cleanup = (
         'test "$SKIPWATCH_KEEP_DRAFTS" = 1 || '
         'rm -rf "<W>/draft" "<W>/draft-pre-critic" "<W>/test-run" '
         '"<P>/.skipwatch/test-run-<name>"'
     )
-    assert cleanup in stage9
-    assert "SKIPWATCH_KEEP_DRAFTS" in stage9
+    assert cleanup in stage10
+    assert "SKIPWATCH_KEEP_DRAFTS" in stage10
 
 
 def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
-    resume = flat(REFS / "run-protocol.md").split("## Resume", 1)[1]
+    resume = protocol_flat().split("## Resume", 1)[1]
     assert (
         "`critique`: stage 7 when `<W>/staging/<name>/SKILL.md` exists, then stage 8; "
         "otherwise as `read`" in resume
@@ -1681,7 +1702,7 @@ def test_review_screen_confidence_and_test_run_line():
     assert "directly after `Confidence:`" in review
     assert "keep the shape above" in review
     answer = review.split("**test it:**", 1)[1].split("- **", 1)[0]
-    assert "stage 9b of `run-protocol.md`" in answer
+    assert "stage 9b in `run-review-install.md`" in answer
     assert "Test it anyway?" in answer
 
 
@@ -1752,7 +1773,7 @@ def test_share_exit_2_maps_only_the_messages_it_knows():
 
 
 def test_critic_reasons_are_exclusive():
-    for path in (REFS / "run-protocol.md", REFS / "review-screen.md"):
+    for path in (REFS / "run-review-install.md", REFS / "review-screen.md"):
         text = flat(path)
         assert "`critic not run` only under `--fast`" in text, path
         assert "only `critic failed twice`, never `critic not run`" in text, path
@@ -1760,7 +1781,7 @@ def test_critic_reasons_are_exclusive():
 
 
 def test_copy_frames_exit_7_drops_the_links_and_continues():
-    text = flat(REFS / "run-protocol.md")
+    text = protocol_flat()
     assert "Exit 7 (`frames.json` or a frame file is missing)" in text
     assert "remove those image links from the draft" in text
     assert "`frames not copied: <the engine's message>` under Unverified" in text
