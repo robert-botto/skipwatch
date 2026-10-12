@@ -243,8 +243,8 @@ Run each with `--log`, as the conventions show:
      `or re-run with --provider free.`
      Under `auto` a missing or logged-out treg is skipped silently by the engine.
    - treg (Tier 3) is opt-in and paid. `auto` is the free route unless `config.toml` has
-     `[providers.treg] enabled = true` (the default is `false`; doctor reports treg as
-     available but off and names that line); then `auto` adds treg when it is logged in.
+     `[providers.treg] enabled = true` (the default is `false`; doctor then reports
+     `treg: logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg`); then `auto` adds treg when it is logged in.
      `--provider treg` forces it, `--provider free` never calls it. The engine makes
      every treg call, logs it in `calls.json`, reviews it and stops at the
      per-run cost cap. Never run `treg` yourself, and never print the treg balance.

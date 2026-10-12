@@ -1496,6 +1496,15 @@ def test_provider_flag_and_treg_login_message():
     assert "`[providers.treg] enabled = true`" in text
     assert "`auto` is the free route unless" in text
     assert "`--provider treg` forces it" in text
+    # doctor's own line, quoted exactly (doctor.py)
+    from skipwatch import doctor
+
+    line = (
+        "treg: logged in, off: set [providers.treg] enabled = true in config.toml, "
+        "or pass --provider treg"
+    )
+    assert line in text
+    assert line.split("treg: ", 1)[1] in Path(doctor.__file__).read_text(encoding="utf-8")
     assert "is not `false` (`true` or `auto`)" not in text
     for path in (SKILL / "SKILL.md", README_PATH):
         doc = flat(path)
