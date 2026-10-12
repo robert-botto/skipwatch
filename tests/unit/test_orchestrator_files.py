@@ -240,8 +240,6 @@ def test_no_traceability_tags_in_prompt_files():
     assert TRACE_TAG.search("(R-UX-1)") and TRACE_TAG.search("at most 8 (3.4)")
     assert TRACE_TAG.search("(plan issue 5)") and TRACE_TAG.search("## X (M3)")
     for path in [*SKILL.rglob("*.md"), *(ROOT / "agents").glob("*.md")]:
-        if path.name == "platforms.md":
-            continue  # rewritten whole in its own change
         found = TRACE_TAG.findall(read(path))
         assert not found, (path, found)
 
@@ -250,10 +248,21 @@ def test_platforms():
     text = read(REFS / "platforms.md")
     assert (
         "Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; "
-        "no captions means Tier 1 is needed (Whisper, M2)." in text
+        "no captions means Tier 1 is needed (Whisper)." in text
     )
-    for heading in ("YouTube (M2)", "X (M3)", "TikTok (M3)", "Instagram (M3)", "Facebook (M3)"):
-        assert f"## {heading}" in text, heading
+    for heading in ("YouTube", "X", "TikTok", "Instagram", "Facebook"):
+        assert f"\n## {heading}\n" in text, heading
+
+
+def test_platforms_is_for_users_not_developers():
+    text = read(REFS / "platforms.md")
+    # running treg contradicts "never run treg yourself"; review ids belong to the engine
+    assert "treg review" not in text and "treg call" not in text
+    assert "you never run yt-dlp or `treg` yourself" in flat(REFS / "platforms.md")
+    # time-sensitive and developer-only facts: versions, endpoint names, prices, fixtures
+    for stale in ("yt-dlp 20", "anyapi.", "treg.x.", "$0.0", "spike", "tests/fixtures", "G2"):
+        assert stale not in text, stale
+    assert not re.search(r"\(M\d\)", text)
 
 
 # ---- SKILL.md and frame-reader (Task M1-F2) ----
@@ -1343,11 +1352,11 @@ def _platform_section(name: str) -> str:
 
 def test_platforms_have_a_treg_subsection_each():
     expected = {
-        "YouTube (M2)": ("timed transcript", "hint only"),
-        "X (M3)": ("context.thread", "context.author_replies", "media fallback"),
-        "TikTok (M3)": ("media fallback", "hint only"),
-        "Instagram (M3)": ("media fallback", "never for post text"),
-        "Facebook (M3)": ("post text", "never a media fallback"),
+        "YouTube": ("timed transcript", "hint only"),
+        "X": ("context.thread", "context.author_replies", "media fallback"),
+        "TikTok": ("media fallback", "hint only"),
+        "Instagram": ("media fallback", "never for post text"),
+        "Facebook": ("post text", "never a media fallback"),
     }
     for name, phrases in expected.items():
         section = _platform_section(name)
