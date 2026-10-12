@@ -1181,3 +1181,11 @@ def test_text_resume_continues_from_the_first_missing_late_stage():
     assert "the engine's `next_stage` already skips them" in resume
     assert "the first of distill, critique, check, review and install not yet done" in resume
     assert "go to stage 5, or" not in resume
+
+
+def test_slug_rule_is_spelled_out():
+    text = flat(REFS / "run-protocol.md")
+    assert "map every character outside `[a-z0-9-]` to `-`" in text
+    assert "collapse repeated hyphens, trim hyphens from both ends" in text
+    assert "cut to 80 characters for a file stem and 40 for a URL" in text
+    assert "use `video` if nothing is left" in text

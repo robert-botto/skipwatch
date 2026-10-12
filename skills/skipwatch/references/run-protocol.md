@@ -93,11 +93,13 @@ Capture the engine's own exit code and stderr, not those of a later command:
 
 ## Stage 2: work folder and arguments
 
-The slug is the lowercased hyphenated file stem (or `--name` if given). Example: `Screen Recording
-2026-10-09 at 14.02.11.mov` gives slug `screen-recording-2026-10-09-at-14-02-11`. For a URL
-the slug is the host without `www.` plus the video id or last path segment, lowercased,
-hyphenated and cut to 40 characters: `https://www.youtube.com/watch?v=AbC_12` gives
-`youtube-com-abc-12`. Then let the engine create the work folder, with `logs/`, `draft/`
+The slug is `--name` if given. Otherwise start from the file stem, or for a URL from the
+host without `www.` plus the video id or last path segment, then: lowercase it, map every
+character outside `[a-z0-9-]` to `-`, collapse repeated hyphens, trim hyphens from both
+ends, and cut to 80 characters for a file stem and 40 for a URL (trimming a hyphen the cut
+leaves at the end); use `video` if nothing is left. Examples: `Screen Recording 2026-10-09
+at 14.02.11.mov` gives `screen-recording-2026-10-09-at-14-02-11`;
+`https://www.youtube.com/watch?v=AbC_12` gives `youtube-com-abc-12`. Then let the engine create the work folder, with `logs/`, `draft/`
 and `stages.json`, under its own home, and take `<W>` only from its output:
 
     <ENGINE> new-work --slug <slug> --json; echo "rc=$?"
