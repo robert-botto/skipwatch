@@ -85,10 +85,9 @@ One critic pass before check, so check's confidence sees its score:
 Under `--fast` skip steps 1 to 5: print `Critic pass: skipped (--fast)`, record the
 confidence reason `critic not run`, and go to step 6.
 
-1. Keep the pre-critic draft as evidence, as two Bash calls:
+1. Keep the pre-critic draft as evidence (it replaces an older copy):
 
-       rm -rf "<W>/draft-pre-critic"
-       cp -R "<W>/draft" "<W>/draft-pre-critic"
+       <ENGINE> --log "<W>/logs/snapshot-draft.log" snapshot-draft --work "<W>"
 
 2. Dispatch one Agent call with agent type `skipwatch:skill-critic` and no other. The
    prompt contains exactly these lines, filled in:

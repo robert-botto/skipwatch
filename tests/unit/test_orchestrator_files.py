@@ -1774,8 +1774,9 @@ def test_stage_7_dispatches_the_critic_with_the_exact_prompt():
 def test_stage_7_keeps_evidence_validates_and_degrades():
     text = protocol_flat()
     # plan issue 19: the pre-critic draft is the evidence that the critic changed a step
-    assert 'cp -R "<W>/draft" "<W>/draft-pre-critic"' in text
-    assert _before(text, 'cp -R "<W>/draft" "<W>/draft-pre-critic"', "skipwatch:skill-critic")
+    snapshot = logged("snapshot-draft") + ' --work "<W>"'
+    assert snapshot in text and "cp -R" not in text
+    assert _before(text, snapshot, "skipwatch:skill-critic")
     # plan issue 20: the engine checks the critic's file and recomputes its score
     assert logged("validate-critique") + ' --work "<W>" --skill "<W>/staging/<name>"' in text
     assert _before(text, "skipwatch:skill-critic", logged("validate-critique"))
