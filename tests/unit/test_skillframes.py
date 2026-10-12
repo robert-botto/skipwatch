@@ -139,3 +139,17 @@ def test_copy_frames_refuses_paths_outside_the_frames_folder(tmp_path, where):
     assert exc.value.code == ExitCode.USAGE
     assert frame_id(2) in exc.value.message
     assert not dest.exists()
+
+
+def test_copy_frames_nul_in_a_frame_path_is_64_naming_the_frame(tmp_path):
+    work = make_work(tmp_path, [(100, 50), (100, 50)])
+    frames = FramesFile.model_validate_json((work / "frames.json").read_text("utf-8"))
+    frames.frames[1].path = "frames/bad\x00.jpg"
+    write_model(work / "frames.json", frames)
+    dest = tmp_path / "out"
+    r = CliRunner().invoke(
+        app, ["copy-frames", "--work", str(work), "--to", str(dest), frame_id(1), frame_id(2)]
+    )
+    assert r.exit_code == ExitCode.USAGE, r.stderr
+    assert frame_id(2) in r.stderr
+    assert not dest.exists()

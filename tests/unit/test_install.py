@@ -12,6 +12,7 @@ from skipwatch import installs
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.install import install, target_dir
+from skipwatch.manifest import file_hashes
 from skipwatch.models import (
     CheckReport,
     Counts,
@@ -43,9 +44,15 @@ def roots(tmp_path, monkeypatch, sw_home):
     return home, cwd
 
 
-def make_staging(root: Path, name: str = NAME, passed: bool = True, skill: str | None = None):
+def make_staging(
+    root: Path,
+    name: str = NAME,
+    passed: bool = True,
+    skill: str | None = None,
+    work: Path | None = None,
+):
     """A work folder holding staging/<name>/ and the check-report.json `skipwatch check` writes."""
-    work = root / "work" / "run-20261009-120000"
+    work = work or root / "work" / "run-20261009-120000"
     staging = work / "staging" / name
     (staging / "references").mkdir(parents=True)
     (staging / "SKILL.md").write_text(f"---\nname: {name}\n---\n\nnew body\n", encoding="utf-8")
@@ -292,6 +299,26 @@ def test_install_writes_file_hashes(roots, tmp_path):
     assert manifest.checks_passed is True
 
 
+def test_install_leaves_finder_and_explorer_junk_behind(roots, tmp_path):
+    home, _ = roots
+    staging = make_staging(tmp_path)
+    (staging / "references" / "deep").mkdir()
+    junk = [staging / "references" / "Thumbs.db", staging / "references" / "deep" / ".DS_Store"]
+    for path in junk:
+        path.write_bytes(b"junk")
+    earlier = (staging.parent.parent / "check-report.json").stat().st_mtime - 10
+    for path in [*junk, *(p for p in staging.rglob("*") if p.is_dir())]:
+        os.utime(path, (earlier, earlier))
+    install(staging, None, None, force=False)
+    target = home / ".claude/skills" / NAME
+    assert not (target / "references" / "Thumbs.db").exists()
+    assert not (target / "references" / "deep" / ".DS_Store").exists()
+    manifest = Manifest.model_validate_json((target / "skipwatch.json").read_text(encoding="utf-8"))
+    assert sorted(manifest.files) == ["SKILL.md", "references/source.md"]
+    for rel, digest in manifest.files.items():
+        assert digest == "sha256:" + hashlib.sha256((target / rel).read_bytes()).hexdigest()
+
+
 # ---- review fixes ----
 
 
@@ -335,6 +362,7 @@ def test_install_relative_to_gives_absolute_path(roots, tmp_path):
 
 def _write_ingest(staging: Path, pack: bool) -> None:
     manifest = Manifest.model_validate_json((staging / "skipwatch.json").read_text("utf-8"))
+    manifest = manifest.model_copy(update={"files": file_hashes(staging)})
     bundle = IngestBundle(
         source=SourceInfo(kind="video", platform="youtube"),
         route=Route(context="pack"),
@@ -349,7 +377,7 @@ def test_install_records_run_and_pack_origin(roots, tmp_path, sw_home):
     _, cwd = roots
     run_staging = make_staging(tmp_path / "run")
     _write_ingest(run_staging, pack=False)
-    pack_staging = make_staging(tmp_path / "pack")
+    pack_staging = make_staging(tmp_path, work=sw_home / "packs" / f"{NAME}-20261011-093000")
     _write_ingest(pack_staging, pack=True)
     first = install(run_staging, None, None, force=False)
     second = install(pack_staging, None, tmp_path / "elsewhere", force=False)
@@ -358,6 +386,14 @@ def test_install_records_run_and_pack_origin(roots, tmp_path, sw_home):
         (Path(first.path).resolve(), "user", "run"),
         (Path(second.path).resolve(), "dir", "pack"),
     ]
+
+
+def test_install_logs_a_forged_pack_field_as_run(roots, tmp_path, sw_home):
+    """A run folder whose ingest.json carries a `pack` field is not a pack (pack_refusal)."""
+    staging = make_staging(tmp_path)
+    _write_ingest(staging, pack=True)
+    install(staging, None, None, force=False)
+    assert [r.origin for r in installs.load().installs] == ["run"]
 
 
 def test_install_without_ingest_records_run(roots, tmp_path, sw_home):

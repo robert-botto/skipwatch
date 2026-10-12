@@ -32,6 +32,14 @@ def _scaled(source: Path) -> bytes:
     return buf.getvalue()
 
 
+def _resolve(path: Path) -> Path | None:
+    """path resolved, or None when it cannot be (a NUL byte or other invalid path)."""
+    try:
+        return path.resolve()
+    except ValueError:
+        return None
+
+
 def copy_frames(work: Path, dest: Path, ids: list[str]) -> list[Path]:
     frames_path = work / "frames.json"
     if not frames_path.is_file():
@@ -49,7 +57,13 @@ def copy_frames(work: Path, dest: Path, ids: list[str]) -> list[Path]:
             f"a skill holds at most {MAX_SKILL_FRAMES} frames; {dest} would hold {total}",
         )
     frames_dir = (work / "frames").resolve()
-    sources = [(work / by_id[i].path).resolve() for i in wanted]
+    resolved = {i: _resolve(work / by_id[i].path) for i in wanted}
+    unusable = [i for i, s in resolved.items() if s is None]
+    if unusable:
+        raise SkipwatchError(
+            ExitCode.USAGE, f"frames.json has an unusable path for {', '.join(unusable)}"
+        )
+    sources = [s for s in resolved.values() if s is not None]
     outside = [i for i, s in zip(wanted, sources, strict=True) if not s.is_relative_to(frames_dir)]
     if outside:
         raise SkipwatchError(

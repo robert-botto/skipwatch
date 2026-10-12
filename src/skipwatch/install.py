@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from skipwatch import installs
 from skipwatch.config import load_config, skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.manifest import finalize_manifest
+from skipwatch.manifest import PACK_IGNORED_NAMES, finalize_manifest, pack_refusal
 from skipwatch.models import CheckReport, IngestBundle, InstallResult
 from skipwatch.output import progress
 from skipwatch.workdir import read_model
@@ -65,10 +65,12 @@ def _require_passed_check(staging: Path) -> None:
 
 
 def _ingest_pack(staging: Path) -> bool:
-    """Whether the work folder's ingest.json comes from `unpack`; any error means no."""
+    """Whether unpack made this work folder and pack_refusal honours it; any error means no."""
+    work = staging.parent.parent
     try:
-        return read_model(staging.parent.parent / "ingest.json", IngestBundle).pack is not None
-    except (OSError, ValidationError, ValueError):
+        pack = read_model(work / "ingest.json", IngestBundle).pack
+        return pack is not None and pack_refusal(staging, work, pack) is None
+    except (OSError, ValidationError, ValueError, SkipwatchError):
         return False
 
 
@@ -124,7 +126,7 @@ def install(
 
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(staging, target)
+        shutil.copytree(staging, target, ignore=shutil.ignore_patterns(*PACK_IGNORED_NAMES))
         finalize_manifest(target, checks_passed=True)
     except BaseException:
         _remove(target)
