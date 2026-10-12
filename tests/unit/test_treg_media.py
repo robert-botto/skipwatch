@@ -16,7 +16,7 @@ import pytest
 
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.models import IngestBundle, Route, SourceInfo
-from skipwatch.providers import content_treg
+from skipwatch.providers import content_treg, links
 from skipwatch.workdir import WorkDir
 from tests.unit.test_links_transport import loopback, trust_loopback  # noqa: F401
 
@@ -136,3 +136,81 @@ def test_broken_bodies_are_a_logged_fallback_failure(
         "anyapi.tiktok.video_download"
     ]  # the billed call is in the log
     assert list((work.path / "media").glob("*")) == []  # no partial file
+
+
+# ---- download_media through the real vetted transport (review item 6) ----
+
+
+def download(url: str, tmp_path) -> None:
+    content_treg.download_media(url, tmp_path / "media" / "video.mp4")
+
+
+def nothing_left(tmp_path) -> bool:
+    media = tmp_path / "media"
+    return not media.exists() or list(media.iterdir()) == []
+
+
+def trust_first_check_only(monkeypatch):
+    """127.0.0.1 passes the address check once (the URL treg returned), then the real check
+    applies, so a redirect to localhost is judged as it would be in production."""
+    real = links._is_public
+    first = {"left": 1}
+
+    def is_public(address):
+        if address == "127.0.0.1" and first["left"]:
+            first["left"] -= 1
+            return True
+        return real(address)
+
+    monkeypatch.setattr(links, "_is_public", is_public)
+
+
+def test_download_media_fetches_a_plain_video(tmp_path, media_server):
+    download(media_server + "/ok", tmp_path)
+    assert (tmp_path / "media" / "video.mp4").read_bytes() == b"x" * 1000
+    assert not (tmp_path / "media" / "video.mp4.part").exists()
+
+
+def test_redirect_to_the_metadata_address_is_refused(tmp_path, media_server):
+    with pytest.raises(links.Refused, match="private or local"):
+        download(media_server + "/redir-metadata", tmp_path)
+    assert nothing_left(tmp_path)
+
+
+def test_redirect_to_localhost_is_refused(tmp_path, loopback, monkeypatch):  # noqa: F811
+    answers, _ = loopback
+    answers["localhost"] = ["127.0.0.1"]
+    srv = Server(("127.0.0.1", 0), Handler)
+    srv.hits = []
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        trust_first_check_only(monkeypatch)
+        with pytest.raises(links.Refused, match="private or local"):
+            download(f"http://127.0.0.1:{srv.server_address[1]}/redir-localhost", tmp_path)
+        assert srv.hits == ["/redir-localhost"]  # the redirect target was never fetched
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    assert nothing_left(tmp_path)
+
+
+def test_expired_url_403_is_refused(tmp_path, media_server):
+    with pytest.raises(links.Refused, match="HTTP 403"):
+        download(media_server + "/expired", tmp_path)
+    assert nothing_left(tmp_path)
+
+
+def test_size_cap_through_the_real_transport(tmp_path, media_server, monkeypatch):
+    monkeypatch.setattr(content_treg, "MEDIA_MAX_BYTES", 1000)
+    with pytest.raises(links.Refused, match="cap"):
+        download(media_server + "/big", tmp_path)
+    assert nothing_left(tmp_path)
+
+
+def test_deadline_through_the_real_transport(tmp_path, media_server, monkeypatch):
+    monkeypatch.setattr(content_treg, "MEDIA_DEADLINE_S", 1.0)
+    started = time.monotonic()
+    with pytest.raises(links.Refused, match="deadline"):
+        download(media_server + "/trickle", tmp_path)
+    assert time.monotonic() - started < 3
+    assert nothing_left(tmp_path)

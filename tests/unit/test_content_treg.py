@@ -658,9 +658,9 @@ def fake_get(monkeypatch):
             seen["urls"].append(url)
             return response
 
-        monkeypatch.setattr(links, "_get", get)
+        monkeypatch.setattr(links, "get_vetted", get)
         monkeypatch.setattr(
-            links, "_close", lambda r: seen.__setitem__("closed", seen["closed"] + 1)
+            links, "close_vetted", lambda r: seen.__setitem__("closed", seen["closed"] + 1)
         )
         return seen
 

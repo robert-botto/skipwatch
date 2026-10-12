@@ -331,7 +331,7 @@ def _send_any(method: str, url: str, addresses: list[str], deadline: float) -> r
     raise Refused("no address to connect to")
 
 
-def _close(response: requests.Response) -> None:
+def close_vetted(response: requests.Response) -> None:
     """Close the response and its per-request _PinnedAdapter with its pool: requests sets
     response.connection to the adapter that sent it."""
     response.close()
@@ -343,15 +343,17 @@ def _close(response: requests.Response) -> None:
 # ---- fetching ----
 
 
-def _get(url: str, deadline: float) -> requests.Response:
-    """GET with redirects followed by hand; every hop is re-checked and pinned; at most 3."""
+def get_vetted(url: str, deadline: float) -> requests.Response:
+    """GET with redirects followed by hand; every hop is re-checked and pinned; at most 3.
+    The caller reads the body (stream=True) and must call close_vetted. Also the transport
+    for content_treg's media downloads."""
     current = url
     for _ in range(MAX_REDIRECTS + 1):
         response = _send_any("GET", current, _check(current), deadline)
         location = response.headers.get("Location")
         if response.status_code not in REDIRECT_CODES or not location:
             return response
-        _close(response)
+        close_vetted(response)
         current = urljoin(current, location)
     raise Refused(f"more than {MAX_REDIRECTS} redirects")
 
@@ -376,7 +378,7 @@ def _read(response: requests.Response, deadline: float) -> bytes:
 
 def _fetch(url: str, deadline: float) -> LinkContext:
     try:
-        response = _get(fetch_url(url), deadline)
+        response = get_vetted(fetch_url(url), deadline)
     except requests.RequestException as exc:
         raise Refused(_failure(exc, deadline)) from exc
     try:
@@ -393,7 +395,7 @@ def _fetch(url: str, deadline: float) -> LinkContext:
             raise Refused(_failure(exc, deadline)) from exc
         _in_time(deadline)
     finally:
-        _close(response)
+        close_vetted(response)
     try:
         decoded = body.decode(_charset(content_type), errors="replace")
     except LookupError:
@@ -470,7 +472,7 @@ def resolve(
     try:
         deadline = _deadline(budget)
         response = _send_any("HEAD", url, _check(url), deadline)
-        _close(response)
+        close_vetted(response)
         _in_time(deadline)
     except Refused as exc:
         _log(calls, "link.resolve", url, started, str(exc))

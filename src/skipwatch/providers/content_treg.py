@@ -367,10 +367,10 @@ def _stream(response: requests.Response, part: Path, deadline: float) -> None:
 
 def download_media(url: str, dest: Path) -> None:
     """A plain GET of a provider media URL into dest: no cookies, no environment credentials,
-    every hop SSRF-checked and pinned (links._get), at most 1 GB and 10 minutes. Raises
+    every hop SSRF-checked and pinned (links.get_vetted), at most 1 GB and 10 minutes. Raises
     links.Refused or a requests error; a partial file is never left at dest."""
     deadline = time.monotonic() + MEDIA_DEADLINE_S
-    response = links._get(url, deadline)  # pyright: ignore[reportPrivateUsage]
+    response = links.get_vetted(url, deadline)
     part = dest.with_name(dest.name + ".part")
     try:
         if response.status_code != 200:
@@ -392,7 +392,7 @@ def download_media(url: str, dest: Path) -> None:
             raise links.Refused(type(exc).__name__) from exc
         os.replace(part, dest)
     finally:
-        links._close(response)  # pyright: ignore[reportPrivateUsage]
+        links.close_vetted(response)
         part.unlink(missing_ok=True)
 
 
