@@ -676,6 +676,8 @@ def test_grader_regexes_match_the_quoted_wrapper_command():
         assert re.search(ran, form), form
     for form in _command_forms(f"{root}/scripts/skipwatch doctor --json"):
         assert re.search(ran, form), form
+    for form in _command_forms(f'"{root}/scripts/skipwatch" --log "/w/logs/doctor.log" doctor'):
+        assert re.search(ran, form), form
     for form in _command_forms(f'"{root}/scripts/skipwatch" cache'):
         assert not re.search(ran, form), form
 
