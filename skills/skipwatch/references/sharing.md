@@ -116,7 +116,9 @@ about itself.
   fits a post and carries the install line), then `Post it where the creator will see it.`
 - Exit 2 with `no installed SkipWatch skill named` in the message:
   `No installed SkipWatch skill named <skill>. /skipwatch list shows them.`
-- Any other exit 2: `This skill came from a local recording, so there is no creator link to share.`
+- Exit 2 whose message contains `made from a local file`:
+  `This skill came from a local recording, so there is no creator link to share.`
+- Any other exit 2: print the engine's line and stop.
 - Exit 4: print the engine's line exactly (`<name> was made from content fetched with
   your browser cookies, so it cannot be shared`) and stop. Content only the user's login
   could see is never shared (section 10): never offer a workaround, never write a post

@@ -1560,3 +1560,10 @@ def test_pack_review_offers_no_rename_and_no_repair():
     assert "`[install as is / cancel]`" in step
     assert "rename" in step and "repair" in step  # both named as not offered
     assert "[yes / show draft / test it / rename / cancel]" not in step
+
+
+def test_share_exit_2_maps_only_the_messages_it_knows():
+    section = re.sub(r"\s+", " ", read(SHARING).split("## share `<skill>`", 1)[1])
+    assert "Exit 2 whose message contains `made from a local file`" in section
+    assert "Any other exit 2: print the engine's line" in section
+    assert "Any other exit 2: `This skill came from a local recording" not in section
