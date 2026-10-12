@@ -1101,7 +1101,7 @@ def test_run_json_and_probe_come_before_ingest():
     assert "date -u" not in text
     assert _before(text, "`<W>/run.json`", logged("ingest") + ' "<input>"')
     # the long-video warning needs the duration before anything downloads (plan issue 4)
-    assert logged("probe") + ' "<input>" --json' in text
+    assert logged("probe") + ' "<input>" --work "<W>" --out "<W>/logs/probe.json"' in text
     assert _before(text, logged("probe"), logged("ingest") + ' "<input>"')
     assert "Long video: <mm:ss>, about <n> min to process." in text
     assert "continue only under `--yes` or after the user says yes" in text
