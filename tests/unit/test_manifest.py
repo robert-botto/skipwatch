@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import shutil
 from pathlib import Path
@@ -10,7 +11,15 @@ from skipwatch.manifest import (
     finalize_manifest,
     pack_confidence,
 )
-from skipwatch.models import CheckReport, CheckResult, Counts, Critique, Manifest, SafetyFlag
+from skipwatch.models import (
+    CheckReport,
+    CheckResult,
+    Counts,
+    Critique,
+    Manifest,
+    ManifestSource,
+    SafetyFlag,
+)
 from skipwatch.workdir import read_model, write_model
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures/skills"
@@ -110,6 +119,84 @@ def test_finalize_manifest_sets_files_and_checks_passed(tmp_path):
     on_disk = read_model(staging / "skipwatch.json", Manifest)
     assert m == on_disk and on_disk.checks_passed is True
     assert on_disk.files == file_hashes(staging)
+
+
+def _claims() -> Manifest:
+    return Manifest(
+        name="claimed-name",
+        description="claimed description",
+        skipwatch_version="0.0.9",
+        source=ManifestSource(platform="youtube", url="https://youtu.be/x", title="Pack title"),
+        extracted_at="2026-09-01T10:00:00Z",
+        fetched_with_cookies=False,
+        counts=Counts(steps=99),
+        confidence="high",
+        critic_score=8.5,
+        checks_passed=True,
+        safety_flags=[],
+        files={"SKILL.md": "sha256:" + "0" * 64},
+    )
+
+
+def _as_pack(work):
+    """Turn the run work folder into a pack work folder: ingest.json carries `pack`."""
+    raw = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    raw["pack"] = {
+        "file": "a.skillpack.zip",
+        "sha256": "sha256:" + "1" * 64,
+        "manifest": _claims().model_dump(by_alias=True),
+    }
+    (work / "ingest.json").write_text(json.dumps(raw), encoding="utf-8")
+
+
+def test_manifest_pack_mode_keeps_claims_and_recomputes_counts(tmp_path):
+    staging, work = _copy(tmp_path)
+    _as_pack(work)
+    flag = SafetyFlag(step=2, kind="sudo", text="sudo x", severity="medium")
+    report = CheckReport(
+        skill="run-skipdemo-tutorial",
+        passed=False,
+        results=[CheckResult(check="safety", ok=False, flags=[flag])],
+        counts=Counts(steps=4, on_screen=3, spoken=1),
+    )
+    m = build(staging, work, report)
+    claims = _claims()
+    assert m.counts == Counts(steps=4, on_screen=3, spoken=1)
+    assert m.safety_flags == [flag] and m.checks_passed is False
+    assert m.confidence == "high" and m.critic_score == 8.5
+    assert m.source == claims.source and m.extracted_at == claims.extracted_at
+    assert m.skipwatch_version == "0.0.9" and m.fetched_with_cookies is False
+    # name and description come from the shipped SKILL.md frontmatter, as in a run.
+    assert m.name == "run-skipdemo-tutorial"
+    assert m.description.startswith("Use when the user wants")
+
+
+def test_manifest_pack_mode_keeps_claimed_cookie_flag(tmp_path):
+    staging, work = _copy(tmp_path)
+    _as_pack(work)
+    raw = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    raw["pack"]["manifest"]["fetched_with_cookies"] = True
+    (work / "ingest.json").write_text(json.dumps(raw), encoding="utf-8")
+    assert build(staging, work, _report()).fetched_with_cookies is True
+
+
+def test_manifest_pack_mode_ignores_critique_json(tmp_path):
+    staging, work = _copy(tmp_path)
+    _as_pack(work)
+    scores = dict.fromkeys(
+        ["completeness", "verifiability", "actionability", "trigger_quality", "safety_hygiene"],
+        2.0,
+    )
+    write_model(work / "critique.json", Critique(scores=scores, score=2.0))  # pyright: ignore[reportArgumentType]
+    m = build(staging, work, _report())
+    assert m.critic_score == 8.5 and m.confidence == "high"
+
+
+def test_manifest_run_mode_unchanged_by_pack_helpers(tmp_path):
+    staging, work = _copy(tmp_path)
+    m = build(staging, work, _report())
+    assert m.skipwatch_version == "0.1.0" and m.confidence == "medium"
+    assert m.source.title == "tutorial-60s"
 
 
 def test_pack_confidence_never_high():

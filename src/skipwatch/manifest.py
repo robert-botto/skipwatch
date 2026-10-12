@@ -61,18 +61,37 @@ def _mtime_utc(path: Path) -> str:
 def build(staging: Path, work: Path, report: CheckReport) -> Manifest:
     ingest_path = work / "ingest.json"
     ingest = read_work_file(ingest_path, IngestBundle)
-    critique_path = work / "critique.json"
-    critic_score = read_work_file(critique_path, Critique).score if critique_path.exists() else None
     skill_md = staging / "SKILL.md"
     text = skill_md.read_bytes().decode("utf-8", errors="replace") if skill_md.exists() else ""
     front = parse(text).frontmatter
     name = front.get("name")
+    name = name if isinstance(name, str) else staging.name
     description = front.get("description")
-    src = ingest.source
+    description = description if isinstance(description, str) else ""
     flags = [f for r in report.results if r.check == "safety" for f in r.flags]
+    if ingest.pack is not None:
+        # A shared pack keeps its claims so a round trip is byte-identical (M5-M6 issue 4);
+        # counts, flags and checks are recomputed here, and critique.json is never read.
+        claims = ingest.pack.manifest
+        return Manifest(
+            name=name,
+            description=description,
+            skipwatch_version=claims.skipwatch_version,
+            source=claims.source,
+            extracted_at=claims.extracted_at,
+            fetched_with_cookies=claims.fetched_with_cookies,
+            counts=report.counts,
+            confidence=claims.confidence,
+            critic_score=claims.critic_score,
+            checks_passed=report.passed,
+            safety_flags=flags,
+        )
+    critique_path = work / "critique.json"
+    critic_score = read_work_file(critique_path, Critique).score if critique_path.exists() else None
+    src = ingest.source
     return Manifest(
-        name=name if isinstance(name, str) else staging.name,
-        description=description if isinstance(description, str) else "",
+        name=name,
+        description=description,
         skipwatch_version=__version__,
         source=ManifestSource(
             url=src.url,
