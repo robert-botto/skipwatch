@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 
+from skipwatch.calls_line import SHARED_PACK, provider_calls_line
 from skipwatch.checks import CHECK_ORDER
 from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
@@ -20,6 +21,7 @@ from skipwatch.manifest import (
 )
 from skipwatch.models import (
     BatchesFile,
+    CallsFile,
     CheckReport,
     Config,
     Counts,
@@ -139,6 +141,14 @@ def _is_pack(ctx: CheckContext) -> bool:
     return ctx.pack is not None and pack_refusal(ctx.staging, ctx.work, ctx.pack) is None
 
 
+def _calls_line(ctx: CheckContext) -> str:
+    if _is_pack(ctx):
+        return SHARED_PACK
+    path = ctx.work / "calls.json"
+    calls = read_work_file(path, CallsFile).calls if path.exists() else []
+    return provider_calls_line(calls, ctx.ingest, ctx.config.providers.treg.max_cost_usd)
+
+
 def _run_checks(staging: Path, work: Path) -> CheckReport:
     modules = _check_modules()
     # Redaction first so every later check, and the manifest, see cleaned text (R-CHK-2).
@@ -160,6 +170,7 @@ def _run_checks(staging: Path, work: Path) -> CheckReport:
         results=ordered,
         counts=counts,
         pack_confidence=pack_confidence(counts) if _is_pack(ctx) else None,
+        provider_calls_line=_calls_line(ctx),
     )
     write_model(staging / MANIFEST_NAME, build(staging, work, report))
     write_model(work / "check-report.json", report)

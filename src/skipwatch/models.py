@@ -322,6 +322,8 @@ class CheckReport(_Tagged):
     # Pack mode only: the engine's grade without a critic (never high); skipwatch.json keeps
     # the pack's claimed confidence.
     pack_confidence: Literal["high", "medium", "low"] | None = None
+    # The review screen's `Provider calls:` line, ready to print (calls_line.py).
+    provider_calls_line: str | None = None
 
 
 # ---- skipwatch.json (7.6) ----

@@ -191,6 +191,18 @@
       "title": "Passed",
       "type": "boolean"
     },
+    "provider_calls_line": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Calls Line"
+    },
     "results": {
       "items": {
         "$ref": "#/$defs/CheckResult"
