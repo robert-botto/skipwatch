@@ -387,6 +387,14 @@ def _packs_dir() -> Path:
     return (skipwatch_home() / "packs").resolve()
 
 
+def _cannot_write(path: Path, exc: OSError) -> SkipwatchError:
+    """Exit 7, as new-work's "cannot create the work folder": the orchestrator already moves
+    the home into the project on that code (stage 2)."""
+    return SkipwatchError(
+        ExitCode.NO_CONTENT, f"cannot write the pack work folder {path}: {exc.strerror or exc}"
+    )
+
+
 def _claim_work(name: str, now: datetime) -> Path:
     base = _packs_dir() / f"{name}-{now:%Y%m%d-%H%M%S}"
     for n in range(1000):
@@ -395,6 +403,8 @@ def _claim_work(name: str, now: datetime) -> Path:
             path.mkdir(parents=True, exist_ok=False)
         except FileExistsError:
             continue
+        except OSError as exc:
+            raise _cannot_write(path, exc) from exc
         return path
     raise SkipwatchError(ExitCode.USAGE, f"too many pack work folders named {base.name}")
 
@@ -408,11 +418,13 @@ def _given_work(work: Path) -> Path:
     if work.name in ("", ".", "..") or work.parent.resolve() != packs:
         raise SkipwatchError(ExitCode.USAGE, f"{WORK_RULE} ({packs}); got {work}")
     folder = packs / work.name
-    packs.mkdir(parents=True, exist_ok=True)
     try:
+        packs.mkdir(parents=True, exist_ok=True)
         folder.mkdir(exist_ok=False)
     except FileExistsError:
         raise SkipwatchError(ExitCode.USAGE, f"{WORK_RULE}; {folder} already exists") from None
+    except OSError as exc:
+        raise _cannot_write(folder, exc) from exc
     return folder
 
 
@@ -480,6 +492,9 @@ def unpack(
         )
         if transcript is not None:
             write_model(folder / "transcript.json", transcript)
+    except OSError as exc:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise _cannot_write(folder, exc) from exc
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise

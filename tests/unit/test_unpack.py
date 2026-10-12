@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 import warnings
 import zipfile
 from datetime import datetime
@@ -313,6 +315,47 @@ def test_unpack_failure_leaves_no_work_folder(tmp_path, sw_home, monkeypatch, br
     with pytest.raises(RuntimeError):
         unpack(pack, sw_home / "packs" / "mine", now=NOW)
     assert not (sw_home / "packs" / "mine").exists()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or getattr(os, "geteuid", lambda: 1)() == 0,
+    reason="chmod does not make a folder read-only here",
+)
+def test_unpack_read_only_packs_folder_is_a_clean_exit_7(tmp_path, sw_home):
+    pack = good_pack(tmp_path)
+    packs = sw_home / "packs"
+    packs.mkdir(parents=True)
+    packs.chmod(0o555)
+    try:
+        for work in (None, packs / "mine"):
+            with pytest.raises(SkipwatchError) as err:
+                unpack(pack, work, now=NOW)
+            assert err.value.code == ExitCode.NO_CONTENT
+            assert err.value.message.startswith("cannot write the pack work folder ")
+            assert str(packs.resolve()) in err.value.message
+        result = CliRunner().invoke(app, ["unpack", str(pack)])
+        assert result.exit_code == ExitCode.NO_CONTENT and "Traceback" not in result.output
+        assert "cannot write the pack work folder" in result.stderr
+    finally:
+        packs.chmod(0o755)
+    assert list(packs.iterdir()) == []
+
+
+def test_unpack_write_error_is_exit_7_and_cleans_up(tmp_path, sw_home, monkeypatch):
+    pack = good_pack(tmp_path)
+
+    def full(*args, **kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(pack_mod, "write_model", full)
+    with pytest.raises(SkipwatchError) as err:
+        unpack(pack, None, now=NOW)
+    assert err.value.code == ExitCode.NO_CONTENT
+    folder = (sw_home / "packs").resolve() / f"{NAME}-20261011-093000"
+    assert (
+        err.value.message == f"cannot write the pack work folder {folder}: No space left on device"
+    )
+    assert list((sw_home / "packs").iterdir()) == []
 
 
 def test_transcript_from_markdown_parses_and_rejects():
