@@ -15,6 +15,9 @@ The disagreement warning also needs the overlap coefficient (shared / min(len(a)
 under the threshold, so an excerpt is not flagged; CrossCheck has no field for it, so it is
 used for the warning only and transcript.json records Dice.
 
+Known limits: numbers written two ways do not match ("1,000" is the words 1 and 000, "1000"
+is one word; "one thousand" is two others), and unspaced CJK text is one long word per run,
+so a Chinese or Japanese transcript scores near 0 unless both sides break lines identically.
 """
 
 import re
