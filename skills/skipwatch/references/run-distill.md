@@ -113,8 +113,8 @@ the review screen then reports `critic not run` by itself.
    Exit 7 (`SKILL.md not found` in staging): redo stage 6 step 2 for `SKILL.md`, then
    validate once more.
 4. Read `<W>/critique.json` once and apply its `fixes` in order, at most 8, by rewriting
-   the draft copies (Read, then Write each file whole), never to staging, under "Critic fixes" in `distill-rules.md`. Step `0` means
-   the description.
+   the draft copies (Read, then Write each file whole), never to staging, under "Critic
+   fixes" in `distill-rules.md`. Step `0` means the description.
    - A fix that asks to re-check a timestamp re-dispatches the reader for the batch
      holding the frames within 20 s of it (stage 4 prompt, at most 2 batches per run),
      then validate-notes and read that notes file once.

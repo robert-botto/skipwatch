@@ -75,10 +75,10 @@ unless `--test` was also given.
        <ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "test run failed twice"
 
 6. `ambiguous at step N`: ask `[repair step N / install as is / cancel]`. Repair rewrites
-   that step's draft file (Read, then Write) from the tester's detail and evidence the run already holds,
-   redacts it, re-runs check (stage 8) and shows the screen with
-   `Test run: ambiguous at step N (<detail>); step N repaired, not re-tested`. There is
-   one repair pass only. Under `--yes` an ambiguous result always waits for an answer.
+   that step's draft file (Read, then Write) from the tester's detail and evidence the run
+   already holds, redacts it, re-runs check (stage 8) and shows the screen with `Test run:
+   ambiguous at step N (<detail>); step N repaired, not re-tested`. There is one repair
+   pass only. Under `--yes` an ambiguous result always waits for an answer.
 
 ## Stage 10: install
 

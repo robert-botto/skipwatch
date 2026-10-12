@@ -89,8 +89,8 @@ characters.
 
 ## Critic fixes
 
-Critic fixes rewrite the draft copies in `<W>/draft/` (Read, then Write), never staging, and every rule above
-still holds:
+Critic fixes rewrite the draft copies in `<W>/draft/` (Read, then Write), never staging,
+and every rule above still holds:
 
 - Verbatim text stays verbatim: a fix may move a quote, retag a step or add an
   "Expected" line, never rewrite a prompt, command or setting.
