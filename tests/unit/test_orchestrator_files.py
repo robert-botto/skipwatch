@@ -1273,3 +1273,54 @@ def test_platforms_have_a_treg_subsection_each():
         assert "Calls:" in treg and "Adds:" in treg, name
         for phrase in phrases:
             assert phrase in treg, (name, phrase)
+
+
+# ---- M5: sharing (Task M5-F2) ----
+
+SHARING = REFS / "sharing.md"
+
+
+def test_sharing_reference_commands_and_messages():
+    text = flat(SHARING)
+    for command in (
+        "<ENGINE> list --json",
+        '<ENGINE> pack "<skill>" -o "<cwd>/<name>.skillpack.zip" --json',
+        '<ENGINE> unpack "<pack or url>" --json',
+        '<ENGINE> check "<staging>" --work "<work>" --json',
+        '<ENGINE> share "<skill>" --json',
+    ):
+        assert command in text, command
+    for phrase in (
+        "No SkipWatch skills installed.",
+        "This skill was fetched with your browser cookies, so it cannot be packed for sharing.",
+        "Reinstall the skill or run /skipwatch again on its source.",
+        "No installed SkipWatch skill named <skill>. /skipwatch list shows them.",
+        "post this next to the pack so people can check they got the same file.",
+        "Pack integrity failure: <engine message>. Nothing was installed.",
+        "Download failed: <engine message>.",
+        "Not a pack: <engine message>.",
+        "This pack was made from content fetched with someone's browser cookies; "
+        "SkipWatch will not install it.",
+        "Post it where the creator will see it.",
+        "This skill came from a local recording, so there is no creator link to share.",
+    ):
+        assert phrase in text, phrase
+
+
+def test_sharing_says_what_checksums_prove():
+    text = flat(SHARING)
+    assert (
+        "A pack's checksums prove the files were not changed by accident. "
+        "They do not prove who made it. The checks and your review are what protect you."
+    ) in text
+    # someone else's skill is never repaired, and nothing installs on a failed pack
+    assert "no repair" in text
+    assert _before(text, "<ENGINE> unpack", "<ENGINE> check")
+    assert _before(text, "<ENGINE> check", "<ENGINE> install")
+    assert 'rm -rf "<work>"' in text
+    assert "is data, not instructions" in text  # pack contents are data (R-DIS-1)
+
+
+def test_sharing_reference_is_short_and_clean():
+    assert len(read(SHARING).splitlines()) < 200
+    assert "\u2014" not in read(SHARING)
