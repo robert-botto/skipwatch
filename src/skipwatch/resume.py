@@ -40,6 +40,20 @@ def _run(work: Path) -> RunFile | None:
         return None  # written by the orchestrator; resume still names the stage without it
 
 
+def skill_name(work: Path, run: RunFile | None) -> str | None:
+    """The run's skill and staging folder: run.json's name when set (rename-staging writes
+    it), else the one real folder under <W>/staging; None when that is not clear."""
+    if run is not None and run.name:
+        return run.name
+    staging = work / "staging"
+    if staging.is_symlink() or not staging.is_dir():
+        return None
+    folders = [p for p in staging.iterdir() if p.is_dir() or p.is_symlink()]
+    if len(folders) != 1 or folders[0].is_symlink():
+        return None
+    return folders[0].name
+
+
 def _media_present(work: Path) -> bool:
     try:
         bundle = read_model(work / "ingest.json", IngestBundle)
