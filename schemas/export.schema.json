@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "ExportItem": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "skipped": {
+          "default": false,
+          "title": "Skipped",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "provider",
+        "ok"
+      ],
+      "title": "ExportItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "results": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExportItem"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/export/1",
+      "default": "skipwatch/export/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "name"
+  ],
+  "title": "ExportResult",
+  "type": "object"
+}

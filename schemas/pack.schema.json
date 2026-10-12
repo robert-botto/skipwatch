@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "bytes": {
+      "title": "Bytes",
+      "type": "integer"
+    },
+    "files": {
+      "title": "Files",
+      "type": "integer"
+    },
+    "ignored": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Ignored",
+      "type": "array"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/pack/1",
+      "default": "skipwatch/pack/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "path",
+    "sha256",
+    "files",
+    "bytes"
+  ],
+  "title": "PackResult",
+  "type": "object"
+}

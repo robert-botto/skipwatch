@@ -256,6 +256,7 @@ def fresh_registries():
         adapter_registry._adapters,
         provider_registry._backends,
         provider_registry._content_providers,
+        provider_registry._export_providers,
     )
     for c in caches:
         c.cache_clear()
@@ -374,3 +375,59 @@ def test_backend_module_raising_at_import_is_skipped(extra_package_dir, capsys):
     assert "captions" in backends()
     err = capsys.readouterr().err
     assert err.count("transcribe_zz_raises") == 1 and "no GPU driver here" in err
+
+
+# ---- M5-A: export providers are a third family discovered from providers/export_*.py ----
+
+
+def test_export_registry_discovers_export_modules(monkeypatch, fresh_registries):
+    import types
+
+    from skipwatch.providers import registry
+
+    class P:
+        def __init__(self, name):
+            self.name = name
+
+        def enabled(self, cfg):
+            return False
+
+        def export(self, skill_dir, manifest, cfg): ...
+
+    fake_b = types.ModuleType("skipwatch.providers.export_b")
+    fake_b.PROVIDER = P("notes")  # pyright: ignore[reportAttributeAccessIssue]
+    fake_a = types.ModuleType("skipwatch.providers.export_a")
+    fake_a.PROVIDER = P("mem0")  # pyright: ignore[reportAttributeAccessIssue]
+    no_provider = types.ModuleType("skipwatch.providers.export_helpers")
+    modules = {"export_": [fake_b, fake_a, no_provider]}
+    monkeypatch.setattr(registry, "_modules", lambda prefix: modules.get(prefix, []))
+    assert list(registry.export_providers()) == ["mem0", "notes"]
+
+
+def test_export_registry_empty_before_m6(fresh_registries):
+    from skipwatch.providers.registry import export_providers
+
+    assert export_providers() == {}
+
+
+def test_export_module_file_is_discovered_and_duplicates_refused(extra_package_dir):
+    from skipwatch import providers
+    from skipwatch.providers.registry import export_providers
+
+    body = "class P:\n    name = 'zz'\nPROVIDER = P()\n"
+    extra_package_dir(providers, {"export_zz_one": body})
+    assert list(export_providers()) == ["zz"]
+    from skipwatch.providers import registry
+
+    registry._export_providers.cache_clear()
+    extra_package_dir(providers, {"export_zz_two": body})
+    with pytest.raises(RuntimeError) as e:
+        export_providers()
+    assert "zz" in str(e.value)
+
+
+def test_project_constants_shared_by_pack_share_and_docs():
+    from skipwatch.project import PACK_SUFFIX, REPO_URL
+
+    assert REPO_URL == "https://github.com/robert-botto/skipwatch"
+    assert PACK_SUFFIX == ".skillpack.zip"

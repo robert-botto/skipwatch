@@ -8,15 +8,35 @@ from skipwatch.models import (
     CacheEntry,
     CheckReport,
     Config,
+    Counts,
+    ExportItem,
+    ExportLog,
+    ExportLogEntry,
+    ExportResult,
     FramesFile,
     IngestBundle,
+    InstallRecord,
+    InstallsFile,
+    ListedSkill,
+    ListResult,
     Manifest,
+    ManifestSource,
+    NotesError,
     NotesFile,
+    PackOrigin,
+    PackResult,
     ProbeResult,
     ProviderCall,
     ResumeResult,
+    Route,
     RunFile,
+    Segment,
+    ShareResult,
+    SourceInfo,
+    TesterReport,
     Transcript,
+    UnpackResult,
+    ValidateNotesResult,
 )
 
 INGEST_EXAMPLE = {
@@ -59,7 +79,7 @@ INGEST_EXAMPLE = {
 # captions_kind, from_cache and the provider call review fields (M2-A). The dump carries
 # them with their defaults.
 ADDED_CONTEXT_DEFAULTS = {"captions_path": None, "captions_lang": None, "captions_kind": None}
-ADDED_TOP_DEFAULTS = {"from_cache": False}
+ADDED_TOP_DEFAULTS = {"from_cache": False, "notes": [], "pack": None}
 ADDED_CALL_DEFAULTS = {"endpoint": None, "call_id": None, "review": None, "error": None}
 
 
@@ -234,6 +254,15 @@ def test_r_arch_2_registry_covers_every_work_file():
         "run",
         "resume",
         "cache-entry",
+        "installs",
+        "export-log",
+        "test-report",
+        "pack",
+        "unpack",
+        "list",
+        "share",
+        "export",
+        "validate-notes",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -364,3 +393,212 @@ def test_cache_entry_round_trip():
         files=["ingest.json"],
     )
     assert CacheEntry.model_validate_json(e.model_dump_json(by_alias=True)) == e
+
+
+# ---- M5-A: model amendments for M5 and M6 ----
+
+
+def test_transcript_origin_accepts_pack():
+    t = Transcript(origin="pack", segments=[Segment(start=1.0, end=2.0, text="hi there you")])
+    assert t.origin == "pack"
+    assert Transcript.model_validate_json(t.model_dump_json(by_alias=True)) == t
+
+
+def test_mem0_user_id_default_empty():
+    assert Config().exports.mem0.user_id == "" and Config().exports.mem0.enabled is False
+    cfg = Config.model_validate({"exports": {"mem0": {"user_id": "someone"}}})
+    assert cfg.exports.mem0.user_id == "someone"
+
+
+def _manifest() -> Manifest:
+    return Manifest(
+        name="run-x",
+        description="d",
+        skipwatch_version="0.1.0",
+        source=ManifestSource(platform="youtube", url="https://youtu.be/x"),
+        extracted_at="2026-10-09T18:20:00Z",
+        counts=Counts(steps=4),
+        confidence="high",
+        critic_score=8.5,
+        checks_passed=True,
+        files={"SKILL.md": "sha256:" + "0" * 64},
+    )
+
+
+def test_ingest_carries_pack_origin_round_trip():
+    bundle = IngestBundle.model_validate(
+        {
+            "schema": "skipwatch/ingest/1",
+            "source": {"kind": "video", "platform": "youtube"},
+            "route": {"context": "pack"},
+            "pack": {
+                "file": "a.skillpack.zip",
+                "sha256": "sha256:" + "1" * 64,
+                "manifest": _manifest().model_dump(by_alias=True),
+            },
+        }
+    )
+    assert bundle.pack is not None and bundle.pack.manifest.confidence == "high"
+    assert bundle.pack.manifest == _manifest()
+    assert IngestBundle.model_validate_json(bundle.model_dump_json(by_alias=True)) == bundle
+
+
+def test_run_ingest_has_no_pack_by_default():
+    bundle = IngestBundle(
+        source=SourceInfo(kind="file", platform="local"), route=Route(context="local")
+    )
+    assert bundle.pack is None
+
+
+def test_pack_origin_manifest_needs_its_schema_tag():
+    raw = _manifest().model_dump(by_alias=True)
+    del raw["schema"]
+    with pytest.raises(ValidationError):
+        PackOrigin.model_validate({"file": "a", "sha256": "sha256:" + "1" * 64, "manifest": raw})
+
+
+def test_installs_file_round_trip_and_scope():
+    rec = InstallRecord(
+        name="run-x", path="/s/run-x", scope="dir", installed_at="2026-10-09T18:20:00Z"
+    )
+    assert rec.origin == "run"
+    f = InstallsFile(installs=[rec, rec.model_copy(update={"origin": "pack"})])
+    assert InstallsFile.model_validate_json(f.model_dump_json(by_alias=True)) == f
+    assert InstallsFile().installs == []
+    with pytest.raises(ValidationError):
+        InstallRecord.model_validate({**rec.model_dump(), "scope": "global"})
+    with pytest.raises(ValidationError):
+        InstallRecord.model_validate({**rec.model_dump(), "origin": "url"})
+
+
+def test_export_log_round_trip():
+    entry = ExportLogEntry(
+        provider="mem0",
+        name="run-x",
+        manifest_sha256="sha256:" + "2" * 64,
+        exported_at="2026-10-09T18:20:00Z",
+    )
+    assert entry.ref is None
+    log = ExportLog(entries=[entry])
+    assert ExportLog.model_validate_json(log.model_dump_json(by_alias=True)) == log
+    assert ExportLog().entries == []
+    with pytest.raises(ValidationError):
+        ExportLogEntry.model_validate({"provider": "mem0", "name": "run-x"})
+
+
+def test_tester_report_blocked_needs_step_and_detail():
+    assert TesterReport(outcome="completed", task="do it").step is None
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", task="do it")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", detail="needs an account", task="do it")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="ambiguous", step=2, detail="", task="do it")
+    assert TesterReport(outcome="blocked", step=3, detail="needs an account", task="t").step == 3
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="blocked", step=0, detail="x", task="t")
+    with pytest.raises(ValidationError):
+        TesterReport(outcome="ambiguous", step=1, detail="x" * 501, task="t")
+    r = TesterReport(outcome="ambiguous", step=1, detail="which folder?", task="t")
+    assert TesterReport.model_validate_json(r.model_dump_json(by_alias=True)) == r
+
+
+def test_tester_report_is_not_collected_by_pytest():
+    # pytest collects every Test* class it can see, so the rename alone (issue 25) is not enough
+    assert getattr(TesterReport, "__test__", True) is False
+
+
+def test_pack_result_round_trip():
+    r = PackResult(
+        name="run-x", path="/p/run-x.skillpack.zip", sha256="sha256:" + "3" * 64, files=3, bytes=9
+    )
+    assert r.ignored == []
+    assert PackResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        PackResult.model_validate({"name": "run-x"})
+
+
+def test_unpack_result_round_trip_and_claims():
+    r = UnpackResult(
+        name="run-x",
+        work="/h/packs/run-x-20261009-182000",
+        staging="/h/packs/run-x-20261009-182000/staging/run-x",
+        pack_sha256="sha256:" + "4" * 64,
+        files=3,
+        claimed_confidence="high",
+        transcript=True,
+    )
+    assert r.fetched_from is None and r.claimed_critic_score is None
+    assert UnpackResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        UnpackResult.model_validate({"name": "x"})
+    with pytest.raises(ValidationError):
+        UnpackResult.model_validate(
+            {**r.model_dump(by_alias=True), "claimed_confidence": "certain"}
+        )
+
+
+def test_list_result_round_trip_and_problem_entries():
+    ok = ListedSkill(
+        name="run-x", path="/s/run-x", scope="user", confidence="medium", critic_score=7.5
+    )
+    bad = ListedSkill(name="broken", path="/s/broken", scope="dir", problem="unreadable")
+    assert ok.origin == "unknown" and ok.problem is None and bad.confidence is None
+    r = ListResult(skills=[bad, ok])
+    assert ListResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    assert ListResult().skills == []
+    with pytest.raises(ValidationError):
+        ListedSkill.model_validate({**ok.model_dump(), "origin": "url"})
+
+
+def test_share_result_round_trip():
+    r = ShareResult(
+        name="run-x", text="Thanks", weighted_length=6, install_line="/skipwatch https://youtu.be/x"
+    )
+    assert ShareResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        ShareResult.model_validate({"schema": "skipwatch/share/1", "name": "run-x"})
+
+
+def test_export_result_round_trip():
+    done = ExportItem(provider="notes", ok=True, location="/n/run-x.md")
+    same = ExportItem(provider="mem0", ok=True, skipped=True, detail="unchanged since last export")
+    assert done.skipped is False and done.detail == "" and same.location is None
+    r = ExportResult(name="run-x", results=[done, same])
+    assert ExportResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    assert ExportResult(name="run-x").results == []
+    with pytest.raises(ValidationError):
+        ExportItem.model_validate({"provider": "mem0"})
+
+
+def test_ingest_notes_default_empty_and_round_trip():
+    plain = IngestBundle(source=SourceInfo(kind="video", platform="x"), route=Route(context="free"))
+    assert plain.notes == []
+    noted = plain.model_copy(
+        update={"notes": ["video came from a linked post: https://x.com/i/status/2"]}
+    )
+    assert IngestBundle.model_validate_json(noted.model_dump_json(by_alias=True)) == noted
+    with pytest.raises(ValidationError):
+        IngestBundle.model_validate({**plain.model_dump(by_alias=True), "notes": "one string"})
+
+
+def test_validate_notes_result_covers_what_the_command_reports():
+    errors = [
+        NotesError(batch=1, message="missing notes/batch-01.json"),
+        NotesError(batch=2, field="frames.0.t", message="invalid notes/batch-02.json"),
+        NotesError(batch=3, field="batch", message="batch id is 4, expected 3"),
+        NotesError(batch=3, frame="f000250", message="missing"),
+        NotesError(batch=3, frame="f000999", message="unexpected"),
+    ]
+    bad = ValidateNotesResult(ok=False, batches=3, errors=errors)
+    assert ValidateNotesResult.model_validate_json(bad.model_dump_json(by_alias=True)) == bad
+    assert ValidateNotesResult(ok=True, batches=3).errors == []
+    with pytest.raises(ValidationError):
+        NotesError(batch=0, message="x")
+
+
+def test_validate_notes_result_ok_must_agree_with_errors():
+    with pytest.raises(ValidationError):
+        ValidateNotesResult(ok=True, batches=1, errors=[NotesError(batch=1, message="missing")])
+    with pytest.raises(ValidationError):
+        ValidateNotesResult(ok=False, batches=1)

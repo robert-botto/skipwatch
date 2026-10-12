@@ -1,11 +1,19 @@
-"""Provider protocols. Content providers and transcription backends register through
-providers/registry.py; export and index providers are seams for M5+."""
+"""Provider protocols. Content providers, transcription backends and export providers register
+through providers/registry.py; index providers are a seam for later."""
 
 from pathlib import Path
 from typing import Protocol
 
 from skipwatch.adapters.base import IngestOptions
-from skipwatch.models import IngestBundle, MediaInfo, ProviderCall, Transcript
+from skipwatch.models import (
+    Config,
+    ExportItem,
+    IngestBundle,
+    Manifest,
+    MediaInfo,
+    ProviderCall,
+    Transcript,
+)
 from skipwatch.workdir import WorkDir
 
 
@@ -44,11 +52,16 @@ class TranscriptionBackend(Protocol):
 
 
 class ExportProvider(Protocol):
-    name: str
+    name: str  # "mem0" | "notes"
 
-    def available(self) -> bool: ...
+    def enabled(self, cfg: Config) -> bool:
+        """The [exports.<name>] enabled flag."""
+        ...
 
-    def export(self, skill_dir: Path) -> None: ...
+    def export(self, skill_dir: Path, manifest: Manifest, cfg: Config) -> ExportItem:
+        """Raises SkipwatchError(MISSING_DEPENDENCY) for a missing key or folder and
+        (DOWNLOAD_FAILED) for a network failure. Never prints or returns the key."""
+        ...
 
 
 class IndexProvider(Protocol):

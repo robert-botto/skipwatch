@@ -1,6 +1,6 @@
 """Pydantic models for every file SkipWatch writes (R-ARCH-2). schemas/ is generated from here."""
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -83,6 +83,7 @@ class StyleConfig(_ConfigModel):
 class Mem0Config(_ConfigModel):
     enabled: bool = False
     tag: str = "skipwatch"
+    user_id: str = ""  # empty sends agent_id "skipwatch" (M5-M6 issue 8); the key is env only
 
 
 class NotesConfig(_ConfigModel):
@@ -179,11 +180,13 @@ class IngestBundle(_Tagged):
     route: Route
     fetched_with_cookies: bool = False
     from_cache: bool = False
+    notes: list[str] = []  # free-form provenance, e.g. "video came from a linked post: <url>"
+    pack: "PackOrigin | None" = None  # set only by unpack; the one switch for pack mode
 
 
 # ---- transcript.json (7.2) ----
 TranscriptOrigin = Literal[
-    "captions", "mlx-whisper", "faster-whisper", "openai", "groq", "deepgram"
+    "captions", "mlx-whisper", "faster-whisper", "openai", "groq", "deepgram", "pack"
 ]
 
 
@@ -343,6 +346,18 @@ class Manifest(_Tagged):
     files: dict[str, str] = {}
 
 
+class PackOrigin(_Model):
+    """Where an unpacked skill came from (M5-M6 issue 1): carried in a pack work folder's
+    ingest.json so check and manifest building know they are looking at a shared pack."""
+
+    file: str  # pack file name or URL as given
+    sha256: str  # "sha256:<hex>" of the pack bytes
+    manifest: Manifest  # the pack's skipwatch.json exactly as received
+
+
+IngestBundle.model_rebuild()
+
+
 # ---- other work-folder files (5.3) ----
 StageName = Literal[
     "detect",
@@ -422,6 +437,55 @@ class CacheEntry(_Tagged):
     files: list[str] = []
 
 
+class InstallRecord(_Model):
+    name: str
+    path: str
+    scope: Literal["user", "project", "agents", "dir"]
+    origin: Literal["run", "pack"] = "run"
+    installed_at: str
+
+
+class InstallsFile(_Tagged):
+    """$SKIPWATCH_HOME/installs.json: every install, so list finds --to installs (issue 10)."""
+
+    schema_: Literal["skipwatch/installs/1"] = _tag("skipwatch/installs/1")
+    installs: list[InstallRecord] = []
+
+
+class ExportLogEntry(_Model):
+    provider: str
+    name: str
+    manifest_sha256: str  # "sha256:<hex>" of the skipwatch.json bytes that were exported
+    ref: str | None = None
+    exported_at: str
+
+
+class ExportLog(_Tagged):
+    """$SKIPWATCH_HOME/exports.json: re-exporting an unchanged skill is a no-op (issue 9)."""
+
+    schema_: Literal["skipwatch/export-log/1"] = _tag("skipwatch/export-log/1")
+    entries: list[ExportLogEntry] = []
+
+
+class TesterReport(_Tagged):
+    """test-report.json from the skill-tester agent (8.9). Named TesterReport, not TestReport,
+    so pytest never tries to collect it (M5-M6 issue 25)."""
+
+    __test__: ClassVar[bool] = False  # the name still starts with "Test" for pytest's matcher
+
+    schema_: Literal["skipwatch/test-report/1"] = _tag("skipwatch/test-report/1")
+    outcome: Literal["completed", "blocked", "ambiguous"]
+    step: int | None = Field(default=None, ge=1)
+    detail: str = Field(default="", max_length=500)
+    task: str
+
+    @model_validator(mode="after")
+    def _stopped_runs_name_the_step(self) -> "TesterReport":
+        if self.outcome != "completed" and (self.step is None or not self.detail.strip()):
+            raise ValueError(f"{self.outcome} needs a step and a detail")
+        return self
+
+
 # ---- command --json outputs ----
 Tier = Literal["none", "0", "1", "1c", "2", "3"]
 
@@ -486,6 +550,93 @@ class ResumeResult(_Tagged):
     media_present: bool = False
 
 
+class PackResult(_Tagged):
+    schema_: Literal["skipwatch/pack/1"] = _tag("skipwatch/pack/1")
+    name: str
+    path: str
+    sha256: str  # "sha256:<hex>" of the pack file, for the recipient to compare (issue 3)
+    files: int
+    bytes: int
+    ignored: list[str] = []  # Finder and Windows junk left out of the pack
+
+
+class UnpackResult(_Tagged):
+    schema_: Literal["skipwatch/unpack/1"] = _tag("skipwatch/unpack/1")
+    name: str
+    work: str  # the pack work folder under $SKIPWATCH_HOME/packs/ (issue 1)
+    staging: str
+    pack_sha256: str  # "sha256:<hex>" of the pack bytes, as in PackOrigin.sha256
+    files: int
+    fetched_from: str | None = None
+    claimed_confidence: Literal["high", "medium", "low"]
+    claimed_critic_score: float | None = None
+    transcript: bool  # True when transcript.json was rebuilt from references/transcript.md
+
+
+class ListedSkill(_Model):
+    name: str
+    path: str
+    scope: Literal["user", "project", "agents", "dir"]
+    origin: Literal["run", "pack", "unknown"] = "unknown"
+    title: str | None = None
+    author: str | None = None
+    platform: str | None = None
+    url: str | None = None
+    extracted_at: str | None = None
+    confidence: Literal["high", "medium", "low"] | None = None
+    critic_score: float | None = None
+    problem: str | None = None  # set when skipwatch.json could not be read
+
+
+class ListResult(_Tagged):
+    schema_: Literal["skipwatch/list/1"] = _tag("skipwatch/list/1")
+    skills: list[ListedSkill] = []
+
+
+class ShareResult(_Tagged):
+    schema_: Literal["skipwatch/share/1"] = _tag("skipwatch/share/1")
+    name: str
+    text: str
+    weighted_length: int  # X weighting: every URL counts 23
+    install_line: str
+
+
+class ExportItem(_Model):
+    provider: str
+    ok: bool
+    skipped: bool = False
+    detail: str = ""
+    location: str | None = None
+
+
+class ExportResult(_Tagged):
+    schema_: Literal["skipwatch/export/1"] = _tag("skipwatch/export/1")
+    name: str
+    results: list[ExportItem] = []
+
+
+class NotesError(_Model):
+    batch: int = Field(ge=1)
+    frame: str | None = None  # a frame id the notes file misses or should not hold
+    field: str | None = None  # dotted path of the invalid value, e.g. "frames.0.t"
+    message: str
+
+
+class ValidateNotesResult(_Tagged):
+    """validate-notes --json: every batch is checked in one run, so each error names its batch."""
+
+    schema_: Literal["skipwatch/validate-notes/1"] = _tag("skipwatch/validate-notes/1")
+    ok: bool
+    batches: int = Field(ge=0)  # notes files checked
+    errors: list[NotesError] = []
+
+    @model_validator(mode="after")
+    def _ok_means_no_errors(self) -> "ValidateNotesResult":
+        if self.ok == bool(self.errors):
+            raise ValueError("ok must be true exactly when errors is empty")
+        return self
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -512,4 +663,13 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "run": RunFile,
     "resume": ResumeResult,
     "cache-entry": CacheEntry,
+    "installs": InstallsFile,
+    "export-log": ExportLog,
+    "test-report": TesterReport,
+    "pack": PackResult,
+    "unpack": UnpackResult,
+    "list": ListResult,
+    "share": ShareResult,
+    "export": ExportResult,
+    "validate-notes": ValidateNotesResult,
 }

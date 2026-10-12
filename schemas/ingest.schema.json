@@ -1,5 +1,47 @@
 {
   "$defs": {
+    "Counts": {
+      "additionalProperties": false,
+      "properties": {
+        "gaps": {
+          "default": 0,
+          "title": "Gaps",
+          "type": "integer"
+        },
+        "illegible": {
+          "default": 0,
+          "title": "Illegible",
+          "type": "integer"
+        },
+        "inferred": {
+          "default": 0,
+          "title": "Inferred",
+          "type": "integer"
+        },
+        "on_screen": {
+          "default": 0,
+          "title": "On Screen",
+          "type": "integer"
+        },
+        "spoken": {
+          "default": 0,
+          "title": "Spoken",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "written": {
+          "default": 0,
+          "title": "Written",
+          "type": "integer"
+        }
+      },
+      "title": "Counts",
+      "type": "object"
+    },
     "IngestContext": {
       "additionalProperties": false,
       "properties": {
@@ -120,6 +162,172 @@
       "title": "LinkContext",
       "type": "object"
     },
+    "Manifest": {
+      "additionalProperties": false,
+      "properties": {
+        "checks_passed": {
+          "title": "Checks Passed",
+          "type": "boolean"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "counts": {
+          "$ref": "#/$defs/Counts"
+        },
+        "critic_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Critic Score"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "extracted_at": {
+          "title": "Extracted At",
+          "type": "string"
+        },
+        "fetched_with_cookies": {
+          "default": false,
+          "title": "Fetched With Cookies",
+          "type": "boolean"
+        },
+        "files": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Files",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "safety_flags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SafetyFlag"
+          },
+          "title": "Safety Flags",
+          "type": "array"
+        },
+        "schema": {
+          "const": "skipwatch/manifest/1",
+          "default": "skipwatch/manifest/1",
+          "title": "Schema",
+          "type": "string"
+        },
+        "skipwatch_version": {
+          "title": "Skipwatch Version",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ManifestSource"
+        }
+      },
+      "required": [
+        "schema",
+        "name",
+        "description",
+        "skipwatch_version",
+        "source",
+        "extracted_at",
+        "counts",
+        "confidence",
+        "checks_passed"
+      ],
+      "title": "Manifest",
+      "type": "object"
+    },
+    "ManifestSource": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Url"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "posted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Posted At"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "platform"
+      ],
+      "title": "ManifestSource",
+      "type": "object"
+    },
     "MediaInfo": {
       "additionalProperties": false,
       "properties": {
@@ -173,6 +381,30 @@
         "path"
       ],
       "title": "MediaInfo",
+      "type": "object"
+    },
+    "PackOrigin": {
+      "additionalProperties": false,
+      "description": "Where an unpacked skill came from (M5-M6 issue 1): carried in a pack work folder's\ningest.json so check and manifest building know they are looking at a shared pack.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "manifest": {
+          "$ref": "#/$defs/Manifest"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "manifest"
+      ],
+      "title": "PackOrigin",
       "type": "object"
     },
     "ProviderCall": {
@@ -295,6 +527,47 @@
         "context"
       ],
       "title": "Route",
+      "type": "object"
+    },
+    "SafetyFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "severity"
+      ],
+      "title": "SafetyFlag",
       "type": "object"
     },
     "SourceInfo": {
@@ -472,6 +745,25 @@
       "anyOf": [
         {
           "$ref": "#/$defs/MediaInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "pack": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackOrigin"
         },
         {
           "type": "null"

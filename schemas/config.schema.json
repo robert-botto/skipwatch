@@ -7,7 +7,8 @@
           "$ref": "#/$defs/Mem0Config",
           "default": {
             "enabled": false,
-            "tag": "skipwatch"
+            "tag": "skipwatch",
+            "user_id": ""
           }
         },
         "notes": {
@@ -68,6 +69,11 @@
         "tag": {
           "default": "skipwatch",
           "title": "Tag",
+          "type": "string"
+        },
+        "user_id": {
+          "default": "",
+          "title": "User Id",
           "type": "string"
         }
       },
@@ -178,7 +184,8 @@
       "default": {
         "mem0": {
           "enabled": false,
-          "tag": "skipwatch"
+          "tag": "skipwatch",
+          "user_id": ""
         },
         "notes": {
           "enabled": false,

@@ -141,7 +141,8 @@
         "faster-whisper",
         "openai",
         "groq",
-        "deepgram"
+        "deepgram",
+        "pack"
       ],
       "title": "Origin",
       "type": "string"
