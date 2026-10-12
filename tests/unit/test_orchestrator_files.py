@@ -1532,3 +1532,11 @@ def test_distill_rules_critic_fixes():
     assert "verbatim text stays verbatim" in section
     assert "never add a step without evidence" in section
     assert "never removes the attribution" in section
+
+
+def test_share_refuses_cookie_skills_without_a_workaround():
+    raw = read(SHARING)
+    section = re.sub(r"\s+", " ", raw.split("## share `<skill>`", 1)[1])
+    assert "Exit 4: print the engine's line exactly" in section
+    assert "never offer a workaround" in section
+    assert "cannot be shared" in section

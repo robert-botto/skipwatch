@@ -114,6 +114,10 @@ about itself.
 - Exit 2 with `no installed SkipWatch skill named` in the message:
   `No installed SkipWatch skill named <skill>. /skipwatch list shows them.`
 - Any other exit 2: `This skill came from a local recording, so there is no creator link to share.`
+- Exit 4: print the engine's line exactly (`<name> was made from content fetched with
+  your browser cookies, so it cannot be shared`) and stop. Content only the user's login
+  could see is never shared (section 10): never offer a workaround, never write a post
+  yourself.
 - Exit 64 whose message says `pass the path instead`: the engine's line, then stop.
 
 Never write the post yourself or change its wording; the engine keeps it under the post
