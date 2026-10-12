@@ -14,8 +14,10 @@ Write is denied or fails, do the same:
    `*`, so the `<P>/.skipwatch/.gitignore` file containing `*` keeps work files out of
    commits.
 2. Create the work folder under the project's home, `--home` before the command:
-   `<ENGINE> --home "<P>/.skipwatch" new-work --from "<input>" --json` (or `--slug <name>`). Take the new `<W>`
-   and repeat the Write probe.
+
+       <ENGINE> --home "<P>/.skipwatch" new-work --from "<input>" --json
+
+   (or `--slug <name>` with `--name`). Take the new `<W>` and repeat the Write probe.
 3. Pass `--home "<P>/.skipwatch"` to every `<ENGINE>` call for the rest of the run, before
    the command (with `--log` in either order), never as a `SKIPWATCH_HOME=` prefix. If
    doctor failed to write `doctor.json` for the same reason, rerun it once with `--home`.
