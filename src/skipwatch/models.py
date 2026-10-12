@@ -615,6 +615,28 @@ class ExportResult(_Tagged):
     results: list[ExportItem] = []
 
 
+class NotesError(_Model):
+    batch: int = Field(ge=1)
+    frame: str | None = None  # a frame id the notes file misses or should not hold
+    field: str | None = None  # dotted path of the invalid value, e.g. "frames.0.t"
+    message: str
+
+
+class ValidateNotesResult(_Tagged):
+    """validate-notes --json: every batch is checked in one run, so each error names its batch."""
+
+    schema_: Literal["skipwatch/validate-notes/1"] = _tag("skipwatch/validate-notes/1")
+    ok: bool
+    batches: int = Field(ge=0)  # notes files checked
+    errors: list[NotesError] = []
+
+    @model_validator(mode="after")
+    def _ok_means_no_errors(self) -> "ValidateNotesResult":
+        if self.ok == bool(self.errors):
+            raise ValueError("ok must be true exactly when errors is empty")
+        return self
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -649,4 +671,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "list": ListResult,
     "share": ShareResult,
     "export": ExportResult,
+    "validate-notes": ValidateNotesResult,
 }

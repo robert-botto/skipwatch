@@ -21,6 +21,7 @@ from skipwatch.models import (
     ListResult,
     Manifest,
     ManifestSource,
+    NotesError,
     NotesFile,
     PackOrigin,
     PackResult,
@@ -35,6 +36,7 @@ from skipwatch.models import (
     TesterReport,
     Transcript,
     UnpackResult,
+    ValidateNotesResult,
 )
 
 INGEST_EXAMPLE = {
@@ -260,6 +262,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "list",
         "share",
         "export",
+        "validate-notes",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -577,3 +580,25 @@ def test_ingest_notes_default_empty_and_round_trip():
     assert IngestBundle.model_validate_json(noted.model_dump_json(by_alias=True)) == noted
     with pytest.raises(ValidationError):
         IngestBundle.model_validate({**plain.model_dump(by_alias=True), "notes": "one string"})
+
+
+def test_validate_notes_result_covers_what_the_command_reports():
+    errors = [
+        NotesError(batch=1, message="missing notes/batch-01.json"),
+        NotesError(batch=2, field="frames.0.t", message="invalid notes/batch-02.json"),
+        NotesError(batch=3, field="batch", message="batch id is 4, expected 3"),
+        NotesError(batch=3, frame="f000250", message="missing"),
+        NotesError(batch=3, frame="f000999", message="unexpected"),
+    ]
+    bad = ValidateNotesResult(ok=False, batches=3, errors=errors)
+    assert ValidateNotesResult.model_validate_json(bad.model_dump_json(by_alias=True)) == bad
+    assert ValidateNotesResult(ok=True, batches=3).errors == []
+    with pytest.raises(ValidationError):
+        NotesError(batch=0, message="x")
+
+
+def test_validate_notes_result_ok_must_agree_with_errors():
+    with pytest.raises(ValidationError):
+        ValidateNotesResult(ok=True, batches=1, errors=[NotesError(batch=1, message="missing")])
+    with pytest.raises(ValidationError):
+        ValidateNotesResult(ok=False, batches=1)
