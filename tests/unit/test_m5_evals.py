@@ -236,3 +236,39 @@ def test_reference_pack_has_on_screen_steps_a_pack_cannot_re_verify():
     with zipfile.ZipFile(pack) as z:
         doc = parse(z.read("run-skipdemo-tutorial/SKILL.md").decode("utf-8"))
     assert [t.kind for s in doc.steps for t in s.tags].count("on-screen") == 3
+
+
+# ---- pack-install ----
+
+
+def test_pack_install_case_runs_alone_with_scaffold_and_tool_grant():
+    text, case = case_yaml("pack-install")
+    assert "--scaffold --allow-tools Bash Write" in text and "--case pack-install" in text
+    assert case["name"] == "pack-install" and case["context"]["scaffold_script"] == "scaffold.sh"
+    prompt = case["execution"]["prompt"]
+    assert prompt == "/skipwatch install run-skipdemo-spoken.skillpack.zip --yes --to ./installed"
+    assert git_index_mode("evals/pack-install/scaffold.sh") == "100755"
+
+
+def test_pack_install_scaffold_copies_the_spoken_pack(tmp_path):
+    sandbox = tmp_path / "cwd"
+    run_scaffold("pack-install", sandbox)
+    name = "run-skipdemo-spoken.skillpack.zip"
+    assert [p.name for p in sandbox.iterdir()] == [name]
+    assert (sandbox / name).read_bytes() == (FIX / "packs" / name).read_bytes()
+
+
+def test_pack_install_graders():
+    g = graders("pack-install")
+    assert set(g) == {"skill-file", "check-ran", "credits-line"}
+    assert all(x.get("tool") != "Skill" for x in g.values())
+    assert g["skill-file"] == {
+        "type": "file_exists",
+        "path": "installed/run-skipdemo-spoken/SKILL.md",
+    }
+    assert g["check-ran"] == graders("pack-yes-holds")["check-ran"]
+    credits = EVALS / "pack-install" / "graders" / "credits-line.md"
+    assert fm(credits) == {"type": "regex", "target": "last_message", "match": "contains"}
+    said = "This skill credits the video's creator. Source: tutorial-60s."
+    assert re.search(body(credits), said)
+    assert not re.search(body(credits), "Cancelled. Nothing was installed.")

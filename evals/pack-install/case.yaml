@@ -1,0 +1,18 @@
+# Runner note: Bash and Write are gated tools. Run this case with
+#   --scaffold --allow-tools Bash Write
+# --scaffold copies the spoken-only fixture pack (tests/fixtures/packs) into the sandbox
+# cwd; without the tool grant the skill cannot reach the engine. --case is not repeatable
+# (the last one wins), so run this case on its own: --case pack-install.
+# The slash prompt does not go through the Skill tool, so no grader scores Skill use.
+# Every step of this pack is [spoken] and quotes the transcript the pack carries, so
+# pack-mode check re-verifies all of them, the "not re-verified" count is 0 and --yes may
+# install (sharing.md step 4). The refusal side is eval pack-yes-holds.
+schema_version: "1.0"
+name: pack-install
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: "/skipwatch install run-skipdemo-spoken.skillpack.zip --yes --to ./installed"
+  max_turns: 60
+  timeout_seconds: 900
+  allowed_tools: [Skill, Bash, Read, Write, Agent, Glob]
