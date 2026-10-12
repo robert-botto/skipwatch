@@ -144,7 +144,7 @@ retry a failed stage with different inputs to get past it.
 | 7 | ingest, frames (except audio-only, which exits 0 with no frames), or no transcript and no frames | the message `run-engine.md` gives for that stage (ingest, frames, or no transcript and no frames) |
 | 3, 7 or 8 | transcribe | do not stop: continue from frames only and list `no transcript: <the engine's message>` under Unverified; exit 8 also puts the transcription offers on the review screen. |
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
-| 1 | check, twice | the failing items, one line each, then `Draft kept at <path>. Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"`, with `<ENGINE>` expanded to the full command (plain `skipwatch` is not on PATH). |
+| 1 | check, twice | the failing items, one line each, then the `Check failed twice.` line from stage 8 in `run-distill.md` |
 | 6 | install | show the review screen again with the collision prompt. |
 | 64 | any | your command was malformed: fix it from the engine's usage text and retry once. |
 | 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |

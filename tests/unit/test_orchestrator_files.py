@@ -736,7 +736,12 @@ def test_work_folder_falls_back_inside_the_workspace():
 def test_check_hint_uses_the_full_engine_command():
     # `skipwatch` is on PATH only after an optional `uv tool install`
     hint = 'Edit it and run: <ENGINE> check "<W>/staging/<name>" --work "<W>"'
-    for path in (SKILL / "SKILL.md", REFS / "run-distill.md"):
+    # one wording, owned by run-distill; SKILL.md's table points to it
+    assert "the `Check failed twice.` line from stage 8 in `run-distill.md`" in flat(
+        SKILL / "SKILL.md"
+    )
+    assert "Edit it and run" not in read(SKILL / "SKILL.md")
+    for path in (REFS / "run-distill.md",):
         text = flat(path)
         assert hint in text, path
         assert "run skipwatch check" not in text and "run: skipwatch check" not in text, path
