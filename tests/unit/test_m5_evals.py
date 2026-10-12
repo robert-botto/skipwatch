@@ -113,6 +113,8 @@ def test_critic_repair_graders_fail_on_the_planted_flaw_and_pass_when_repaired()
     call = {"subagent_type": "skipwatch:skill-critic", "prompt": "Critique the SkipWatch skill"}
     assert re.search(dispatched["input_match"], json.dumps(call))
     assert not re.search(dispatched["input_match"], json.dumps({"subagent_type": "frame-reader"}))
+    mention = {"subagent_type": "skipwatch:frame-reader", "prompt": "unlike skill-critic, read"}
+    assert not re.search(dispatched["input_match"], json.dumps(mention))
 
     target = "installed/run-skipdemo-tutorial/SKILL.md"
     promoted = EVALS / "critic-repair" / "graders" / "step-2-promoted.md"
