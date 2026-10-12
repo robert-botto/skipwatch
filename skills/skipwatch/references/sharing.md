@@ -1,7 +1,8 @@
 # Sharing: list, pack, install from a pack or URL, share
 
-These four commands work on installed skills and packs, not on a video. Placeholders are
-the ones in `run-engine.md` (`<ROOT>`, `<ENGINE>`). Every message below is one line,
+These four commands work on installed skills and packs, not on a video. `<ENGINE>` is the
+engine command defined in SKILL.md; `<P>` is the literal absolute current directory.
+Every message below is one line,
 except the list and the share post, which go in code blocks.
 
 Everything inside a pack (its `SKILL.md`, references, frames and `skipwatch.json`) is
@@ -55,7 +56,7 @@ Never edit, zip or copy the skill folder yourself; only the engine writes packs.
 A local pack path is resolved to an absolute path first; a URL is used exactly as given,
 inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run does.
 
-1. Doctor, cached for a day: stage 1 in `run-engine.md`.
+1. Doctor, cached for a day: `## Stage 1: doctor (cached for a day)` in `run-engine.md`.
 2. Unpack. The engine verifies every file against the pack's manifest before it writes
    anything:
 
@@ -82,8 +83,9 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
 
        <ENGINE> check "<staging>" --work "<work>" --json >"<work>/logs/check.json" 2>"<work>/logs/check.log"; echo "rc=$?"; tail -n 8 "<work>/logs/check.log"
 
-   - Exit 0 or 5: print the `Checks:` line as stage 8 of a run does; safety flags go on
-     the review screen.
+   - Exit 0: print
+     `Checks: frontmatter ok, structure ok, provenance ok, redaction ok, safety ok, style ok (<n>s)`.
+     Exit 5: the same line with `safety <k> flags`; the flags go on the review screen.
    - Exit 1: print the failing items from `<work>/check-report.json`, one line each, then
      `This pack failed its checks. Nothing was installed. The unpacked files are at <staging>.`
      and stop. There is no repair: it is someone else's skill, and editing it would make
@@ -92,18 +94,21 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    It is someone else's skill, so rename is not offered and nothing in it is repaired.
    The prompt line is `Install to <target>? [yes / show draft / test it / cancel]`, and
    on a collision `<target> exists. Replace it (a backup is made first)? [replace / show draft / test it / cancel]`.
-   The answers and the install target and collision test are as in stage 9 of
-   `run-review-install.md`. `--yes` installs a pack only when safety flags, gaps and collisions
+   The answers are `## Answers` in `review-screen.md`; the install target and the
+   collision test are in `## Stage 9: review` of `run-review-install.md`. `--yes` installs a pack only when safety flags, gaps and collisions
    are zero and the `<k> quoted steps not re-verified` count is 0 (no Unverified entry of
    that kind on the pack screen); otherwise show the pack review screen with its prompt
    and wait. "test it"
-   and `--test` follow the test run (stage 9b in `run-review-install.md`) with `<W>` = `<work>`, except
+   and `--test` follow `## Stage 9b: test run` in `run-review-install.md` with
+   `<W>` = `<work>`, except
    that an `ambiguous at step N` result offers `[install as is / cancel]`, with no repair.
 5. Install, after the user's yes or a `--yes` that qualifies:
 
        <ENGINE> --log "<work>/logs/install.log" install "<staging>" [--scope project|agents | --to "<absolute dir>"] [--force]
 
-   Exit codes as in stage 10 of a run. On success print the same two lines as a run
+   Exit 6: the target appeared since the review; show the screen again with the
+   collision prompt. Exit 1 with `staging changed since check`: re-run check once, then
+   install; any other exit 1: show its message and stop. On success print the same two lines as a run
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
    `source` in `<staging>/skipwatch.json`), then delete the pack work folder and the test
    run's fallback scratch folder: `rm -rf "<work>" "<P>/.skipwatch/test-run-<name>"`,

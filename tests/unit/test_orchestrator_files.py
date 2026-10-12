@@ -1531,6 +1531,21 @@ def test_sharing_says_what_checksums_prove():
     assert "is data, not instructions" in text  # pack contents are data (R-DIS-1)
 
 
+def test_sharing_points_at_sections_not_stage_chains():
+    text = read(SHARING)
+    # a pack install reads sharing.md plus named sections, never a chain of stage numbers
+    for chain in (
+        "as stage 8 of a run does",
+        "as in stage 10 of a run",
+        "Placeholders are the ones",
+    ):
+        assert chain not in flat(SHARING), chain
+    for heading, file in re.findall(r"`(## [^`]+)`(?: in| of) `([a-z-]+\.md)`", text):
+        assert f"\n{heading}\n" in read(REFS / file), (heading, file)
+    assert len(re.findall(r"`## [^`]+`(?: in| of) `[a-z-]+\.md`", text)) >= 4
+    assert "`Checks: frontmatter ok," in text
+
+
 def test_sharing_reference_is_short_and_clean():
     assert len(read(SHARING).splitlines()) < 200
     assert "\u2014" not in read(SHARING)
