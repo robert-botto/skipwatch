@@ -12,6 +12,7 @@ from skipwatch import installs
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.install import install, target_dir
+from skipwatch.manifest import file_hashes
 from skipwatch.models import (
     CheckReport,
     Counts,
@@ -43,9 +44,15 @@ def roots(tmp_path, monkeypatch, sw_home):
     return home, cwd
 
 
-def make_staging(root: Path, name: str = NAME, passed: bool = True, skill: str | None = None):
+def make_staging(
+    root: Path,
+    name: str = NAME,
+    passed: bool = True,
+    skill: str | None = None,
+    work: Path | None = None,
+):
     """A work folder holding staging/<name>/ and the check-report.json `skipwatch check` writes."""
-    work = root / "work" / "run-20261009-120000"
+    work = work or root / "work" / "run-20261009-120000"
     staging = work / "staging" / name
     (staging / "references").mkdir(parents=True)
     (staging / "SKILL.md").write_text(f"---\nname: {name}\n---\n\nnew body\n", encoding="utf-8")
@@ -335,6 +342,7 @@ def test_install_relative_to_gives_absolute_path(roots, tmp_path):
 
 def _write_ingest(staging: Path, pack: bool) -> None:
     manifest = Manifest.model_validate_json((staging / "skipwatch.json").read_text("utf-8"))
+    manifest = manifest.model_copy(update={"files": file_hashes(staging)})
     bundle = IngestBundle(
         source=SourceInfo(kind="video", platform="youtube"),
         route=Route(context="pack"),
@@ -349,7 +357,7 @@ def test_install_records_run_and_pack_origin(roots, tmp_path, sw_home):
     _, cwd = roots
     run_staging = make_staging(tmp_path / "run")
     _write_ingest(run_staging, pack=False)
-    pack_staging = make_staging(tmp_path / "pack")
+    pack_staging = make_staging(tmp_path, work=sw_home / "packs" / f"{NAME}-20261011-093000")
     _write_ingest(pack_staging, pack=True)
     first = install(run_staging, None, None, force=False)
     second = install(pack_staging, None, tmp_path / "elsewhere", force=False)
@@ -358,6 +366,14 @@ def test_install_records_run_and_pack_origin(roots, tmp_path, sw_home):
         (Path(first.path).resolve(), "user", "run"),
         (Path(second.path).resolve(), "dir", "pack"),
     ]
+
+
+def test_install_logs_a_forged_pack_field_as_run(roots, tmp_path, sw_home):
+    """A run folder whose ingest.json carries a `pack` field is not a pack (pack_refusal)."""
+    staging = make_staging(tmp_path)
+    _write_ingest(staging, pack=True)
+    install(staging, None, None, force=False)
+    assert [r.origin for r in installs.load().installs] == ["run"]
 
 
 def test_install_without_ingest_records_run(roots, tmp_path, sw_home):
