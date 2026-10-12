@@ -77,3 +77,13 @@ def test_hero_svgs_share_one_drawing_and_differ_only_in_colours():
     assert "Paste a video. Claude knows kung fu." in light
     assert _without_style(light) == _without_style(dark)
     assert light != dark
+
+
+def test_how_it_works_uses_the_real_stage_names():
+    light, dark = _svg("how-it-works.svg"), _svg("how-it-works-dark.svg")
+    assert _without_style(light) == _without_style(dark)
+    for stage in ("ingest", "transcribe", "frames", "read", "critique", "check", "review"):
+        assert f">{stage}<" in light, stage
+    for check in ("provenance", "redaction", "safety"):
+        assert check in light, check
+    assert "frame-reader" in light and "skill-critic" in light
