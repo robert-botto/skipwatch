@@ -1049,7 +1049,9 @@ def test_offer_picked_resumes_from_transcribe():
     assert "then continue from stage 3 step 5" in review
     # S2: an in-run install can fail in the sandbox; the user runs it and resumes
     assert "`! <command>`" in review and "/skipwatch resume <W>" in review
-    assert 'rm -f "${SKIPWATCH_HOME:-$HOME/.skipwatch}/doctor.json"' in review
+    # refresh through the engine so a moved home (--home) gets the right report
+    assert 'refresh the doctor report with `<ENGINE> doctor --json` (with `--home' in review
+    assert "doctor.json\"`" not in review and "rm -f" not in review
 
 
 def test_questions_allowed_in_a_run_are_listed():
