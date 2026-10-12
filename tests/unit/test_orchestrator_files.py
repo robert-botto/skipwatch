@@ -1174,8 +1174,15 @@ def test_no_hand_built_skipwatch_home_paths():
 
 def test_protocol_matches_the_merged_m3_engine():
     text = flat(REFS / "run-protocol.md")
-    # the X adapter writes the linked-post note into route.fallbacks (decision 2)
-    assert "`route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`" in text
+    # M5 decision 3: the X adapter writes the linked-post note into IngestBundle.notes;
+    # bundles cached before that change still carry it in route.fallbacks
+    assert "`notes` in `ingest.json` has `video came from a linked post: <url>`" in text
+    assert "`route.fallbacks` in `ingest.json` has `video came from a linked post" not in text
+    assert "cached before" in text and "`route.fallbacks`" in text
+    review = flat(REFS / "review-screen.md")
+    linked = review.split("**Linked post:**", 1)[1].split("- **", 1)[0]
+    assert "`notes` in `W/ingest.json`" in linked
+    assert "falling back to `route.fallbacks` only for a bundle cached before" in linked
     assert "post id in `source.canonical_url`" not in text  # the engine decides, not you
     # transcribe refuses a text bundle with exit 7 and this message
     assert "`text source: nothing to transcribe`" in text

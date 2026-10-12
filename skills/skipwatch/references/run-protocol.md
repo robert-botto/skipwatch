@@ -219,9 +219,10 @@ Run, each timed as above:
      `--provider free` never calls it, `--provider treg` requires it. The engine makes
      every treg call, logs it in `calls.json`, reviews it (R-ING-3) and stops at the
      per-run cost cap. Never run `treg` yourself, and never print the treg balance.
-   - Linked video (spike decision 2): when `route.fallbacks` in `ingest.json` has `video came from a linked post: <url>`,
+   - Linked video (spike decision 2): when `notes` in `ingest.json` has `video came from a linked post: <url>`,
      the video came from a linked post: the X adapter found that the video belongs to a
-     post the requested one links.
+     post the requested one links. A bundle cached before that change carries the same
+     line in `route.fallbacks` instead; read it there only when `notes` does not hold it.
      `source` then describes the linked post and the requested post's text is in
      `context.thread`. Copy that line to the review screen exactly; the attribution names
      `source.author`, the video's creator.
