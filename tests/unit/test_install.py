@@ -299,6 +299,26 @@ def test_install_writes_file_hashes(roots, tmp_path):
     assert manifest.checks_passed is True
 
 
+def test_install_leaves_finder_and_explorer_junk_behind(roots, tmp_path):
+    home, _ = roots
+    staging = make_staging(tmp_path)
+    (staging / "references" / "deep").mkdir()
+    junk = [staging / "references" / "Thumbs.db", staging / "references" / "deep" / ".DS_Store"]
+    for path in junk:
+        path.write_bytes(b"junk")
+    earlier = (staging.parent.parent / "check-report.json").stat().st_mtime - 10
+    for path in [*junk, *(p for p in staging.rglob("*") if p.is_dir())]:
+        os.utime(path, (earlier, earlier))
+    install(staging, None, None, force=False)
+    target = home / ".claude/skills" / NAME
+    assert not (target / "references" / "Thumbs.db").exists()
+    assert not (target / "references" / "deep" / ".DS_Store").exists()
+    manifest = Manifest.model_validate_json((target / "skipwatch.json").read_text(encoding="utf-8"))
+    assert sorted(manifest.files) == ["SKILL.md", "references/source.md"]
+    for rel, digest in manifest.files.items():
+        assert digest == "sha256:" + hashlib.sha256((target / rel).read_bytes()).hexdigest()
+
+
 # ---- review fixes ----
 
 

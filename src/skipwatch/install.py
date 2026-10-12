@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from skipwatch import installs
 from skipwatch.config import load_config, skipwatch_home
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.manifest import finalize_manifest, pack_refusal
+from skipwatch.manifest import PACK_IGNORED_NAMES, finalize_manifest, pack_refusal
 from skipwatch.models import CheckReport, IngestBundle, InstallResult
 from skipwatch.output import progress
 from skipwatch.workdir import read_model
@@ -126,7 +126,7 @@ def install(
 
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(staging, target)
+        shutil.copytree(staging, target, ignore=shutil.ignore_patterns(*PACK_IGNORED_NAMES))
         finalize_manifest(target, checks_passed=True)
     except BaseException:
         _remove(target)
