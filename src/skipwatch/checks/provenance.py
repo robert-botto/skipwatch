@@ -240,11 +240,11 @@ def _pack_refusal(ctx: CheckContext) -> str | None:
     frame notes and no transcript but the one rebuilt from the pack."""
     work = ctx.work.resolve()
     if (skipwatch_home() / "packs").resolve() not in work.parents:
-        return "not a pack work folder"
+        return "the work folder is not under $SKIPWATCH_HOME/packs/"
     if (work / "batches.json").exists() or (work / "notes").exists():
-        return "not a pack work folder"
+        return "the work folder has frame notes (notes/ or batches.json)"
     if ctx.transcript is not None and ctx.transcript.origin != "pack":
-        return "not a pack work folder"
+        return f'transcript.json origin is "{ctx.transcript.origin}", not "pack"'
     return None
 
 
@@ -301,7 +301,14 @@ def run(ctx: CheckContext) -> CheckResult:
         refusal = _pack_refusal(ctx)
         if refusal is not None:
             return CheckResult(
-                check="provenance", ok=False, items=[CheckItem(msg=f"pack mode refused: {refusal}")]
+                check="provenance",
+                ok=False,
+                items=[
+                    CheckItem(
+                        msg=f"pack mode refused: {refusal}",
+                        fix="check a shared pack only in the folder `skipwatch unpack` made",
+                    )
+                ],
             )
     failing = [item for step in ctx.doc.steps for item in _step_items(ctx, step)]
     skipped = sum(1 for step in ctx.doc.steps if _pack_skips(ctx, step))
