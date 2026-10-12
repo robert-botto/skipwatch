@@ -71,7 +71,7 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
   `treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`: `<n>` counts the treg rows,
   each row shows its `op` and its `cost_usd` to 4 decimals, and the total is their sum,
   computed from `calls.json`, never from `treg balance`, which you never run or print. For
-  example `treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012)`.
+  example `treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)`.
   Two kinds of treg row add nothing to the total: `media.get` rows, the download of a
   treg media URL, shown as `media.get $0.0000`; and rows whose `error` is `cost cap`,
   which never ran, shown as `<op> refused (cost cap)`. Every other treg row counts with

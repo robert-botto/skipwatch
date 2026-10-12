@@ -1203,7 +1203,8 @@ def test_provider_calls_line_lists_each_call_and_the_total():
     assert "`<n>` counts the treg rows" in review
     assert "counts every row" not in review
     assert "`treg: <n> calls, $<total to 4 decimals> (<op> $<cost>, ...)`" in review
-    example = "treg: 3 calls, $0.0057 (x.thread $0.0040, x.comments $0.0005, x.transcript $0.0012"
+    # catalog prices from content_treg.CATALOG_PRICES; the total is the sum of the shown costs
+    example = "treg: 3 calls, $0.0150 (x.thread $0.0038, x.comments $0.0100, x.transcript $0.0012)"
     assert example in review
     # a treg call without a stderr call id can still carry cost_usd from its body, so the
     # exclusions are named, not inferred from a missing call_id
