@@ -105,6 +105,26 @@ Shown on screen at <mm:ss>. [on-screen <mm:ss>]
 Distilled from <title> by <author> (<link>), posted <date>, with SkipWatch. The workflow and wording are the creator's.
 ````
 
+## Good step and bad step
+
+Bad: a paraphrased command, no `Expected:` line, two tags.
+
+```markdown
+1. Install the CLI (something like npm i wrangler). [spoken 00:20] [on-screen 00:21]
+```
+
+Good: the exact command in a fence, what to expect, one tag.
+
+````markdown
+1. Install the Wrangler CLI.
+
+   ```
+   npm install -g wrangler
+   ```
+
+   Expected: `wrangler --version` prints a version. [on-screen 00:21]
+````
+
 ## Section notes
 
 - **Title and What this does:** name the workflow, not the video.

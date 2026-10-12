@@ -358,6 +358,13 @@ Read `<W>/ingest.json`, `<W>/transcript.json` (if it exists) and every notes fil
     2. ...
     GAP: <mm:ss> to <mm:ss>, <what is missing>
 
+A filled outline:
+
+    # Outline: Deploy an Astro site to Cloudflare Pages
+    1. Create the project | [on-screen 00:12] | verbatim: "npm create astro@latest" (f000120) | evidence: "first we scaffold it"
+    2. Build | [spoken 00:40] | evidence: "then run npm run build"
+    GAP: 01:10 to 01:35, cut from build to the dashboard
+
 - Numbered steps ordered by timestamp, earliest first, each with its timestamp and one provenance tag from
   `distill-rules.md`.
 - Attach every verbatim item from the notes to the step it belongs to, copied exactly.

@@ -751,6 +751,22 @@ def test_five_tags_regex_counts_tags_in_javascript_form():
     assert not re.search(pattern, five.rsplit("\n", 1)[0])
 
 
+def test_concrete_examples_for_the_outline_and_a_step():
+    protocol = read(REFS / "run-protocol.md")
+    assert "# Outline: Deploy an Astro site to Cloudflare Pages" in protocol
+    assert re.search(
+        r"^ +1\. .+ \| \[on-screen \d\d:\d\d\] \| verbatim: \".+\" \(f\d+\)", protocol, re.M
+    )
+    assert re.search(r"^ +GAP: \d\d:\d\d to \d\d:\d\d, ", protocol, re.M)
+    template = read(REFS / "skill-template.md")
+    section = template.split("## Good step and bad step", 1)[1].split("\n## ", 1)[0]
+    bad, good = section.split("Good:", 1)
+    assert len(re.findall(r"\[(?:spoken|on-screen) \d\d:\d\d\]", bad)) == 2
+    assert "Expected:" not in bad.split("```markdown", 1)[1]
+    assert len(re.findall(r"\[(?:spoken|on-screen) \d\d:\d\d\]", good)) == 1
+    assert "Expected: " in good and "npm install -g wrangler" in good
+
+
 def test_template_orders_steps_by_time_and_inlines_frames():
     text = flat(REFS / "skill-template.md")
     assert "Procedure steps are ordered by their timestamp" in text
