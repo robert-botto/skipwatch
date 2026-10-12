@@ -28,6 +28,7 @@ from skipwatch.models import (
     Route,
     RunFile,
     Segment,
+    ShareResult,
     SourceInfo,
     TesterReport,
     Transcript,
@@ -255,6 +256,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "pack",
         "unpack",
         "list",
+        "share",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -541,3 +543,12 @@ def test_list_result_round_trip_and_problem_entries():
     assert ListResult().skills == []
     with pytest.raises(ValidationError):
         ListedSkill.model_validate({**ok.model_dump(), "origin": "url"})
+
+
+def test_share_result_round_trip():
+    r = ShareResult(
+        name="run-x", text="Thanks", weighted_length=6, install_line="/skipwatch https://youtu.be/x"
+    )
+    assert ShareResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    with pytest.raises(ValidationError):
+        ShareResult.model_validate({"schema": "skipwatch/share/1", "name": "run-x"})

@@ -592,6 +592,14 @@ class ListResult(_Tagged):
     skills: list[ListedSkill] = []
 
 
+class ShareResult(_Tagged):
+    schema_: Literal["skipwatch/share/1"] = _tag("skipwatch/share/1")
+    name: str
+    text: str
+    weighted_length: int  # X weighting: every URL counts 23
+    install_line: str
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -624,4 +632,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "pack": PackResult,
     "unpack": UnpackResult,
     "list": ListResult,
+    "share": ShareResult,
 }
