@@ -3,12 +3,13 @@ below the guard (socket.getaddrinfo and links._send_any), so every hop's address
 for real and no socket is ever opened."""
 
 import socket
+import types
 
 import pytest
 
 from skipwatch import pack as pack_mod
 from skipwatch.errors import ExitCode, SkipwatchError
-from skipwatch.providers import links
+from skipwatch.providers import links, pack_fetch
 from skipwatch.providers.pack_fetch import fetch_pack
 
 PUBLIC_IP = "93.184.215.14"
@@ -120,6 +121,28 @@ def test_fetch_pack_caps_bytes_and_refuses_private_hosts(tmp_path, net, monkeypa
     routes[big] = FakeResponse(big, headers={"Content-Length": str(11 * CHUNK)})
     assert "too large" in refused(big, tmp_path, ExitCode.PACK_INTEGRITY).message
     assert routes[big].raw.reads == 0
+
+
+def test_fetch_pack_stops_a_trickling_body_at_the_deadline(tmp_path, net, monkeypatch):
+    dns, routes, _ = net
+    dns["slow.example"] = [PUBLIC_IP]
+    url = "https://slow.example/slow.skillpack.zip"
+    clock = [0.0]
+
+    class Trickle(FakeRaw):
+        def read1(self, n: int, decode_content: bool = True) -> bytes:
+            self.reads += 1
+            clock[0] += 50.0  # each byte takes 50 s
+            return b"x"
+
+    routes[url] = FakeResponse(url)
+    routes[url].raw = Trickle(None)
+    monkeypatch.setattr(pack_fetch, "time", types.SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(pack_mod, "MAX_PACK_BYTES", 10)  # without the deadline: too large
+    err = refused(url, tmp_path, ExitCode.DOWNLOAD_FAILED)
+    assert "deadline" in err.message
+    assert clock[0] <= pack_fetch.DEADLINE_S + 50.0 and routes[url].closed
+    assert list(tmp_path.iterdir()) == []  # no .part file is left
 
 
 def test_fetch_pack_refuses_a_redirect_off_https(tmp_path, net):
