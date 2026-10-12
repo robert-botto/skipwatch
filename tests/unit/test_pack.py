@@ -197,7 +197,6 @@ def test_pack_cli_refusal_exit_codes(tmp_path):
 
 
 def test_pack_cli_resolves_an_installed_name(tmp_path, monkeypatch):
-    pytest.importorskip("skipwatch.listing")
     home = tmp_path / "home"
     skill = installed_skill(home / ".claude")
     monkeypatch.setenv("HOME", str(home))
