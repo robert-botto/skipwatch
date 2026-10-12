@@ -90,6 +90,9 @@ def resume_info(work: Path) -> ResumeResult:
 
 
 def _resumable(work: Path) -> bool:
+    # without run.json there is nothing to repeat: a folder abandoned right after new-work
+    if _run(work) is None:
+        return False
     try:
         stages = read_model(work / "stages.json", StagesFile).stages
     except (OSError, ValidationError):

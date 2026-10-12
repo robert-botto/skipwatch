@@ -17,9 +17,12 @@ from skipwatch.resume import newest_incomplete, resume_info
 from skipwatch.workdir import WorkDir, write_model
 
 
-def work_at(path, done=(), running=None):
+def work_at(path, done=(), running=None, run_json=False):
     w = WorkDir(path)
     w.ensure()
+    if run_json:
+        run = RunFile(input="https://youtu.be/x", started_at="2026-10-09T12:00:00Z")
+        write_model(w.file("run.json"), run)
     for s in done:
         w.mark(s, "done")
     if running:
@@ -49,10 +52,13 @@ def test_failed_stage_is_next_and_later_done_stages_are_listed(tmp_path):
 
 
 def test_newest_incomplete_skips_reviewed_runs(sw_home):
-    older = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect", "ingest"))
+    older = work_at(
+        sw_home / "work" / "demo-20261001-090000", run_json=True, done=("detect", "ingest")
+    )
     newer = work_at(
         sw_home / "work" / "demo-20261005-090000",
         done=("detect", "ingest", "transcribe", "frames", "plan", "read", "distill"),
+        run_json=True,
     )
     newer.mark("critique", "done")
     newer.mark("check", "done")
@@ -63,9 +69,9 @@ def test_newest_incomplete_skips_reviewed_runs(sw_home):
 
 
 def test_newest_incomplete_orders_by_timestamp_suffix_not_name(sw_home):
-    a = work_at(sw_home / "work" / "zeta-20261001-090000", done=("detect",))
-    b = work_at(sw_home / "work" / "alpha-20261002-090000", done=("detect",))
-    work_at(sw_home / "work" / "not-a-run")  # no timestamp suffix: ignored
+    a = work_at(sw_home / "work" / "zeta-20261001-090000", run_json=True, done=("detect",))
+    b = work_at(sw_home / "work" / "alpha-20261002-090000", run_json=True, done=("detect",))
+    work_at(sw_home / "work" / "not-a-run", run_json=True)  # no timestamp suffix: ignored
     (sw_home / "work" / "loose-20261009-000000").mkdir()  # no stages.json: ignored
     assert newest_incomplete(sw_home) == b.path
     b.mark("review", "done")
@@ -74,7 +80,7 @@ def test_newest_incomplete_orders_by_timestamp_suffix_not_name(sw_home):
 
 def test_newest_incomplete_none_when_everything_is_complete(sw_home):
     assert newest_incomplete(sw_home) is None  # no work folder at all
-    w = work_at(sw_home / "work" / "demo-20261001-090000")
+    w = work_at(sw_home / "work" / "demo-20261001-090000", run_json=True)
     for s in w.stages().stages:
         w.mark(s, "done")
     assert newest_incomplete(sw_home) is None
@@ -160,7 +166,7 @@ def test_resume_json_validates_and_exit_codes(sw_home, tmp_path):
 
 
 def test_resume_without_folder_picks_newest_incomplete(sw_home):
-    w = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",))
+    w = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",), run_json=True)
     r = resume("--json")
     assert r.exit_code == 0, r.output
     assert json.loads(r.stdout)["work"] == str(w.path)
@@ -229,8 +235,15 @@ def test_export_is_next_only_when_the_feature_exists_and_is_enabled(tmp_path, sw
 
 
 def test_newest_incomplete_skips_a_finished_run(sw_home):
-    older = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",))
-    newer = work_at(sw_home / "work" / "demo-20261005-090000", done=FINISHED)
+    older = work_at(sw_home / "work" / "demo-20261001-090000", run_json=True, done=("detect",))
+    newer = work_at(sw_home / "work" / "demo-20261005-090000", run_json=True, done=FINISHED)
     newer.mark("review", "running")  # even with review re-opened, install done ends it
     newer.mark("review", "done")
     assert newest_incomplete(sw_home) == older.path
+
+
+def test_newest_incomplete_skips_a_folder_without_run_json(sw_home):
+    # an abandoned folder (new-work ran, then the Write probe failed) must not win
+    real = work_at(sw_home / "work" / "demo-20261001-090000", done=("detect",), run_json=True)
+    work_at(sw_home / "work" / "demo-20261005-090000")  # newer orphan, no run.json
+    assert newest_incomplete(sw_home) == real.path

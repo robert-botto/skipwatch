@@ -118,7 +118,10 @@ reader tries to save its notes.
 If `new-work` fails (any exit other than 64), move SkipWatch's home into the project as
 below. If that Write is denied or fails, do the same, even though `new-work` worked:
 
-1. Let `<P>` be the literal absolute current directory (`$PWD`). Run
+1. If `new-work` succeeded, remove the folder it made, so a later `/skipwatch resume`
+   never picks the abandoned folder: `rm -rf "<W>"`, with `<W>` the literal path, and
+   only the exact path `new-work` printed; never a parent, a glob or `$HOME`.
+   Let `<P>` be the literal absolute current directory (`$PWD`). Run
    `mkdir -p "<P>/.skipwatch" && printf '*\n' > "<P>/.skipwatch/.gitignore"`, so the
    `<P>/.skipwatch/.gitignore` file containing `*` keeps the work files out of the user's
    commits.

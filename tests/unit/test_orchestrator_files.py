@@ -1165,3 +1165,11 @@ def test_protocol_matches_the_merged_m3_engine():
     assert "post id in `source.canonical_url`" not in text  # the engine decides, not you
     # transcribe refuses a text bundle with exit 7 and this message
     assert "`text source: nothing to transcribe`" in text
+
+
+def test_fallback_removes_the_abandoned_work_folder():
+    # an orphan folder under the old home would be picked by a no-folder resume
+    text = flat(REFS / "run-protocol.md")
+    assert 'rm -rf "<W>"' in text
+    assert "only the exact path `new-work` printed" in text
+    assert _before(text, 'rm -rf "<W>"', 'SKIPWATCH_HOME="<P>/.skipwatch" <ENGINE> new-work')
