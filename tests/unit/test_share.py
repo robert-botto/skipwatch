@@ -197,3 +197,16 @@ def test_share_unreadable_manifest_is_exit_2(skill):
     r = run_share(str(skill))
     assert r.exit_code == ExitCode.UNSUPPORTED_SOURCE
     assert "skipwatch.json" in r.stderr
+
+
+def test_share_cookie_skill_is_exit_4():
+    cookie = manifest().model_copy(update={"fetched_with_cookies": True})
+    with pytest.raises(SkipwatchError) as exc:
+        share.share_text(cookie)
+    assert exc.value.code == ExitCode.PRIVATE_CONTENT
+    assert "browser cookies, so it cannot be shared" in exc.value.message
+    # cookies win over the local-file refusal: the more specific reason comes first
+    local = manifest(platform="local", url=None, canonical_url=None)
+    with pytest.raises(SkipwatchError) as exc:
+        share.share_text(local.model_copy(update={"fetched_with_cookies": True}))
+    assert exc.value.code == ExitCode.PRIVATE_CONTENT

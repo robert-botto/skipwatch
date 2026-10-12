@@ -69,7 +69,14 @@ def _shorten(value: str, render: Callable[[str], str]) -> str | None:
 
 
 def share_text(manifest: Manifest) -> ShareResult:
-    """Copy-ready thank-you post. Raises UNSUPPORTED_SOURCE for a local-file skill."""
+    """Copy-ready thank-you post. Raises PRIVATE_CONTENT for a skill fetched with cookies
+    (spec 10) and UNSUPPORTED_SOURCE for a local-file skill."""
+    if manifest.fetched_with_cookies:
+        raise SkipwatchError(
+            ExitCode.PRIVATE_CONTENT,
+            f"{manifest.name} was made from content fetched with your browser cookies,"
+            " so it cannot be shared",
+        )
     src = manifest.source
     url = src.canonical_url or src.url
     if src.platform == "local" or not url:
