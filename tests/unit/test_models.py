@@ -9,8 +9,10 @@ from skipwatch.models import (
     CheckReport,
     Config,
     Counts,
+    ExportItem,
     ExportLog,
     ExportLogEntry,
+    ExportResult,
     FramesFile,
     IngestBundle,
     InstallRecord,
@@ -257,6 +259,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "unpack",
         "list",
         "share",
+        "export",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -552,3 +555,14 @@ def test_share_result_round_trip():
     assert ShareResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
     with pytest.raises(ValidationError):
         ShareResult.model_validate({"schema": "skipwatch/share/1", "name": "run-x"})
+
+
+def test_export_result_round_trip():
+    done = ExportItem(provider="notes", ok=True, location="/n/run-x.md")
+    same = ExportItem(provider="mem0", ok=True, skipped=True, detail="unchanged since last export")
+    assert done.skipped is False and done.detail == "" and same.location is None
+    r = ExportResult(name="run-x", results=[done, same])
+    assert ExportResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    assert ExportResult(name="run-x").results == []
+    with pytest.raises(ValidationError):
+        ExportItem.model_validate({"provider": "mem0"})

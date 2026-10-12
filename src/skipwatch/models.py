@@ -600,6 +600,20 @@ class ShareResult(_Tagged):
     install_line: str
 
 
+class ExportItem(_Model):
+    provider: str
+    ok: bool
+    skipped: bool = False
+    detail: str = ""
+    location: str | None = None
+
+
+class ExportResult(_Tagged):
+    schema_: Literal["skipwatch/export/1"] = _tag("skipwatch/export/1")
+    name: str
+    results: list[ExportItem] = []
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -633,4 +647,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "unpack": UnpackResult,
     "list": ListResult,
     "share": ShareResult,
+    "export": ExportResult,
 }
