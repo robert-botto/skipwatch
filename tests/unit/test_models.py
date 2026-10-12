@@ -79,7 +79,7 @@ INGEST_EXAMPLE = {
 # captions_kind, from_cache and the provider call review fields (M2-A). The dump carries
 # them with their defaults.
 ADDED_CONTEXT_DEFAULTS = {"captions_path": None, "captions_lang": None, "captions_kind": None}
-ADDED_TOP_DEFAULTS = {"from_cache": False, "notes": [], "pack": None}
+ADDED_TOP_DEFAULTS = {"from_cache": False, "cached_at": None, "notes": [], "pack": None}
 ADDED_CALL_DEFAULTS = {"endpoint": None, "call_id": None, "review": None, "error": None}
 
 

@@ -180,6 +180,7 @@ class IngestBundle(_Tagged):
     route: Route
     fetched_with_cookies: bool = False
     from_cache: bool = False
+    cached_at: str | None = None  # a cache hit: when that entry was first stored (UTC ISO)
     notes: list[str] = []  # free-form provenance, e.g. "video came from a linked post: <url>"
     pack: "PackOrigin | None" = None  # set only by unpack; the one switch for pack mode
 

@@ -718,6 +718,18 @@
   },
   "additionalProperties": false,
   "properties": {
+    "cached_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cached At"
+    },
     "context": {
       "$ref": "#/$defs/IngestContext",
       "default": {
