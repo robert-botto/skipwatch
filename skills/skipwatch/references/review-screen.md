@@ -117,12 +117,10 @@ Each only when it applies, right after the `Draft:` line:
 Installing a pack (`sharing.md`) shows the same screen with `<W>` = `<work>`. These lines
 differ:
 
-- **Confidence:** `<pack_confidence>` comes from the counts in `<work>/check-report.json`
-  without a critic score: `medium` with at least one step, at most one gap and inferred
-  under 30% of steps, otherwise `low`, so never `high` (`skipwatch.json` keeps the pack's
-  claim). The pack's claim is `claimed_confidence` and `claimed_critic_score` from unpack's JSON. Print
-  `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claim>, critic <score or none>)`,
-  then any other reason that applies after a `; `.
+- **Confidence:** `pack_confidence` in `<work>/check-report.json` (the engine's grade
+  without a critic, never `high`). Print
+  `<pack_confidence> (shared pack: critic not re-run here; the pack claims <claimed_confidence>, critic <claimed_critic_score or none>)`,
+  then any other reason after `; `.
 - **Unverified:** add `<k> quoted steps not re-verified (shared pack)` from the
   provenance result's info item in `<work>/check-report.json` (a pack's `[on-screen]`
   and `[written]` quotes cannot be re-checked here).

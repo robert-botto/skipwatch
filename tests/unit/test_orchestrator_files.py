@@ -1826,8 +1826,14 @@ def test_review_screen_pack_variant():
     assert "(from pack <file>, sha256 <12 hex>)" in section
     assert (
         "<pack_confidence> (shared pack: critic not re-run here; "
-        "the pack claims <claim>, critic <score or none>)" in section
+        "the pack claims <claimed_confidence>, critic <claimed_critic_score or none>)" in section
     )
+    # the engine grades the pack; Claude never computes it from the counts
+    from skipwatch.models import CheckReport
+
+    assert "`pack_confidence` in `<work>/check-report.json`" in section
+    assert "pack_confidence" in CheckReport.model_fields
+    assert "inferred under 30%" not in raw and "at most one gap" not in raw
     example = (
         "Confidence: medium (shared pack: critic not re-run here; the pack claims high, critic 8.5)"
     )
@@ -1835,7 +1841,7 @@ def test_review_screen_pack_variant():
     assert re.fullmatch(REVIEW_LINES[6][1], "  " + example)  # still the 4.3 Confidence shape
     assert "never `high`" in section
     assert "`<k> quoted steps not re-verified (shared pack)`" in section
-    assert "`pack.sha256`" in section and "`claimed_confidence`" in section
+    assert "`pack.sha256`" in section and "<claimed_confidence>" in section
 
 
 def test_distill_rules_critic_fixes():
