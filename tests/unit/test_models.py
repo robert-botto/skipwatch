@@ -15,6 +15,8 @@ from skipwatch.models import (
     IngestBundle,
     InstallRecord,
     InstallsFile,
+    ListedSkill,
+    ListResult,
     Manifest,
     ManifestSource,
     NotesFile,
@@ -252,6 +254,7 @@ def test_r_arch_2_registry_covers_every_work_file():
         "test-report",
         "pack",
         "unpack",
+        "list",
     }
     assert set(SCHEMA_MODELS) == expected
 
@@ -525,3 +528,16 @@ def test_unpack_result_round_trip_and_claims():
         UnpackResult.model_validate(
             {**r.model_dump(by_alias=True), "claimed_confidence": "certain"}
         )
+
+
+def test_list_result_round_trip_and_problem_entries():
+    ok = ListedSkill(
+        name="run-x", path="/s/run-x", scope="user", confidence="medium", critic_score=7.5
+    )
+    bad = ListedSkill(name="broken", path="/s/broken", scope="dir", problem="unreadable")
+    assert ok.origin == "unknown" and ok.problem is None and bad.confidence is None
+    r = ListResult(skills=[bad, ok])
+    assert ListResult.model_validate_json(r.model_dump_json(by_alias=True)) == r
+    assert ListResult().skills == []
+    with pytest.raises(ValidationError):
+        ListedSkill.model_validate({**ok.model_dump(), "origin": "url"})

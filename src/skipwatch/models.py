@@ -572,6 +572,26 @@ class UnpackResult(_Tagged):
     transcript: bool  # True when transcript.json was rebuilt from references/transcript.md
 
 
+class ListedSkill(_Model):
+    name: str
+    path: str
+    scope: Literal["user", "project", "agents", "dir"]
+    origin: Literal["run", "pack", "unknown"] = "unknown"
+    title: str | None = None
+    author: str | None = None
+    platform: str | None = None
+    url: str | None = None
+    extracted_at: str | None = None
+    confidence: Literal["high", "medium", "low"] | None = None
+    critic_score: float | None = None
+    problem: str | None = None  # set when skipwatch.json could not be read
+
+
+class ListResult(_Tagged):
+    schema_: Literal["skipwatch/list/1"] = _tag("skipwatch/list/1")
+    skills: list[ListedSkill] = []
+
+
 class RedactionReplacement(_Model):
     kind: str
     placeholder: str
@@ -603,4 +623,5 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "test-report": TesterReport,
     "pack": PackResult,
     "unpack": UnpackResult,
+    "list": ListResult,
 }
