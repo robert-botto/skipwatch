@@ -15,7 +15,11 @@ URL_WEIGHT = 23  # X counts every URL as 23 characters
 LIMIT = 280
 ELLIPSIS = "..."
 
-_URL = re.compile(r"https?://\S+")
+# A scheme URL, or a bare domain (x.ai, github.com/foo) that X also links: a dotted name whose
+# last label is two or more letters. Trailing punctuation is stripped before counting, as X does.
+_LINK = re.compile(r"https?://\S+|[\w-]+(?:\.[\w-]+)*\.[^\W\d_]{2,}(?:/\S*)?")
+_TRAILING = ".,;:!?\"')"
+TITLE_CAP = 500  # longer titles are cut before shortening, so shortening stays cheap
 # twitter-text v3: code points in these ranges weigh 1, every other code point weighs 2
 _LIGHT = ((0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037))
 
@@ -26,12 +30,19 @@ def _char_weight(ch: str) -> int:
 
 
 def weighted_length(text: str) -> int:
-    """Length as X counts it: each http(s) URL is 23, wide characters are 2, the rest 1."""
+    """Length as X counts it, rounded up where unsure: each http(s) URL is 23, a bare domain is
+    23 or its own length when longer (X may not link it), wide characters are 2, the rest 1."""
     total = 0
     last = 0
-    for match in _URL.finditer(text):
-        total += sum(_char_weight(ch) for ch in text[last : match.start()]) + URL_WEIGHT
-        last = match.end()
+    for match in _LINK.finditer(text):
+        link = match.group().rstrip(_TRAILING)
+        if not link:
+            continue
+        start = match.start()
+        total += sum(_char_weight(ch) for ch in text[last:start])
+        raw = sum(_char_weight(ch) for ch in link)
+        total += URL_WEIGHT if link.startswith(("http://", "https://")) else max(URL_WEIGHT, raw)
+        last = start + len(link)
     return total + sum(_char_weight(ch) for ch in text[last:])
 
 
@@ -61,6 +72,7 @@ def _shorten(value: str, render: Callable[[str], str]) -> str | None:
     """value, or its longest prefix plus "..." whose rendering fits; None when nothing fits."""
     if weighted_length(render(value)) <= LIMIT:
         return value
+    value = value[:TITLE_CAP]  # never fits whole: every character weighs at least 1
     for keep in range(len(value) - 1, -1, -1):
         cut = value[:keep].rstrip() + ELLIPSIS
         if weighted_length(render(cut)) <= LIMIT:

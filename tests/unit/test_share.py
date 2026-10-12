@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -210,3 +211,36 @@ def test_share_cookie_skill_is_exit_4():
     with pytest.raises(SkipwatchError) as exc:
         share.share_text(local.model_copy(update={"fetched_with_cookies": True}))
     assert exc.value.code == ExitCode.PRIVATE_CONTENT
+
+
+def test_share_url_trailing_punctuation_counts_as_text():
+    # X stops a link before closing punctuation, so those characters count on their own
+    assert share.weighted_length("see https://a.co/x.") == 4 + 23 + 1
+    assert share.weighted_length('("https://a.co/x"),') == 2 + 23 + 3
+    assert share.weighted_length("https://a.co/x?!") == 23 + 2
+
+
+def test_share_counts_bare_domains_as_at_least_23():
+    # X links bare domains (x.ai, github.com/foo) and counts each as 23
+    assert share.weighted_length("x.ai") == 23
+    assert share.weighted_length('"x.ai".') == 1 + 23 + 2
+    assert share.weighted_length("try github.com/foo now") == 4 + 23 + 4
+    assert share.weighted_length("日本.jp") == 23
+    # a dotted word X might not link still never counts below its own length
+    long_word = "notes." + "b" * 40
+    assert share.weighted_length(long_word) == len(long_word)
+    # dotted numbers and abbreviations are plain text
+    assert share.weighted_length("v1.2 e.g. U.S.") == 14
+
+
+def test_share_title_of_bare_domains_fits_280():
+    result = share.share_text(manifest(title="x.ai " * 80))
+    assert result.weighted_length <= share.LIMIT
+    assert '..."' in result.text
+
+
+def test_share_huge_title_is_fast():
+    start = time.perf_counter()
+    result = share.share_text(manifest(title="word " * 20_000))
+    assert time.perf_counter() - start < 2
+    assert result.weighted_length <= share.LIMIT
