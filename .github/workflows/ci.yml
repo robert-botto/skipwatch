@@ -165,3 +165,43 @@ jobs:
       - run: npm install -g @anthropic-ai/claude-code@2.1.295
       - run: claude plugin validate --strict .
       - run: claude plugin validate --strict .claude-plugin/plugin.json
+
+  # Spec 13 and issue 13: the release artifacts build, and the sdist holds only the allowlist
+  # (tests/unit/test_release_files.py asserts the same, as a pipeline test).
+  build:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv build --out-dir dist
+      - name: sdist and wheel contents
+        run: |
+          uv run --no-project python - <<'PY'
+          import pathlib, sys, tarfile, zipfile
+          dist = pathlib.Path("dist")
+          (sdist,) = dist.glob("*.tar.gz")
+          (wheel,) = dist.glob("*.whl")
+          with tarfile.open(sdist) as tf:
+              tops = {pathlib.PurePosixPath(n).parts[1] for n in tf.getnames() if "/" in n}
+          forbidden = {"tests", "docs", "evals", ".github", "examples", "scripts", "skills"}
+          strays = [n for n in zipfile.ZipFile(wheel).namelist()
+                    if not n.startswith(("skipwatch/", "skipwatch-"))]
+          size = sdist.stat().st_size
+          print(f"sdist {sdist.name}: {size} bytes, top level {sorted(tops)}")
+          errors = []
+          if tops & forbidden:
+              errors.append(f"sdist holds {sorted(tops & forbidden)}")
+          if size >= 200 * 1024:
+              errors.append(f"sdist is {size} bytes, limit 204800")
+          if strays:
+              errors.append(f"wheel holds {strays}")
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY
+
