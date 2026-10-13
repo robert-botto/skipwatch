@@ -19,7 +19,7 @@ MPEGTS_HZ = 90_000
 
 _MAP_RE = re.compile(r"^X-TIMESTAMP-MAP=(?P<fields>.*)$", re.MULTILINE)
 _TIMING_RE = re.compile(
-    r"^(?P<lead>\s*)(?P<start>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})(?P<arrow>\s*-->\s*)"
+    r"^(?P<lead>[ \t]*)(?P<start>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})(?P<arrow>[ \t]*-->[ \t]*)"
     r"(?P<end>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})",
     re.MULTILINE,
 )

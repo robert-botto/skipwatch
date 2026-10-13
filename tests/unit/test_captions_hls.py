@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import pytest
@@ -88,3 +89,12 @@ def test_segments_without_a_map_keep_their_own_times():
     b = "WEBVTT\n\n01:00:05.250 --> 01:00:06.000\nb\n"
     segs = parse_vtt(merge_webvtt([a, b]))
     assert [(s.start, s.end, s.text) for s in segs] == [(1.0, 2.0, "a"), (3605.25, 3606.0, "b")]
+
+
+def test_a_whitespace_flood_is_linear_when_shifted():
+    # A hostile segment of blank and space-only lines must not make the shift quadratic.
+    first = SEG.format(mpegts=0, cue="00:00:00.000 --> 00:00:01.000", text="a")
+    flood = "WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:900000,LOCAL:00:00:00.000\n" + "\n \n" * 25_000
+    started = time.monotonic()
+    merge_webvtt([first, flood])
+    assert time.monotonic() - started < 1.0
