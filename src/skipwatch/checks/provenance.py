@@ -70,7 +70,6 @@ SYMBOL_WORDS = {
     "*": "star",
     "$": "dollar",
     "|": "pipe",
-    "&": "and",
     "%": "percent",
 }
 SPOKEN_SYNONYMS = [
@@ -109,7 +108,14 @@ def _too_short(quote: str) -> bool:
 
 def _spoken_form(text: str, code: bool = False) -> str:
     """Words as spoken: NFKC, lower case, symbols inside a token spelled out. Transcript tokens
-    lose their sentence punctuation first; code keeps every character."""
+    lose their sentence punctuation first. Code keeps every character, and code that is not
+    already NFKC or holds a character with no spoken word (`;`, `>`, `!`, an invisible
+    character) is unverifiable: "" never matches."""
+    if code and (
+        unicodedata.normalize("NFKC", text) != text
+        or any(not (c.isalnum() or c.isspace() or c in SYMBOL_WORDS) for c in text)
+    ):
+        return ""
     words = []
     for token in unicodedata.normalize("NFKC", text).translate(QUOTE_FOLD).lower().split():
         if not code:

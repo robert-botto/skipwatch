@@ -490,6 +490,46 @@ def test_provenance_short_inline_code_heard_only_outside_the_quote_fails(tmp_pat
     ]
 
 
+@pytest.mark.parametrize(
+    ("code", "said"),
+    [
+        ("ls;reboot", "ls reboot"),
+        ("ls >a", "ls a"),
+        ("sudo !!", "sudo"),
+        ("$(id)", "dollar id"),
+        ("{x}", "x"),
+        ("a&b", "a and b"),
+        ("rm\u200b", "rm"),
+        ("\uff47\uff4f", "go"),
+    ],
+)
+def test_provenance_short_inline_code_with_unspoken_characters_fails(tmp_path, code, said):
+    # Review r1: a symbol with no spoken word, an invisible character or a full-width
+    # lookalike makes the code unverifiable instead of being dropped or folded away.
+    quote = f"then type {said} now"
+    r = _spoken_inline(tmp_path, f"4. Use `{code}`.", quote, quote)
+    assert not r.ok and r.items[0].step == 4 and "inline code" in r.items[0].msg
+
+
+def test_provenance_short_inline_code_plain_control_passes(tmp_path):
+    r = _spoken_inline(tmp_path, "4. Use `go`.", "then type go now", "then type go now")
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "heard"),
+    [
+        (".env", "then open the Dot Env file and paste it"),
+        ("--force", "run it again with dash dash force"),
+        ("--force", "run it again with double dash force"),
+        ("src/app.py", "open src slash app dot py now"),
+    ],
+)
+def test_provenance_passes_short_inline_code_heard_as_words(tmp_path, code, heard):
+    r = _spoken_inline(tmp_path, f"4. Use `{code}`.", heard, heard)
+    assert r.ok, r.items
+
+
 def test_provenance_fails_short_inline_code_not_heard(tmp_path):
     r = _spoken_inline(
         tmp_path,
