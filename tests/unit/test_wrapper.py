@@ -253,3 +253,55 @@ def test_home_uv_is_ignored_when_not_executable(tmp_path):
     (home / ".local/bin/uv").write_text("not a program\n")
     r = run(root, "doctor", HOME=str(home))
     assert r.returncode == 127 and "uv is not installed" in r.stderr
+
+
+def syncing_uv(tmp_path: Path) -> tuple[Path, Path]:
+    """A uv whose sync creates the engine in the --project root, like a first install."""
+    bin_dir = tmp_path / "syncbin"
+    bin_dir.mkdir()
+    log = tmp_path / "sync-calls.log"
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/bin/sh\n"
+        f'echo "$*" >> "{log}"\n'
+        'while [ $# -gt 0 ]; do [ "$1" = --project ] && proj=$2; shift; done\n'
+        'mkdir -p "$proj/.venv/bin"\n'
+        "printf '#!/bin/sh\\necho \"engine ran in $0\"\\n' > \"$proj/.venv/bin/skipwatch\"\n"
+        'chmod 755 "$proj/.venv/bin/skipwatch"\n'
+    )
+    uv.chmod(0o755)
+    return bin_dir, log
+
+
+def test_plugin_update_to_a_new_root_gets_its_own_fresh_venv(tmp_path):
+    # A plugin update installs to a new versioned folder; its venv lives under that folder,
+    # so the old root's synced venv is never reused.
+    old = make_plugin(tmp_path / "0.1.0")
+    new = make_plugin(tmp_path / "0.2.0", venv=False)
+    bin_dir, log = syncing_uv(tmp_path)
+    path = f"{bin_dir}:{SYSTEM_PATH}"
+    r = run(new, "doctor", path=path)
+    assert r.returncode == 0, r.stderr
+    assert f"engine ran in {new}/.venv/bin/skipwatch" in r.stdout
+    assert f"--project {new}" in log.read_text()
+    assert (new / ".venv/.skipwatch-synced").read_bytes() == (
+        (new / "uv.lock").read_bytes() + (new / "pyproject.toml").read_bytes()
+    )
+    log.unlink()
+    assert run(old, "doctor", path=path).returncode == 0
+    assert not log.exists()  # the old root is still fresh: no sync
+
+
+@pytest.mark.parametrize("changed", ["uv.lock", "pyproject.toml"])
+def test_existing_root_resyncs_when_lock_or_pyproject_changes(tmp_path, changed):
+    root = make_plugin(tmp_path)
+    bin_dir, log = fake_uv(tmp_path)
+    path = f"{bin_dir}:{SYSTEM_PATH}"
+    assert run(root, "plan", path=path).returncode == 0
+    assert not log.exists()  # fresh before the change
+    (root / changed).write_text((root / changed).read_text() + "# changed\n")
+    r = run(root, "plan", path=path)
+    assert r.returncode == 0, r.stderr
+    assert "sync" in log.read_text()
+    stamp = (root / ".venv/.skipwatch-synced").read_text()
+    assert "# changed" in stamp  # the next call takes the fast path again
