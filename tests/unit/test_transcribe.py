@@ -17,6 +17,7 @@ from skipwatch.models import (
     Transcript,
 )
 from skipwatch.providers.transcribe_captions import CaptionsBackend
+from skipwatch.review import read_degradations
 from skipwatch.transcribe import mark_silence, select_backend
 from skipwatch.workdir import WorkDir, read_model, write_model
 
@@ -131,11 +132,105 @@ def test_captions_requested_without_captions_is_exit_7(tmp_path):
     assert not w.file("transcript.json").exists()
 
 
-def test_captions_with_no_cues_is_exit_7(tmp_path):
-    w = work_with(tmp_path, "WEBVTT\n\nNOTE nothing spoken\n")
+EMPTY_CAPTIONS = "#EXTM3U\n#EXTINF:6.0,\n/subtitles/0/seg.vtt\n#EXT-X-ENDLIST\n"  # X, unresolved
+
+
+def test_captions_with_no_cues_and_no_whisper_is_exit_7_with_a_noted_degradation(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(transcribe_module, "is_apple_silicon", lambda: False)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
     r = transcribe(w)
     assert r.exit_code == 7
+    assert "captions produced no timed segments" in r.stderr
+    assert "--extra whisper" in r.stderr  # how to get the fallback next time
     assert not w.file("transcript.json").exists()
+    # the review screen shows it even when the orchestrator notes nothing itself
+    noted = read_degradations(w.path).degradations
+    assert len(noted) == 1 and noted[0].startswith("no transcript: captions produced no timed")
+
+
+class _Whisper:
+    name, cloud, auto_rank = "faster", False, 2
+
+    def __init__(self, available=True):
+        self._available = available
+        self.calls = 0
+
+    def available(self, bundle):
+        return self._available
+
+    def missing_hint(self):
+        return "install whisper"
+
+    def transcribe(self, work, model):
+        self.calls += 1
+        segments = [
+            Segment(start=i * 5.0, end=i * 5.0 + 4, text="seven words " * 4) for i in range(12)
+        ]
+        return Transcript(origin="faster-whisper", model=model or "small", segments=segments)
+
+
+def _with_whisper(monkeypatch, whisper):
+    registered = transcribe_module.transcription_backends()
+    monkeypatch.setattr(
+        transcribe_module,
+        "transcription_backends",
+        lambda: {"captions": registered["captions"], "faster": whisper},
+    )
+
+
+def test_captions_with_no_cues_fall_back_to_whisper_under_auto(tmp_path, monkeypatch):
+    whisper = _Whisper()
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    r = transcribe(w)
+    assert r.exit_code == 0, r.output
+    assert whisper.calls == 1
+    t = read_model(w.file("transcript.json"), Transcript)
+    assert t.origin == "faster-whisper" and len(t.segments) == 12
+    assert "falling back to faster" in r.stderr
+    assert read_degradations(w.path).degradations == [
+        "captions produced no timed segments; transcribed with faster instead"
+    ]
+
+
+def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):
+    whisper = _Whisper(available=False)
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    assert transcribe(w).exit_code == 7
+    assert whisper.calls == 0
+
+
+def test_empty_captions_on_a_silent_video_say_so(tmp_path, monkeypatch):
+    whisper = _Whisper(available=False)  # Whisper is never available without an audio track
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    bundle = read_model(w.file("ingest.json"), IngestBundle)
+    silent = MediaInfo(path="media/video.mp4", width=1280, height=720, has_audio=False)
+    write_model(w.file("ingest.json"), bundle.model_copy(update={"media": silent}))
+    r = transcribe(w)
+    assert r.exit_code == 7
+    assert "no audio track" in r.stderr and "install" not in r.stderr
+
+
+def test_captions_named_explicitly_never_fall_back(tmp_path, monkeypatch):
+    whisper = _Whisper()
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    r = transcribe(w, "--backend", "captions")
+    assert r.exit_code == 7 and whisper.calls == 0
+    assert not w.file("transcript.json").exists()
+
+
+def test_captions_with_cues_never_reach_whisper(tmp_path, monkeypatch):
+    whisper = _Whisper()
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, SPOKEN)
+    assert transcribe(w).exit_code == 0
+    assert whisper.calls == 0
+    assert read_degradations(w.path).degradations == []
 
 
 class _KeylessCloud:

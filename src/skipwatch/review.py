@@ -26,6 +26,7 @@ from skipwatch.models import (
 )
 from skipwatch.providers.transcribe_cloud import DeepgramBackend, GroqBackend, OpenAIBackend
 from skipwatch.skillmd import SkillDoc, parse
+from skipwatch.workdir import write_model
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -82,6 +83,15 @@ def read_degradations(work: Path) -> DegradationsFile:
         raise SkipwatchError(
             exc.code, f"{exc.message}; delete {path} and note the degradations again"
         ) from exc
+
+
+def note_degradation(work: Path, line: str) -> None:
+    """Record one degradation for the review screen, as `note --degradation` does; a repeat is
+    skipped. For engine stages that degrade on their own (transcribe's caption fallback)."""
+    recorded = read_degradations(work)
+    if line not in recorded.degradations:
+        recorded.degradations.append(line)
+        write_model(work / DEGRADATIONS_FILE, recorded)
 
 
 def _with_noted(work: Path, inputs: ReviewInputs) -> ReviewInputs:
