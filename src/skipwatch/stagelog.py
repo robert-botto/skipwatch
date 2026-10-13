@@ -48,6 +48,20 @@ def stop() -> None:
     _active.stream = None
 
 
+def active_path() -> Path | None:
+    """The --log file of this run, or None without --log."""
+    return _active.path if _active is not None else None
+
+
+def append(text: str) -> None:
+    """Add text to the --log file after stop(); a no-op without --log."""
+    if _active is None:
+        return
+    flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
+    with os.fdopen(os.open(_active.path, flags), "a", encoding="utf-8") as stream:
+        stream.write(text if text.endswith("\n") else text + "\n")
+
+
 def report(code: int) -> None:
     """Print the summary for a logged run; a no-op without --log."""
     global _active
