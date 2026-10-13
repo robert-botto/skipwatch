@@ -1,0 +1,34 @@
+{
+  "schema": "skipwatch/manifest/1",
+  "name": "jq-json-parsing",
+  "description": "Queries, filters, counts and reshapes JSON files and API output from the command line with jq. Use when the user wants to dig through large or nested JSON, for example \"pull every name out of this JSON array with jq\", \"count the log entries where latency is over a threshold\", \"filter JSON logs by level\", \"select objects whose array field contains a value\". Not for converting JSON to other formats, editing JSON by hand in an editor, or choosing a general data shell.",
+  "skipwatch_version": "0.1.0",
+  "source": {
+    "url": "https://www.youtube.com/watch?v=YrVR09v78Dc",
+    "canonical_url": "https://www.youtube.com/watch?v=YrVR09v78Dc",
+    "platform": "youtube",
+    "author": "@devopstoolbox",
+    "title": "You've been parsing JSON Wrong",
+    "posted_at": "2025-10-10T13:30:28Z"
+  },
+  "extracted_at": "2026-10-13T02:31:35Z",
+  "fetched_with_cookies": false,
+  "counts": {
+    "steps": 22,
+    "spoken": 13,
+    "on_screen": 9,
+    "written": 0,
+    "inferred": 0,
+    "gaps": 0,
+    "illegible": 0
+  },
+  "confidence": "high",
+  "critic_score": 8.2,
+  "checks_passed": true,
+  "safety_flags": [],
+  "files": {
+    "SKILL.md": "sha256:afc972294790b531bc095cc0060a69febabf53542bd365708f22522e950e11f9",
+    "references/source.md": "sha256:127688b60dcb1110ea43821ea7f979b6b8297eeb0b108c9eeeba79569ad5f5a2",
+    "references/transcript.md": "sha256:37396d70fb3db16df30282e282a5ec4e1d8343fc76484db4184adf1edbb36b7a"
+  }
+}
