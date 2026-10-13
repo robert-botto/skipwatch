@@ -42,6 +42,7 @@ class Step:
     quotes: list[str]
     start_line: int
     code_quotes: list[str] = field(default_factory=list)
+    inline_code: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -154,11 +155,14 @@ def fence_spans(lines: list[str]) -> list[tuple[int, int]]:
     return spans
 
 
-def _step_parts(lines: list[str], marker_width: int) -> tuple[list[str], list[str], list[str]]:
-    """(lines outside quotes, quotes, code quotes).
+def _step_parts(
+    lines: list[str], marker_width: int
+) -> tuple[list[str], list[str], list[str], list[str]]:
+    """(lines outside quotes, quotes, code quotes, inline code).
 
     A quote is one fenced block or one `>` run. Code quotes are what a step shows as code without
-    a fence: indented code blocks, <pre> blocks and inline code in the action paragraph.
+    a fence: indented code blocks and <pre> blocks. Inline code in the action paragraph is kept
+    apart, since a spoken step names a short filename or flag the way speech-to-text writes it.
     """
     outside: list[str] = []
     quotes: list[str] = []
@@ -205,8 +209,8 @@ def _step_parts(lines: list[str], marker_width: int) -> tuple[list[str], list[st
         code_quotes.append(html.unescape(m.group(1)).strip())
     outside = PRE.sub("", text).split("\n")
     action = "\n".join(outside).split("\n\n", 1)[0]
-    code_quotes += INLINE_CODE_BODY.findall(TAG.sub("", action))
-    return outside, quotes, code_quotes
+    inline_code = INLINE_CODE_BODY.findall(TAG.sub("", action))
+    return outside, quotes, code_quotes, inline_code
 
 
 def parse(text: str) -> SkillDoc:
@@ -255,7 +259,9 @@ def _steps(doc: SkillDoc) -> list[Step]:
         end = starts[k + 1][0] if k + 1 < len(starts) else len(lines)
         chunk = lines[i:end]
         marker = STEP.match(chunk[0])
-        outside, quotes, code_quotes = _step_parts(chunk, len(marker.group(0)) if marker else 3)
+        outside, quotes, code_quotes, inline_code = _step_parts(
+            chunk, len(marker.group(0)) if marker else 3
+        )
         steps.append(
             Step(
                 number=number,
@@ -264,6 +270,7 @@ def _steps(doc: SkillDoc) -> list[Step]:
                 quotes=quotes,
                 start_line=proc_sec.start_line + 1 + i,
                 code_quotes=code_quotes,
+                inline_code=inline_code,
             )
         )
     return steps
