@@ -13,7 +13,7 @@ with every step traced to the moment in the video it came from.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat-square)](.claude-plugin/plugin.json)
 
-[Install](#install) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [FAQ](#faq)
+[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [Uninstall](#uninstall) · [Troubleshooting](docs/troubleshooting.md) · [FAQ](#faq)
 
 <code>/skipwatch &lt;video link&gt;</code>
 
@@ -24,6 +24,18 @@ with every step traced to the moment in the video it came from.
 </div>
 
 ---
+
+## Quickstart
+
+You need Claude Code and [uv](https://docs.astral.sh/uv/getting-started/installation/). Inside Claude Code:
+
+```text
+/plugin marketplace add robert-botto/skipwatch
+/plugin install skipwatch@skipwatch
+/skipwatch <video link>
+```
+
+The first two lines install the plugin. The third turns a video into a skill and shows you the review screen before anything installs. The first run takes longer: SkipWatch sets up its own Python environment with uv. If uv is missing, SkipWatch prints how to install it and stops; it never installs uv for you. More install options are under [Install](#install).
 
 ## Why
 
@@ -63,26 +75,13 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 
 ## Install
 
-Inside Claude Code:
-
-```text
-/plugin marketplace add robert-botto/skipwatch
-/plugin install skipwatch@skipwatch
-```
-
-Or from a terminal, in one line:
+The [Quickstart](#quickstart) lines install the plugin from inside Claude Code. From a terminal, in one line:
 
 ```bash
 claude plugin install skipwatch --marketplace robert-botto/skipwatch
 ```
 
-Then run your first video:
-
-```text
-/skipwatch https://www.youtube.com/watch?v=<id>
-```
-
-The only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time a session starts. You never run pip or create a virtualenv.
+The only requirement besides Claude Code is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time it runs. You never run pip or create a virtualenv.
 
 Installing the plugin also installs a SessionStart hook. At the start of a session, when the plugin's lockfile changed since its last sync (the first session after an install or update), it runs `uv sync` for the plugin's own environment: that downloads the locked Python dependencies from PyPI and can take up to 300 s. Otherwise it does nothing, and it never fails your session.
 
@@ -268,24 +267,7 @@ skipwatch cache [--clear] [--json]
 
 The skill also calls `new-work`, `mark`, `merge-notes`, `copy-frames`, `validate-notes`, `validate-critique` and `validate-test` to manage a run. Progress goes to stderr. With `--json`, the result is one JSON line on stdout.
 
-Exit codes are stable:
-
-| Exit | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | Check failed (frontmatter, structure, provenance, style) |
-| 2 | Unsupported source (no adapter, unknown file type) |
-| 3 | Download failed on every route; stderr lists the routes and reasons |
-| 4 | Private or login-required content |
-| 5 | Safety flags present; check otherwise passed |
-| 6 | Install target exists and `--force` not given |
-| 7 | No usable content |
-| 8 | Missing dependency; stderr names the install command |
-| 9 | Pack integrity failure: checksum or manifest mismatch |
-| 64 | Usage error |
-| 70 | Internal error; please report it with the run's logs |
-
-Per-platform failures and their fixes are in [platforms.md](skills/skipwatch/references/platforms.md).
+Exit codes are stable. Every code, what it means and how to fix it is in [Troubleshooting](docs/troubleshooting.md#exit-codes); per-platform failures are in [platforms.md](skills/skipwatch/references/platforms.md).
 
 ## Sharing packs
 
@@ -303,9 +285,10 @@ A pack's checksums prove the files were not changed by accident. They do not pro
 
 No telemetry, no analytics, no update pings. The engine runs on your machine. Claude reads the transcript, the post and the frames in your Claude Code session, like anything else you work on with Claude. The engine's own network traffic is:
 
-- PyPI, when the SessionStart hook syncs the plugin's Python environment after an install or update;
+- PyPI, when the SessionStart hook or the first run syncs the plugin's Python environment after an install or update;
 - the platform your link points to, through yt-dlp;
 - the pages a post links to (at most 5 per post, public addresses only);
+- the address you give `/skipwatch install <https url>`, to download that pack (https and public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
 - treg, only at Tier 3 and only after you turn it on (`[providers.treg] enabled = true` in `config.toml`, or `--provider treg` for one run). Its calls are paid, capped at $0.05 per run by default, and listed on the review screen;
 - cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
@@ -316,17 +299,42 @@ The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline,
 
 | What | Where |
 |---|---|
-| The plugin and its Python environment | Claude Code's plugin folder |
-| Work folders, cache, backups, settings | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it) |
-| Your skills | `~/.claude/skills/<name>`, or `./.claude/skills` with `--project`, or `./.agents/skills` with `--agents` |
+| The plugin | Claude Code's plugin folder, managed by `/plugin` |
+| The plugin's Python environment | `.venv` inside the plugin folder, made by `uv sync` |
+| Python packages uv downloads | uv's own cache, shared with your other uv projects (`uv cache dir` prints it) |
+| ffmpeg, only when none is on your `PATH` | inside the plugin's `.venv`, about 70 MB, fetched on first use |
+| Whisper models, only with a Whisper backend installed | the Hugging Face cache: `~/.cache/huggingface/hub`, or `HF_HUB_CACHE`, `HF_HOME/hub` or `XDG_CACHE_HOME/huggingface/hub` when set |
+| SkipWatch's own data | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it), listed below |
+| Work moved into a project | `<project>/.skipwatch`, only when a run cannot write to `~/.skipwatch` from your session; it gets a `.gitignore` of `*` so its files stay out of commits |
+| Your skills | `~/.claude/skills/<name>`; `./.claude/skills/<name>` with `--project`; `./.agents/skills/<name>` with `--agents`; `<dir>/<name>` with `--to <dir>`. `[install] scope` in `config.toml` changes the default. |
 
-To remove SkipWatch:
+Inside `~/.skipwatch`:
 
-```text
-/plugin uninstall skipwatch@skipwatch
-```
+| Entry | Holds |
+|---|---|
+| `work/<name>-<time>/` | one folder per run: the downloaded media, transcript, frames, notes, drafts and its `logs/` folder. A successful install deletes the media, notes, frames and drafts, as described under [Privacy](#privacy). |
+| `cache/` | the run cache, so a re-run within 7 days skips that work |
+| `packs/` | packs being checked by `/skipwatch install` |
+| `backups/<name>-<time>/` | the old copy of a skill you chose to replace |
+| `config.toml` | your settings, when you made one |
+| `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
+| `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
+## Uninstall
 
-Then delete `~/.skipwatch`. Nothing else is left behind. Skills you installed stay in your skills folder until you delete them.
+1. Note where your SkipWatch skills are, if you want to remove them too. `/skipwatch list` prints each one's path; run it before you uninstall.
+2. Remove the plugin and its marketplace, inside Claude Code:
+
+   ```text
+   /plugin uninstall skipwatch@skipwatch
+   /plugin marketplace remove skipwatch
+   ```
+
+3. Delete `~/.skipwatch` (or your `SKIPWATCH_HOME`): the work folders with their logs, the run cache, packs, backups of replaced skills, `config.toml`, `doctor.json` and `installs.json`. Work folders of cancelled or stopped runs can hold unredacted text from the video, so delete them rather than keep them around. If a run ever moved its work into a project, delete that project's `<project>/.skipwatch` folder too.
+4. Optional: delete the Whisper models SkipWatch downloaded, if nothing else uses them. They are folders in the Hugging Face cache (`~/.cache/huggingface/hub` by default): `models--Systran--faster-whisper-small` for faster-whisper and `models--mlx-community--whisper-large-v3-turbo` for mlx-whisper, plus any other model you chose with `skipwatch transcribe --model`.
+5. Optional: `uv cache prune` removes the packages in uv's cache that nothing uses any more. The cache is shared with your other uv projects, so do not delete it outright.
+
+Skills SkipWatch installed are normal Agent Skill folders. They keep working after you uninstall SkipWatch, and they stay until you delete them: remove the folder, for example `~/.claude/skills/<name>`.
+
 
 ## Platform terms
 
@@ -351,11 +359,12 @@ It downloads the media into the run's work folder to read it, and deletes it aft
 Yes. Generated skills use only the portable Agent Skills frontmatter keys.
 
 **Something failed. Where do I look?**
-Run `/skipwatch doctor` first. Each failure prints one line and keeps the work folder; its `logs/` folder has the details. `/skipwatch resume` picks up where the run stopped.
+Run `/skipwatch doctor` first, then see [Troubleshooting](docs/troubleshooting.md). Each failure prints one line and keeps the work folder; its `logs/` folder has the details. `/skipwatch resume` picks up where the run stopped.
 
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-10-09-skipwatch-design.md): every requirement, file format and decision.
+- [Troubleshooting](docs/troubleshooting.md): every exit code and its fix, sandbox and uv notes, per-platform failures.
 - [Platform notes](skills/skipwatch/references/platforms.md): what each platform returns and how it fails.
 - [Sharing reference](skills/skipwatch/references/sharing.md): list, pack, install and share in detail.
 

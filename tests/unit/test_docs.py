@@ -11,6 +11,7 @@ import typer
 from PIL import Image
 
 from skipwatch.cli import app
+from skipwatch.errors import ExitCode
 
 ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "docs/demo"
@@ -236,3 +237,97 @@ def test_readme_privacy_names_the_run_cache_and_how_to_clear_it():
     privacy = _readme().split("## Privacy", 1)[1].split("\n## ", 1)[0]
     assert "The run cache under `~/.skipwatch/cache/` keeps its own copy" in privacy
     assert "`skipwatch cache --clear` removes it" in privacy
+
+
+# Install, uninstall and troubleshooting docs (M6 install docs)
+
+TROUBLESHOOTING = ROOT / "docs/troubleshooting.md"
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
+def test_readme_quickstart_is_near_the_top_and_complete():
+    text = _readme()
+    quickstart = _section(text, "Quickstart")
+    assert text.index("## Quickstart") < text.index("## Why")
+    assert "Claude Code" in quickstart and "uv" in quickstart
+    for line in (
+        "/plugin marketplace add robert-botto/skipwatch",
+        "/plugin install skipwatch@skipwatch",
+        "/skipwatch <video link>",
+    ):
+        assert line in quickstart, line
+
+
+def test_readme_install_locations_match_the_code():
+    where = _section(_readme(), "What gets installed where")
+    # scripts/skipwatch: venv="$root/.venv"; whisper_common.hf_hub_cache; install.scope_target
+    assert "`.venv`" in where and "`uv sync`" in where and "`uv cache dir`" in where
+    for path in ("~/.cache/huggingface/hub", "HF_HUB_CACHE", "HF_HOME", "XDG_CACHE_HOME"):
+        assert path in where, path
+    for path in ("~/.claude/skills/<name>", "./.claude/skills/<name>", "./.agents/skills/<name>"):
+        assert path in where, path
+    # config.skipwatch_home and the folders the engine makes under it
+    assert "`SKIPWATCH_HOME`" in where and "<project>/.skipwatch" in where
+    for entry in ("work/", "cache/", "packs/", "backups/", "logs/", "config.toml", "installs.json"):
+        assert f"`{entry}" in where, entry
+
+
+def test_readme_uninstall_lists_every_step():
+    uninstall = _section(_readme(), "Uninstall")
+    for step in (
+        "/plugin uninstall skipwatch@skipwatch",
+        "/plugin marketplace remove skipwatch",  # marketplace.json name
+        "~/.skipwatch",
+        "<project>/.skipwatch",
+        "models--Systran--faster-whisper-small",  # DEFAULT_MODELS in whisper_common.py
+        "models--mlx-community--whisper-large-v3-turbo",
+        "/skipwatch list",
+    ):
+        assert step in uninstall, step
+
+
+def _wrapper_exit_codes() -> set[int]:
+    """Exit codes scripts/skipwatch itself returns (the engine never ran): its fail calls."""
+    text = (ROOT / "scripts/skipwatch").read_text(encoding="utf-8")
+    codes = {int(code) for code in re.findall(r"\bfail\s+(\d+)", text)}
+    assert codes, "no fail <code> calls found in scripts/skipwatch"
+    return codes
+
+
+def test_troubleshooting_table_has_every_exit_code_from_the_source():
+    text = TROUBLESHOOTING.read_text(encoding="utf-8")
+    rows = set(re.findall(r"^\| (\d+) \| `?([^|`]+?)`? \|", text, flags=re.M))
+    for code in ExitCode:
+        assert (str(code.value), code.name) in rows, code
+    documented = {int(code) for code, _ in rows}
+    for code in _wrapper_exit_codes():
+        assert code in documented, f"wrapper exit {code}"
+    assert documented == {c.value for c in ExitCode} | _wrapper_exit_codes()
+
+
+def test_readme_points_to_troubleshooting():
+    assert "](docs/troubleshooting.md)" in _readme()
+
+
+def test_troubleshooting_links_resolve_and_text_is_clean():
+    text = TROUBLESHOOTING.read_text(encoding="utf-8")
+    for bad in (EM_DASH, "/Users/", "@gmail.com", "/private/tmp"):
+        assert bad not in text, bad
+    targets = re.findall(r"\]\(([^)\s]+)\)", FENCE.sub("", text))
+    relative = [t for t in targets if not re.match(r"[a-z]+:|#", t)]
+    assert relative, "troubleshooting links no local files"
+    for target in relative:
+        assert (TROUBLESHOOTING.parent / target.split("#")[0]).exists(), target
+
+
+def test_readme_privacy_names_every_network_destination():
+    privacy = _readme().split("## Privacy", 1)[1].split("\n## ", 1)[0]
+    # scripts/skipwatch syncs on the first run too, not only from the SessionStart hook
+    assert "the first run" in privacy
+    # providers/pack_fetch.py: /skipwatch install <https url> downloads the pack
+    assert "/skipwatch install <https url>" in privacy
+    for destination in ("yt-dlp", "at most 5 per post", "Hugging Face", "treg", "Deepgram"):
+        assert destination in privacy, destination
