@@ -156,7 +156,7 @@ retry a failed stage with different inputs to get past it.
 | 6 | install | show the review screen again with the collision prompt. |
 | 64 | any | the engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside `<W>/logs/` (no `rc=` line) or a `--home` not ending in `.skipwatch`. Fix it from the engine's message and retry once; a second 64 stops with `SkipWatch: engine could not start: <last 3 stderr lines>`. |
 | 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |
-| 127 | doctor | `SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/` |
+| 127 | doctor | stderr says "uv is not installed": show the wrapper's stderr lines exactly (the uv install command for this OS), then stop. Any other stderr: the last row. |
 | 78 | any | `SkipWatch: engine could not start: environment could not be created.` Then the wrapper's stderr ("could not create the Python environment" and the `uv sync` command to run). |
 | 70 | any | `SkipWatch: internal error in skipwatch: <last 3 stderr lines>`. Suggest filing an issue with the files in `<W>/logs`. |
 | 101, 126, 127, any other code | any (127 outside doctor) | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs). |

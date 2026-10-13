@@ -170,3 +170,138 @@ def test_git_worktree_keeps_dev_tools(tmp_path):
     bin_dir, log = fake_uv(tmp_path)
     assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
     assert "--no-dev" not in log.read_text()
+
+
+def fake_uname(tmp_path: Path, system: str) -> Path:
+    """A `uname` on PATH that reports another OS, so every install hint is testable here."""
+    bin_dir = tmp_path / f"uname-{system}"
+    bin_dir.mkdir()
+    uname = bin_dir / "uname"
+    uname.write_text(f'#!/bin/sh\necho "{system}"\n')
+    uname.chmod(0o755)
+    return bin_dir
+
+
+CURL_INSTALL = "curl -LsSf https://astral.sh/uv/install.sh | sh"
+PS_INSTALL = 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+
+
+@pytest.mark.parametrize(
+    ("system", "expected", "absent"),
+    [
+        ("Darwin", ["brew install uv", CURL_INSTALL], [PS_INSTALL]),
+        ("Linux", [CURL_INSTALL], ["brew install uv", PS_INSTALL]),
+        ("MINGW64_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL, "brew install uv"]),
+        ("MSYS_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL]),
+        ("CYGWIN_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL]),
+    ],
+)
+def test_no_uv_names_the_install_command_for_this_os(tmp_path, system, expected, absent):
+    root = make_plugin(tmp_path, venv=False)
+    path = f"{fake_uname(tmp_path, system)}:{SYSTEM_PATH}"
+    for env in ({}, {"SKIPWATCH_SYNC_ONLY": "1"}):
+        r = run(root, "doctor", path=path, **env)
+        assert r.returncode == (0 if env else 127)
+        assert "Traceback" not in r.stderr
+        for command in expected:
+            assert command in r.stderr, (system, env, r.stderr)
+        for command in absent:
+            assert command not in r.stderr, (system, env, r.stderr)
+
+
+def test_no_uv_hook_mode_keeps_stdout_empty(tmp_path):
+    # SessionStart stdout becomes Claude's context in every project; stderr on exit 0 is
+    # never shown, so a missing uv costs the session nothing.
+    root = make_plugin(tmp_path, venv=False)
+    r = run(root, SKIPWATCH_SYNC_ONLY="1")
+    assert r.returncode == 0 and r.stdout == ""
+    assert "uv is not installed" in r.stderr
+
+
+def test_no_uv_message_never_runs_an_installer(tmp_path):
+    root = make_plugin(tmp_path, venv=False)
+    bin_dir = tmp_path / "trap"
+    bin_dir.mkdir()
+    log = tmp_path / "trap.log"
+    for tool in ("curl", "brew", "powershell", "wget"):
+        (bin_dir / tool).write_text(f'#!/bin/sh\necho {tool} >> "{log}"\n')
+        (bin_dir / tool).chmod(0o755)
+    r = run(root, "doctor", path=f"{bin_dir}:{SYSTEM_PATH}")
+    assert r.returncode == 127
+    assert not log.exists()
+
+
+@pytest.mark.parametrize("bin_dir", [".local/bin", ".cargo/bin"])
+def test_finds_uv_the_installer_just_put_off_path(tmp_path, bin_dir):
+    # The curl/PowerShell installer puts uv in ~/.local/bin (older ones ~/.cargo/bin) and
+    # only new shells see it; Claude Code keeps its PATH, so "then retry" must still work.
+    root = make_plugin(tmp_path, fresh=False)
+    home = tmp_path / "home"
+    fake_bin, log = fake_uv(tmp_path)
+    (home / bin_dir).mkdir(parents=True)
+    shutil.copy(fake_bin / "uv", home / bin_dir / "uv")
+    r = run(root, "plan", HOME=str(home))
+    assert r.returncode == 0, r.stderr
+    assert "sync" in log.read_text()
+    assert "engine ran: plan" in r.stdout
+
+
+def test_home_uv_is_ignored_when_not_executable(tmp_path):
+    root = make_plugin(tmp_path, venv=False)
+    home = tmp_path / "home"
+    (home / ".local/bin").mkdir(parents=True)
+    (home / ".local/bin/uv").write_text("not a program\n")
+    r = run(root, "doctor", HOME=str(home))
+    assert r.returncode == 127 and "uv is not installed" in r.stderr
+
+
+def syncing_uv(tmp_path: Path) -> tuple[Path, Path]:
+    """A uv whose sync creates the engine in the --project root, like a first install."""
+    bin_dir = tmp_path / "syncbin"
+    bin_dir.mkdir()
+    log = tmp_path / "sync-calls.log"
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/bin/sh\n"
+        f'echo "$*" >> "{log}"\n'
+        'while [ $# -gt 0 ]; do [ "$1" = --project ] && proj=$2; shift; done\n'
+        'mkdir -p "$proj/.venv/bin"\n'
+        'printf \'#!/bin/sh\\necho "engine ran in $0"\\n\' > "$proj/.venv/bin/skipwatch"\n'
+        'chmod 755 "$proj/.venv/bin/skipwatch"\n'
+    )
+    uv.chmod(0o755)
+    return bin_dir, log
+
+
+def test_plugin_update_to_a_new_root_gets_its_own_fresh_venv(tmp_path):
+    # A plugin update installs to a new versioned folder; its venv lives under that folder,
+    # so the old root's synced venv is never reused.
+    old = make_plugin(tmp_path / "0.1.0")
+    new = make_plugin(tmp_path / "0.2.0", venv=False)
+    bin_dir, log = syncing_uv(tmp_path)
+    path = f"{bin_dir}:{SYSTEM_PATH}"
+    r = run(new, "doctor", path=path)
+    assert r.returncode == 0, r.stderr
+    assert f"engine ran in {new}/.venv/bin/skipwatch" in r.stdout
+    assert f"--project {new}" in log.read_text()
+    assert (new / ".venv/.skipwatch-synced").read_bytes() == (
+        (new / "uv.lock").read_bytes() + (new / "pyproject.toml").read_bytes()
+    )
+    log.unlink()
+    assert run(old, "doctor", path=path).returncode == 0
+    assert not log.exists()  # the old root is still fresh: no sync
+
+
+@pytest.mark.parametrize("changed", ["uv.lock", "pyproject.toml"])
+def test_existing_root_resyncs_when_lock_or_pyproject_changes(tmp_path, changed):
+    root = make_plugin(tmp_path)
+    bin_dir, log = fake_uv(tmp_path)
+    path = f"{bin_dir}:{SYSTEM_PATH}"
+    assert run(root, "plan", path=path).returncode == 0
+    assert not log.exists()  # fresh before the change
+    (root / changed).write_text((root / changed).read_text() + "# changed\n")
+    r = run(root, "plan", path=path)
+    assert r.returncode == 0, r.stderr
+    assert "sync" in log.read_text()
+    stamp = (root / ".venv/.skipwatch-synced").read_text()
+    assert "# changed" in stamp  # the next call takes the fast path again

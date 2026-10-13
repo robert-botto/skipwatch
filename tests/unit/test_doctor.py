@@ -264,3 +264,19 @@ def test_probe_detects_uv_install_and_macos(monkeypatch):
     assert p.uv == "0.9.26" and p.uv_install == "homebrew" and p.macos is True
     monkeypatch.setattr(doctor.sys, "platform", "linux")
     assert doctor.probe_machine().macos is False
+
+
+def test_missing_uv_names_the_same_installer_as_the_wrapper(monkeypatch):
+    wrapper = (doctor.Path(__file__).resolve().parents[2] / "scripts/skipwatch").read_text()
+    for platform, expected in (
+        ("darwin", "brew install uv"),
+        ("linux", "curl -LsSf https://astral.sh/uv/install.sh | sh"),
+        (
+            "win32",
+            'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"',
+        ),
+    ):
+        monkeypatch.setattr(doctor.sys, "platform", platform)
+        [missing] = doctor.build_report(P(uv=None), TODAY, None).missing
+        assert missing.name == "uv" and expected in missing.install_command, platform
+        assert expected in wrapper  # one set of commands in both places
