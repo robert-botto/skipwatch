@@ -25,6 +25,10 @@ expand every `<ENGINE>` to exactly this, with `<ROOT>` filled in:
 
 <ENGINE> = `"<ROOT>/scripts/skipwatch"`
 
+**Every engine call is one plain Bash command, exactly as written, nothing appended.**
+Never add `2>&1`, `; echo rc=$?`, `&&`, `|` or a redirect: the Bash result already shows
+stdout, stderr and the exit code, and a chained call is denied.
+
 Never invoke uv yourself to run the engine; the only uv command you ever run is an install
 the user accepted. `<W>` is the run's absolute work folder, taken only from
 `<ENGINE> new-work` or `<ENGINE> resume` output.
@@ -75,7 +79,7 @@ guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run `<ENGINE> doctor` as one command and print its
+If the first argument is `doctor`, run `<ENGINE> doctor`, one plain command as above, and print its
 report first, unchanged, inside a code block, before any commentary (its stderr and
 stdout, starting with the `Tier` line). Do not install anything. If the report lists
 missing pieces, offer each install command and run only the ones the user accepts.

@@ -31,9 +31,8 @@ Resume. These placeholders and conventions hold everywhere.
   are unchanged. At the end the engine prints `rc=<n> elapsed=<s>s` and the log's last 3
   lines on stderr. No `rc=` line means the engine never started or refused the `--log`
   path (64): take the exit code and stderr the Bash tool reports.
-- Every engine call is one simple command: the engine, its arguments and `--log`. Never
-  add a redirect (`<`, `>`): commands that write files take `--out`. Never chain `;`,
-  `&&`, `|` or `2>&1` onto it; permission rules deny a chained call. Any other step
+- Every engine call is one plain command (SKILL.md), `--log` included. Never add a
+  redirect (`<`, `>`): commands that write files take `--out`. Any other step
   (`mkdir -p`, reading a file) is its own Bash call.
 - Progress output: every line printed during a run is one line naming the stage and the
   elapsed seconds. No tables, no multi-line status, no echo of engine output.
@@ -61,7 +60,7 @@ Resume. These placeholders and conventions hold everywhere.
 
 ## Stage 1: doctor (cached for a day)
 
-One Bash call; the engine reuses a `doctor.json` under 24 h old, else rebuilds it:
+One plain Bash call, nothing appended; the engine reuses a `doctor.json` under 24 h old, else rebuilds it:
 
     <ENGINE> doctor --json --max-age-hours 24
 
