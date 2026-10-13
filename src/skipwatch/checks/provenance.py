@@ -95,7 +95,7 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
         )
     )
     items = []
-    for quote in step.quotes + step.code_quotes:
+    for quote in step.quotes + step.code_quotes + step.inline_code:
         q = _norm(quote)
         if _too_short(q):
             # A short spoken quote is too weak alone (any common word is in some transcript).
@@ -188,7 +188,7 @@ def _screen_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
         frame for notes in ctx.notes for frame in notes.frames if abs(frame.t - t) <= WINDOW_S
     ]
     items = []
-    for quote in step.quotes + step.code_quotes:
+    for quote in step.quotes + step.code_quotes + step.inline_code:
         literal = _screen_line(ILLEGIBLE.sub(" ", quote))
         if _too_short(literal):
             if not ILLEGIBLE.search(quote) and _is_whole_short_item(quote, frames):
@@ -234,10 +234,14 @@ def _listed_in_gaps(ctx: CheckContext, number: int) -> bool:
     return re.search(INFERRED_LINE.format(n=number), gaps) is not None
 
 
+def _has_quote(step: Step) -> bool:
+    return bool(step.quotes or step.code_quotes or step.inline_code)
+
+
 def _pack_skips(ctx: CheckContext, step: Step) -> bool:
     """In a shared pack, quotes with no shipped evidence are not re-verified (M5-M6 issue 1).
     Only a step that already has one tag and a quote counts; the structure rules still bite."""
-    if ctx.pack is None or len(step.tags) != 1 or not (step.quotes or step.code_quotes):
+    if ctx.pack is None or len(step.tags) != 1 or not _has_quote(step):
         return False
     kind = step.tags[0].kind
     return kind in ("on-screen", "written") or (kind == "spoken" and ctx.transcript is None)
@@ -254,7 +258,7 @@ def _step_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
             )
         ]
     tag = step.tags[0]
-    if tag.kind in ("spoken", "on-screen") and not (step.quotes or step.code_quotes):
+    if tag.kind in ("spoken", "on-screen") and not _has_quote(step):
         assert tag.seconds is not None
         return [
             CheckItem(
