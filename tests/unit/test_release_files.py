@@ -3,6 +3,7 @@
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -65,6 +66,7 @@ def test_claude_plugin_validate_strict(target):
 
 
 RELEASE_YML = ROOT / ".github" / "workflows" / "release.yml"
+CHANGELOG_SECTION = ROOT / "scripts" / "changelog_section.py"
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish@"
 
 
@@ -118,3 +120,43 @@ def test_only_github_release_can_write_contents():
     assert jobs["github-release"]["permissions"] == {"contents": "write"}
     assert jobs["github-release"]["needs"] == "pypi"
 
+
+def _changelog_section(tmp_path, tag, text):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(text, encoding="utf-8")
+    return subprocess.run(
+        [sys.executable, str(CHANGELOG_SECTION), tag, "--changelog", str(changelog)],
+        capture_output=True,
+        text=True,
+    )
+
+
+CHANGELOG = """# Changelog
+
+## [Unreleased]
+
+- Not yet.
+
+## [0.1.0] - 2026-10-12
+
+### Added
+
+- First release.
+
+## [0.0.9] - 2026-01-01
+
+- Older.
+"""
+
+
+def test_changelog_section_prints_the_version_body(tmp_path):
+    r = _changelog_section(tmp_path, "v0.1.0", CHANGELOG)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == "### Added\n\n- First release.\n"
+
+
+def test_changelog_section_exits_1_when_missing(tmp_path):
+    r = _changelog_section(tmp_path, "v0.2.0", CHANGELOG)
+    assert r.returncode == 1
+    assert r.stdout == ""
+    assert "0.2.0" in r.stderr
