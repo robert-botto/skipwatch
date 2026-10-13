@@ -1,0 +1,34 @@
+{
+  "schema": "skipwatch/manifest/1",
+  "name": "ai-freelance-jobs",
+  "description": "Builds and runs a one-person AI-native creative service firm that takes repeat marketplace jobs (Upwork, Fiverr) and fulfils them with Astra orchestrating creative models through the Higgsfield API. Use when the user wants to turn freelance creative demand into an AI-fulfilled service business, for example \"set up an AI agency that does Upwork jobs for me\", \"build a Studio Operator style job system with Astra and Higgsfield\", \"which Higgsfield model should I route this client job to\", \"how do I pick which AI service firm to start\". Not for one-off image or video generation with no business around it, or for fully autonomous agents with no human approval step.",
+  "skipwatch_version": "0.1.0",
+  "source": {
+    "url": "https://www.youtube.com/watch?v=e7s7jRgHWsg",
+    "canonical_url": "https://www.youtube.com/watch?v=e7s7jRgHWsg",
+    "platform": "youtube",
+    "author": "@GregIsenberg",
+    "title": "Take Upwork jobs, let AI do them (Astra etc). It's absurd.",
+    "posted_at": "2026-09-23T18:27:51Z"
+  },
+  "extracted_at": "2026-10-13T03:17:13Z",
+  "fetched_with_cookies": false,
+  "counts": {
+    "steps": 10,
+    "spoken": 3,
+    "on_screen": 7,
+    "written": 0,
+    "inferred": 0,
+    "gaps": 1,
+    "illegible": 0
+  },
+  "confidence": "medium",
+  "critic_score": 8.2,
+  "checks_passed": true,
+  "safety_flags": [],
+  "files": {
+    "SKILL.md": "sha256:4e002c2d4555e4ac7b5c82303092a2894b526e4cc0c4f1228fa2af18bdb91ec4",
+    "references/source.md": "sha256:ea272cc9af89e1d519cd71d5369d67d97db7e009a07eb5f512acd26428c38607",
+    "references/transcript.md": "sha256:789c8551e813b2613d752799074ddd0bce0f436fc9bda6c91e899dfb66aa6185"
+  }
+}
