@@ -298,13 +298,23 @@ def _reinstall_command(plugin_root: str | None, package: str | None = None) -> s
     return f'uv tool install --reinstall "skipwatch @ {GIT_SOURCE}"'
 
 
+def uv_install_command() -> str:
+    """The official installer for this OS, the same commands scripts/skipwatch prints."""
+    curl = "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    if sys.platform == "darwin":
+        return f"brew install uv, or: {curl}"
+    if sys.platform == "win32":
+        return 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+    return curl
+
+
 def _missing_for(tier: Tier | None, p: Probe, plugin_root: str | None) -> list[DoctorMissing]:
     if tier == "0":
         return [
             DoctorMissing(
                 name="uv",
                 unlocks=TIER_REASON["0"],
-                install_command="install uv from https://docs.astral.sh/uv/",
+                install_command=uv_install_command(),
             )
         ]
     if tier == "1":
