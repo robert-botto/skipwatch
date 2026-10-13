@@ -80,6 +80,9 @@ SPOKEN_SYNONYMS = [
     (re.compile(r"\b(?:equal|equals) sign\b"), "equals"),
     (re.compile(r"\b(dollar|at) sign\b"), r"\1"),
 ]
+# Symbol words that join code into a longer token. "at", "plus" and "star" are
+# ordinary prose too, so they never count as code running on.
+JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
@@ -145,6 +148,19 @@ def _spoken_form(text: str, code: bool = False) -> str:
     return spoken
 
 
+def _said_whole(needle: str, said: str) -> bool:
+    """The spoken code occurs as whole words with no joining symbol word touching it, so `.env`
+    is not cut from "dot env dot example" nor `git push` from "git push dash dash dry run"."""
+    code, words = needle.split(), said.split()
+    n = len(code)
+    return any(
+        words[k : k + n] == code
+        and (k == 0 or words[k - 1] not in JOINING_WORDS)
+        and (k + n == len(words) or words[k + n] not in JOINING_WORDS)
+        for k in range(len(words) - n + 1)
+    )
+
+
 def _fix(t: float) -> str:
     return f"re-read {mmss(t - WINDOW_S)} to {mmss(t + WINDOW_S)}"
 
@@ -206,7 +222,7 @@ def _short_inline_items(step: Step, code: str, label: str, t: float) -> list[Che
             )
         ]
     needle = _spoken_form(code, code=True)
-    if needle and any(f" {needle} " in f" {_spoken_form(quote)} " for quote in step.quotes):
+    if needle and any(_said_whole(needle, _spoken_form(quote)) for quote in step.quotes):
         return []
     return [
         CheckItem(

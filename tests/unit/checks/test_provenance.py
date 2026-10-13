@@ -511,6 +511,29 @@ def test_provenance_short_inline_code_with_unspoken_characters_fails(tmp_path, c
     assert not r.ok and r.items[0].step == 4 and "inline code" in r.items[0].msg
 
 
+@pytest.mark.parametrize(
+    ("code", "said"),
+    [
+        ("git push", "then git push dash dash dry run"),
+        (".env", "copy the dot env dot example file"),
+        ("src/app", "open src slash app slash main now"),
+    ],
+)
+def test_provenance_short_spoken_code_cut_from_longer_code_fails(tmp_path, code, said):
+    # Same truncation as in [written]: a spoken symbol word right before or after the match
+    # means the code said was longer than the code claimed.
+    r = _spoken_inline(tmp_path, f"4. Use `{code}`.", said, said)
+    assert not r.ok and "inline code" in r.items[0].msg
+
+
+def test_provenance_short_spoken_code_next_to_a_prose_word_passes(tmp_path):
+    # "at" is also the word for @, but only joining symbols (dot, dash, slash ...) extend code.
+    r = _spoken_inline(
+        tmp_path, "4. Open `.env`.", "now look at dot env and", "now look at dot env and"
+    )
+    assert r.ok, r.items
+
+
 def test_provenance_short_inline_code_plain_control_passes(tmp_path):
     r = _spoken_inline(tmp_path, "4. Use `go`.", "then type go now", "then type go now")
     assert r.ok, r.items
