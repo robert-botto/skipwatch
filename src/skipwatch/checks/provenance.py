@@ -83,6 +83,10 @@ SPOKEN_SYNONYMS = [
 # Symbol words that join code into a longer token. "at", "plus" and "star" are
 # ordinary prose too, so they never count as code running on.
 JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
+# Code is named whole: whitespace, an opening bracket or quote, or the edge before it;
+# whitespace, closing punctuation or the edge after it; and no flag running on after it.
+CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`]))"
+CODE_AFTER = r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+-\S)"
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
@@ -106,17 +110,13 @@ def _contains_words(haystack: str, quote: str) -> bool:
 
 
 def _contains_code(haystack: str, code: str) -> bool:
-    """Code named whole in normalised text: whitespace, an opening bracket or quote, or the
-    edge before it; whitespace, closing punctuation or the edge after it; and no flag running
-    on, so `git push` is not cut from "git push --dry-run" nor `rm -rf build` from
-    "rm -rf build/cache". Code that is not already NFKC (a full-width lookalike) never matches."""
+    """Code named whole in normalised text (CODE_BEFORE, CODE_AFTER), so `git push` is not cut
+    from "git push --dry-run" nor `rm -rf build` from "rm -rf build/cache". Code that is not
+    already NFKC (a full-width lookalike) never matches."""
     q = _norm(code)
     if not q or unicodedata.normalize("NFKC", code) != code:
         return False
-    pattern = (
-        r"(?:^|(?<=[\s(\[\"'`]))" + re.escape(q) + r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+-\S)"
-    )
-    return re.search(pattern, haystack) is not None
+    return re.search(CODE_BEFORE + re.escape(q) + CODE_AFTER, haystack) is not None
 
 
 def _too_short(quote: str) -> bool:
@@ -248,20 +248,24 @@ def _wild_pattern(quote_line: str) -> str:
     return WILDCARD.join(parts)
 
 
-def _line_matches(quote_line: str, seen_line: str, whole: bool) -> bool:
-    """One quote line against one note line: equal when whole, else on word boundaries."""
+def _line_matches(quote_line: str, seen_line: str, whole: bool, code: bool = False) -> bool:
+    """One quote line against one note line: equal when whole, else on word boundaries, or on
+    code boundaries (CODE_BEFORE, CODE_AFTER) for inline and unfenced code."""
     if ILLEGIBLE.search(quote_line):
         pattern = _wild_pattern(quote_line)
     else:
         pattern = re.escape(_screen_line(quote_line))
     if whole:
         return re.fullmatch(pattern, seen_line) is not None
+    if code:
+        return re.search(CODE_BEFORE + pattern + CODE_AFTER, seen_line) is not None
     return re.search(r"(?<!\w)" + pattern + r"(?!\w)", seen_line) is not None
 
 
-def _screen_matches(quote: str, item: VerbatimItem) -> bool:
+def _screen_matches(quote: str, item: VerbatimItem, code: bool = False) -> bool:
     """Commands, settings and prompts: the quote is the whole item or whole lines of it.
-    Other text: the quote sits inside the item on word boundaries."""
+    Other text: the quote sits inside the item on word boundaries; code (inline, indented or
+    <pre>) on code boundaries, so it is never cut from a longer command."""
     q_lines = _screen_lines(quote)
     seen = _screen_lines(item.text)
     if not q_lines or not seen:
@@ -276,7 +280,7 @@ def _screen_matches(quote: str, item: VerbatimItem) -> bool:
             for k in range(len(seen) - n + 1)
         )
     joined = " ".join(seen)
-    return _line_matches(" ".join(q_lines), joined, whole=False)
+    return _line_matches(" ".join(q_lines), joined, whole=False, code=code)
 
 
 def _exact(text: str) -> str:
@@ -305,7 +309,8 @@ def _screen_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
         frame for notes in ctx.notes for frame in notes.frames if abs(frame.t - t) <= WINDOW_S
     ]
     items = []
-    for quote in step.quotes + step.code_quotes + step.inline_code:
+    unfenced = step.code_quotes + step.inline_code
+    for quote, code in [(q, False) for q in step.quotes] + [(c, True) for c in unfenced]:
         literal = _screen_line(ILLEGIBLE.sub(" ", quote))
         if _too_short(literal):
             if not ILLEGIBLE.search(quote) and _is_whole_short_item(quote, frames):
@@ -323,7 +328,9 @@ def _screen_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
                 )
             )
             continue
-        if not any(_screen_matches(quote, item) for frame in frames for item in frame.verbatim):
+        if not any(
+            _screen_matches(quote, item, code) for frame in frames for item in frame.verbatim
+        ):
             items.append(
                 CheckItem(
                     step=step.number,

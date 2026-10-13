@@ -692,3 +692,40 @@ def test_provenance_passes_written_code_from_a_page_with_html_entities(tmp_path)
     (work / "ingest.json").write_text(json.dumps(ingest), encoding="utf-8")
     r = provenance.run(context_for(staging, work))
     assert r.ok, r.items
+
+
+def _onscreen_inline(tmp_path, code, kind, text):
+    staging, work = make_case(
+        tmp_path,
+        edit=lambda s: s.replace(
+            "2. Paste the prompt into the prompt box.", f"2. Paste the prompt, then run `{code}`."
+        ),
+    )
+    _add_verbatim(work, 1, kind, text)
+    return provenance.run(context_for(staging, work))
+
+
+@pytest.mark.parametrize(
+    ("code", "kind", "text"),
+    [
+        ("git push --force", "code", "git push --force-with-lease"),
+        ("rm -rf build", "text", "Then run rm -rf build/cache to reset"),
+        ("git push origin", "code", "git push origin --dry-run"),
+    ],
+)
+def test_provenance_fails_on_onscreen_code_cut_from_a_longer_item(tmp_path, code, kind, text):
+    r = _onscreen_inline(tmp_path, code, kind, text)
+    assert not r.ok and r.items[0].step == 2
+
+
+@pytest.mark.parametrize(
+    ("code", "kind", "text"),
+    [
+        ("rm -rf build", "text", "Then run rm -rf build to reset."),
+        ("git push origin", "code", "git add .\ngit push origin"),
+        ("npm run dev", "text", "Start it (npm run dev)."),
+    ],
+)
+def test_provenance_passes_onscreen_code_named_whole(tmp_path, code, kind, text):
+    r = _onscreen_inline(tmp_path, code, kind, text)
+    assert r.ok, r.items
