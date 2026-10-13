@@ -229,3 +229,27 @@ def test_no_uv_message_never_runs_an_installer(tmp_path):
     r = run(root, "doctor", path=f"{bin_dir}:{SYSTEM_PATH}")
     assert r.returncode == 127
     assert not log.exists()
+
+
+@pytest.mark.parametrize("bin_dir", [".local/bin", ".cargo/bin"])
+def test_finds_uv_the_installer_just_put_off_path(tmp_path, bin_dir):
+    # The curl/PowerShell installer puts uv in ~/.local/bin (older ones ~/.cargo/bin) and
+    # only new shells see it; Claude Code keeps its PATH, so "then retry" must still work.
+    root = make_plugin(tmp_path, fresh=False)
+    home = tmp_path / "home"
+    fake_bin, log = fake_uv(tmp_path)
+    (home / bin_dir).mkdir(parents=True)
+    shutil.copy(fake_bin / "uv", home / bin_dir / "uv")
+    r = run(root, "plan", HOME=str(home))
+    assert r.returncode == 0, r.stderr
+    assert "sync" in log.read_text()
+    assert "engine ran: plan" in r.stdout
+
+
+def test_home_uv_is_ignored_when_not_executable(tmp_path):
+    root = make_plugin(tmp_path, venv=False)
+    home = tmp_path / "home"
+    (home / ".local/bin").mkdir(parents=True)
+    (home / ".local/bin/uv").write_text("not a program\n")
+    r = run(root, "doctor", HOME=str(home))
+    assert r.returncode == 127 and "uv is not installed" in r.stderr

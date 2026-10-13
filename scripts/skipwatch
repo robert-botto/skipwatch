@@ -59,6 +59,19 @@ no_uv_help() {
 sync_args="--quiet --locked --inexact"
 [ -e "$root/.git" ] || sync_args="$sync_args --no-dev"
 
+# The standalone installers put uv in ~/.local/bin (older ones ~/.cargo/bin), which only new
+# shells have on PATH. Add it here so a retry in the same Claude Code session, and doctor's
+# uv check in the engine, both find it.
+if ! command -v uv >/dev/null 2>&1; then
+  for dir in "$HOME/.local/bin" "$HOME/.cargo/bin"; do
+    if [ -x "$dir/uv" ] && [ -f "$dir/uv" ]; then
+      PATH="$PATH:$dir"
+      export PATH
+      break
+    fi
+  done
+fi
+
 if ! is_fresh; then
   if ! command -v uv >/dev/null 2>&1; then
     no_uv_help >&2
