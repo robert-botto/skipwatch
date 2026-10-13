@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar
 
 import requests
+import urllib3.exceptions
 import yt_dlp
 from yt_dlp.networking import Request
 from yt_dlp.networking.exceptions import RequestError
@@ -431,7 +432,8 @@ def _read_segment(url: str, deadline: float, room: int) -> bytes:
             body.extend(chunk)
             if len(body) > room:
                 raise _caption_error(f"over the {MAX_CAPTION_BYTES:,} byte cap")
-    except requests.RequestException as exc:
+    except (requests.RequestException, urllib3.exceptions.HTTPError) as exc:
+        # read1 raises urllib3's own errors (a short body, a read timeout, bad gzip)
         raise _caption_error(type(exc).__name__) from exc
     finally:
         links.close_vetted(response)

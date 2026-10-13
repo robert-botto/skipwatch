@@ -58,8 +58,8 @@ class _Raw:
 
 
 class _Vetted:
-    def __init__(self, body: bytes, status: int = 200):
-        self.status_code, self.raw, self.headers = status, _Raw(body), {}
+    def __init__(self, body: bytes, status: int = 200, raw=None):
+        self.status_code, self.raw, self.headers = status, raw or _Raw(body), {}
         self.closed = False
 
     def close(self):
@@ -143,3 +143,31 @@ def test_a_master_playlist_is_a_captions_error(tmp_path, monkeypatch):
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
     with pytest.raises(cf.FreeRouteError, match="master playlist"):
         cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+
+
+def _broken_reads():
+    from urllib3.exceptions import DecodeError, IncompleteRead, ProtocolError, ReadTimeoutError
+
+    return [
+        ProtocolError("Connection broken", IncompleteRead(8, 992)),
+        ReadTimeoutError(None, "/a.vtt", "Read timed out."),  # pyright: ignore[reportArgumentType]
+        DecodeError("Received response with content-encoding: gzip, but failed to decode it."),
+    ]
+
+
+class _BrokenRaw:
+    def __init__(self, error: Exception):
+        self.error = error
+
+    def read1(self, n, decode_content=True):
+        raise self.error
+
+
+@pytest.mark.parametrize("error", _broken_reads(), ids=["short-body", "stall", "bad-gzip"])
+def test_a_broken_segment_body_is_a_captions_error(tmp_path, monkeypatch, x_playlist, error):
+    # p2.py: urllib3 errors from read1 used to escape and end ingest with exit 70.
+    segment = _Vetted(b"", raw=_BrokenRaw(error))
+    _serve_segments(monkeypatch, {SEGMENT_URL: segment})
+    with pytest.raises(cf.FreeRouteError, match="caption playlist") as e:
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+    assert e.value.op == "captions" and segment.closed
