@@ -25,8 +25,8 @@ def manifest(folder: Path) -> Manifest:
     return Manifest.model_validate_json((folder / MANIFEST_NAME).read_bytes())
 
 
-def test_exactly_three_examples() -> None:
-    assert len(example_dirs()) == 3
+def test_exactly_four_examples() -> None:
+    assert len(example_dirs()) == 4
 
 
 @pytest.mark.parametrize("folder", example_dirs(), ids=lambda p: p.name)
