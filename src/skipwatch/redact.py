@@ -9,9 +9,11 @@ then high entropy. Every rule leaves placeholders alone, so redaction is idempot
 import base64
 import binascii
 import math
+import os
 import re
 import unicodedata
 from collections import Counter
+from collections.abc import Mapping
 
 from skipwatch.models import RedactionReplacement
 
@@ -330,6 +332,19 @@ def redact_text(text: str) -> tuple[str, list[RedactionReplacement]]:
     ):
         text = step(text)
     return text, r.report()
+
+
+SECRET_ENV_NAME = re.compile(r"(?i)" + _SECRET_NAME)
+
+
+def redact_message(text: str, environ: Mapping[str, str] | None = None) -> str:
+    """Error text safe to print or log: the value of every secret-named environment variable
+    (MEM0_API_KEY, OPENAI_API_KEY, ...) is replaced first, whatever its shape, then redact_text."""
+    env = os.environ if environ is None else environ
+    for name, value in env.items():
+        if len(value) >= MIN_SECRET_LEN and SECRET_ENV_NAME.search(name):
+            text = text.replace(value, FLAG_PLACEHOLDER)
+    return redact_text(text)[0]
 
 
 def has_provider_key(text: str) -> bool:

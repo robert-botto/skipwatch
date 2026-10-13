@@ -543,3 +543,15 @@ def test_redact_modes_do_not_mix(run_folder, args):
     r = _redact_file(*[real.get(a, a) for a in args])
     assert r.exit_code == 64
     assert not (run_folder / "staging").exists()
+
+
+def test_redact_message_hides_secret_env_values_of_any_shape():
+    from skipwatch.redact import redact_message
+
+    env = {"MEM0_API_KEY": "plainvalue-123", "TREG_TOKEN": "short", "HOME": "/Users/x"}
+    out = redact_message("key plainvalue-123 home /Users/x tok short", env)
+    assert "plainvalue-123" not in out and "<SECRET>" in out
+    assert "/Users/x" in out  # not a secret name
+    assert "short" in out  # under 8 characters: too short to replace safely
+    key = "sk-proj-" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0"
+    assert key not in redact_message(f"bad {key}", {})  # redact_text patterns still apply
