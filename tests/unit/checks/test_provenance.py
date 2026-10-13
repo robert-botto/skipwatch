@@ -770,6 +770,20 @@ def test_provenance_written_code_before_a_flag_on_the_next_token_fails(tmp_path,
 @pytest.mark.parametrize(
     ("code", "post"),
     [
+        ("npm test", "Run **npm test** then deploy."),
+        ("npm test", "Run <npm test> then deploy."),
+        ("https://x.dev/a", "Docs <https://x.dev/a>."),
+        ("npm test", "Run npm test* now."),
+    ],
+)
+def test_provenance_written_code_in_markdown_emphasis_or_autolink_passes(tmp_path, code, post):
+    r = _written_case(tmp_path, f"4. Use `{code}`.", PIN + post)
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
         ("npm", "Set my_npm first."),
         ("npm i", "Run pnpm i now."),
         ("npm i", "Run **npm i>out** now."),
@@ -782,6 +796,11 @@ def test_provenance_written_code_inside_a_longer_token_still_fails(tmp_path, cod
 
 def test_provenance_onscreen_code_before_a_rule_passes(tmp_path):
     r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", "skipdemo deploy\n---")
+    assert r.ok, r.items
+
+
+def test_provenance_onscreen_code_in_markdown_bold_passes(tmp_path):
+    r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", "Run **skipdemo deploy** now")
     assert r.ok, r.items
 
 
