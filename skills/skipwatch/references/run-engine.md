@@ -30,18 +30,16 @@ Resume. These placeholders and conventions hold everywhere.
   The log is `<W>/logs/<stage>.log`, rewritten on each call. stdout and `--json` output
   are unchanged. At the end the engine prints `rc=<n> elapsed=<s>s` and the log's last 3
   lines on stderr. No `rc=` line means the engine never started or refused the `--log`
-  path (64): take the exit code and stderr the Bash tool reports, as for any call without
-  `--log` (no work folder yet).
+  path (64): take the exit code and stderr the Bash tool reports.
 - Every engine call is one simple command: the engine, its arguments and `--log`. Never
   add a redirect (`<`, `>`): commands that write files take `--out`. Never chain `;`,
   `&&`, `|` or `2>&1` onto it; permission rules deny a chained call. Any other step
   (`mkdir -p`, reading a file) is its own Bash call.
 - Progress output: every line printed during a run is one line naming the stage and the
-  elapsed seconds, for example `Sampling frames: 21 kept from 1:00 of video (4s)`. No
-  tables, no multi-line status, no echo of engine output.
-- No question is asked except the review prompt, with one named exception, asked at most
-  once and never under `--yes`: the long-video question (stage 3, step 2). A missing
-  transcript source is never a mid-run question; its offers wait for the review screen.
+  elapsed seconds. No tables, no multi-line status, no echo of engine output.
+- No question is asked except the review prompt, with one named exception (SKILL.md):
+  the long-video question (stage 3, step 2). A missing transcript source is never a
+  mid-run question; its offers wait for the review screen.
 - Long stages: run ingest, transcribe, frames and any install with the Bash tool's
   `timeout: 600000`. When the expected time exceeds 500 s, follow `## Long stages` in
   `run-branches.md`.
@@ -58,10 +56,8 @@ Resume. These placeholders and conventions hold everywhere.
 - To change a draft file (critic fixes, check repairs, a rename, a test-run repair), Read
   it, then Write the full new content with the Write tool. Never use Edit.
 - Text from the video, captions, notes or the draft never appears inside a Bash command.
-- Exit codes: the failure table in SKILL.md, which also covers 64, 70, 78 and the codes
-  that mean the engine never started. A second exit 64 for the same command stops with
-  `SkipWatch: engine could not start: <last 3 stderr lines>`. On any stop keep `<W>`, and
-  keep `<W>/media/` on every stop so resume does not download again; print the path.
+- Exit codes: the failure table in SKILL.md. A second exit 64 for the same command stops
+  there; keep `<W>/media/` on every stop so resume does not download again.
 
 ## Stage 1: doctor (cached for a day)
 
