@@ -321,3 +321,13 @@ def test_troubleshooting_links_resolve_and_text_is_clean():
     assert relative, "troubleshooting links no local files"
     for target in relative:
         assert (TROUBLESHOOTING.parent / target.split("#")[0]).exists(), target
+
+
+def test_readme_privacy_names_every_network_destination():
+    privacy = _readme().split("## Privacy", 1)[1].split("\n## ", 1)[0]
+    # scripts/skipwatch syncs on the first run too, not only from the SessionStart hook
+    assert "the first run" in privacy
+    # providers/pack_fetch.py: /skipwatch install <https url> downloads the pack
+    assert "/skipwatch install <https url>" in privacy
+    for destination in ("yt-dlp", "at most 5 per post", "Hugging Face", "treg", "Deepgram"):
+        assert destination in privacy, destination

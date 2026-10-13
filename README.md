@@ -285,9 +285,10 @@ A pack's checksums prove the files were not changed by accident. They do not pro
 
 No telemetry, no analytics, no update pings. The engine runs on your machine. Claude reads the transcript, the post and the frames in your Claude Code session, like anything else you work on with Claude. The engine's own network traffic is:
 
-- PyPI, when the SessionStart hook syncs the plugin's Python environment after an install or update;
+- PyPI, when the SessionStart hook or the first run syncs the plugin's Python environment after an install or update;
 - the platform your link points to, through yt-dlp;
 - the pages a post links to (at most 5 per post, public addresses only);
+- the address you give `/skipwatch install <https url>`, to download that pack (https and public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
 - treg, only at Tier 3 and only after you turn it on (`[providers.treg] enabled = true` in `config.toml`, or `--provider treg` for one run). Its calls are paid, capped at $0.05 per run by default, and listed on the review screen;
 - cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
