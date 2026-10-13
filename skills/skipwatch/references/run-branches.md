@@ -72,6 +72,9 @@ says `ingest.log`; nothing was downloaded.
   no offer. Exit 3 from transcribe is not a media download: a Whisper model could
   not be downloaded. Degrade the same way with the engine's message plus
   `(retry: /skipwatch resume <W> once online)`, no offer.
+- Captions with no timed segments: transcribe falls back to local Whisper by itself and
+  notes it; with no Whisper it exits 7 having already noted the degradation (noting it
+  again is a no-op).
 - Silent video: `"silent": true` in `<W>/transcript.json`: print
   `Silent video: leaning on frames and post text.`, run frames with `--dense`, and
   prefer `[on-screen]` and `[written]` tags in the outline.
