@@ -37,7 +37,6 @@ YTDLP_MAX_AGE_DAYS = 60
 NODE_MIN_MAJOR = 22
 UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
-GIT_SOURCE = "git+https://github.com/robert-botto/skipwatch"
 TREG_OFF = (
     "logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg"
 )
@@ -283,7 +282,7 @@ def extra_command(plugin_root: str | None, extra: str) -> str:
     root = _project_root(plugin_root)
     if root:
         return _sync(root, f"--extra {extra}")
-    return f'uv tool install "skipwatch[{extra}] @ {GIT_SOURCE}"'
+    return f'uv tool install "skipwatch[{extra}]"'
 
 
 def ytdlp_upgrade_command(plugin_root: str | None) -> str:
@@ -295,7 +294,7 @@ def _reinstall_command(plugin_root: str | None, package: str | None = None) -> s
     root = _project_root(plugin_root)
     if root:
         return _sync(root, f"--reinstall-package {package}" if package else "")
-    return f'uv tool install --reinstall "skipwatch @ {GIT_SOURCE}"'
+    return "uv tool install --reinstall skipwatch"
 
 
 def uv_install_command() -> str:

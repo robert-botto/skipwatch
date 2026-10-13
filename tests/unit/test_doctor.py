@@ -80,15 +80,20 @@ def test_install_commands_without_plugin_root_use_source_checkout(monkeypatch, t
     assert whisper.install_command == f'uv sync --inexact --project "{tmp_path}" --extra whisper'
 
 
-def test_install_commands_without_any_root_use_git_not_pypi(monkeypatch):
+def test_install_commands_without_any_root_install_from_pypi(monkeypatch):
     monkeypatch.setattr(doctor, "_source_checkout_root", lambda: None)
     r = doctor.build_report(P(), TODAY, plugin_root=None)
     whisper = next(m for m in r.missing if m.name == "whisper")
-    assert whisper.install_command == (
-        'uv tool install "skipwatch[mlx] @ git+https://github.com/robert-botto/skipwatch"'
-    )
+    assert whisper.install_command == 'uv tool install "skipwatch[mlx]"'
     old = doctor.build_report(P(ytdlp="2026.01.01"), TODAY, plugin_root=None)
     assert any("uv tool upgrade skipwatch" in w for w in old.warnings)
+    no_ffmpeg = doctor.build_report(P(ffmpeg_source="none"), TODAY, plugin_root=None)
+    assert any(
+        w == "ffmpeg not found; run: uv tool install --reinstall skipwatch"
+        for w in no_ffmpeg.warnings
+    ), no_ffmpeg.warnings
+    for report in (r, old, no_ffmpeg):
+        assert "git+" not in report.model_dump_json()
 
 
 def test_source_checkout_root_detection(tmp_path):
