@@ -5,6 +5,18 @@ description = "Turn tutorial videos into Agent Skills"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+keywords = ["claude-code", "agent-skills", "skills", "video", "tutorial", "yt-dlp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Video",
+]
 dependencies = [
   "typer>=0.27,<0.28",
   "pydantic>=2.14,<3",
@@ -28,12 +40,29 @@ dev = ["pytest>=9.1", "pytest-cov>=7.1", "ruff>=0.16", "pyright>=1.1.414"]
 [project.scripts]
 skipwatch = "skipwatch.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/robert-botto/skipwatch"
+Repository = "https://github.com/robert-botto/skipwatch"
+Issues = "https://github.com/robert-botto/skipwatch/issues"
+Changelog = "https://github.com/robert-botto/skipwatch/blob/main/CHANGELOG.md"
+
 [build-system]
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/skipwatch"]
+
+[tool.hatch.build.targets.sdist]
+# Patterns match at any depth unless anchored, so each one starts with "/" (issue 13).
+include = [
+  "/src/skipwatch",
+  "/README.md",
+  "/LICENSE",
+  "/CHANGELOG.md",
+  "/THIRD_PARTY_NOTICES",
+  "/pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/pipeline", "tests/live"]
