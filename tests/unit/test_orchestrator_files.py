@@ -227,6 +227,18 @@ def test_every_engine_call_is_one_simple_command():
     assert re.search(r";", _without_placeholders('<ENGINE> doctor; echo "rc=$?"'))
 
 
+def test_plain_command_rule_comes_before_the_first_engine_call():
+    # headless runs tried `doctor 2>&1; echo "rc=$?"` and hit a permission denial
+    skill = flat(SKILL / "SKILL.md")
+    rule = "**Every engine call is one plain Bash command, exactly as written, nothing appended.**"
+    assert rule in skill and skill.index(rule) < skill.index("## doctor")
+    for banned in ("`2>&1`", "`; echo rc=$?`", "`&&`", "`|`"):
+        assert banned in skill.split(rule, 1)[1].split("## ", 1)[0], banned
+    assert "the Bash result already shows stdout, stderr and the exit code" in skill
+    assert "run `<ENGINE> doctor`, one plain command as above" in skill
+    assert "One plain Bash call, nothing appended" in flat(REFS / "run-engine.md")
+
+
 def _redirects(command: str) -> list[str]:
     """Shell redirects left once quoted strings and placeholders are removed."""
     bare = re.sub(r'"[^"]*"', "", command)

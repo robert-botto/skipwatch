@@ -12,7 +12,7 @@ Arguments: $ARGUMENTS
 SkipWatch turns a tutorial video into an installed Agent Skill whose every step is traced
 to a timestamp. You orchestrate; a deterministic engine does the mechanical work, and
 three agents (`skipwatch:frame-reader`, `skipwatch:skill-critic`,
-`skipwatch:skill-tester`; see "Rules that hold in every stage") read frames, critique the
+`skipwatch:skill-tester`) read frames, critique the
 draft and test it.
 
 ## Engine and paths
@@ -24,6 +24,10 @@ The references write that path as `<ROOT>`: use the literal path, never a shell 
 expand every `<ENGINE>` to exactly this, with `<ROOT>` filled in:
 
 <ENGINE> = `"<ROOT>/scripts/skipwatch"`
+
+**Every engine call is one plain Bash command, exactly as written, nothing appended.**
+Never add `2>&1`, `; echo rc=$?`, `&&`, `|` or a redirect: the Bash result already shows
+stdout, stderr and the exit code, and a chained call is denied.
 
 Never invoke uv yourself to run the engine; the only uv command you ever run is an install
 the user accepted. `<W>` is the run's absolute work folder, taken only from
@@ -75,10 +79,16 @@ guess what the user meant and do not start a run.
 
 ## doctor
 
-If the first argument is `doctor`, run `<ENGINE> doctor` as one command and print its
+If the first argument is `doctor`, run `<ENGINE> doctor`, one plain command as above, and print its
 report first, unchanged, inside a code block, before any commentary (its stderr and
 stdout, starting with the `Tier` line). Do not install anything. If the report lists
 missing pieces, offer each install command and run only the ones the user accepts.
+
+## First run
+
+When doctor's stderr ends with `Welcome to SkipWatch.`, Read
+`references/first-run-banner.md` and open your reply with its block, verbatim, inside a
+```` ```text ```` fence.
 
 ## Run the pipeline
 
@@ -131,7 +141,6 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 - Never Read a frame image yourself. You read each notes file and the transcript once.
 - Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says
   "Do not start other agents." and states a time budget.
-  Use those namespaced agent types with the prompts the run files give.
 - Draft text reaches staging only through `<ENGINE> redact`, file to file, and
   never appears inside a Bash command.
 - Install only after the user's yes, or under `--yes` with zero safety flags, gaps and

@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from skipwatch import doctor
+from skipwatch import doctor, firstrun
 from skipwatch.config import skipwatch_home
 from skipwatch.models import DoctorReport
 from skipwatch.output import emit_json, progress
@@ -46,6 +46,8 @@ def _doctor(json_out: bool, max_age_hours: float | None) -> int:
     if fresh:
         home.mkdir(parents=True, exist_ok=True)
         write_model(home / "doctor.json", report)
+    if firstrun.claim(home):
+        progress(firstrun.WELCOME)  # last stderr line, after the Tier table
     if json_out:
         emit_json(report)
     return 0  # R-TIER-1: exits 0 at every tier
