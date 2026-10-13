@@ -11,6 +11,7 @@ import typer
 from PIL import Image
 
 from skipwatch.cli import app
+from skipwatch.errors import ExitCode
 
 ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "docs/demo"
@@ -286,3 +287,37 @@ def test_readme_uninstall_lists_every_step():
         "/skipwatch list",
     ):
         assert step in uninstall, step
+
+
+def _wrapper_exit_codes() -> set[int]:
+    """Exit codes scripts/skipwatch itself returns (the engine never ran): its fail calls."""
+    text = (ROOT / "scripts/skipwatch").read_text(encoding="utf-8")
+    codes = {int(code) for code in re.findall(r"\bfail\s+(\d+)", text)}
+    assert codes, "no fail <code> calls found in scripts/skipwatch"
+    return codes
+
+
+def test_troubleshooting_table_has_every_exit_code_from_the_source():
+    text = TROUBLESHOOTING.read_text(encoding="utf-8")
+    rows = set(re.findall(r"^\| (\d+) \| `?([^|`]+?)`? \|", text, flags=re.M))
+    for code in ExitCode:
+        assert (str(code.value), code.name) in rows, code
+    documented = {int(code) for code, _ in rows}
+    for code in _wrapper_exit_codes():
+        assert code in documented, f"wrapper exit {code}"
+    assert documented == {c.value for c in ExitCode} | _wrapper_exit_codes()
+
+
+def test_readme_points_to_troubleshooting():
+    assert "](docs/troubleshooting.md)" in _readme()
+
+
+def test_troubleshooting_links_resolve_and_text_is_clean():
+    text = TROUBLESHOOTING.read_text(encoding="utf-8")
+    for bad in (EM_DASH, "/Users/", "@gmail.com", "/private/tmp"):
+        assert bad not in text, bad
+    targets = re.findall(r"\]\(([^)\s]+)\)", FENCE.sub("", text))
+    relative = [t for t in targets if not re.match(r"[a-z]+:|#", t)]
+    assert relative, "troubleshooting links no local files"
+    for target in relative:
+        assert (TROUBLESHOOTING.parent / target.split("#")[0]).exists(), target

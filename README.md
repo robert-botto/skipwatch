@@ -13,7 +13,7 @@ with every step traced to the moment in the video it came from.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat-square)](.claude-plugin/plugin.json)
 
-[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [Uninstall](#uninstall) · [FAQ](#faq)
+[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [Uninstall](#uninstall) · [Troubleshooting](docs/troubleshooting.md) · [FAQ](#faq)
 
 <code>/skipwatch &lt;video link&gt;</code>
 
@@ -267,24 +267,7 @@ skipwatch cache [--clear] [--json]
 
 The skill also calls `new-work`, `mark`, `merge-notes`, `copy-frames`, `validate-notes`, `validate-critique` and `validate-test` to manage a run. Progress goes to stderr. With `--json`, the result is one JSON line on stdout.
 
-Exit codes are stable:
-
-| Exit | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | Check failed (frontmatter, structure, provenance, style) |
-| 2 | Unsupported source (no adapter, unknown file type) |
-| 3 | Download failed on every route; stderr lists the routes and reasons |
-| 4 | Private or login-required content |
-| 5 | Safety flags present; check otherwise passed |
-| 6 | Install target exists and `--force` not given |
-| 7 | No usable content |
-| 8 | Missing dependency; stderr names the install command |
-| 9 | Pack integrity failure: checksum or manifest mismatch |
-| 64 | Usage error |
-| 70 | Internal error; please report it with the run's logs |
-
-Per-platform failures and their fixes are in [platforms.md](skills/skipwatch/references/platforms.md).
+Exit codes are stable. Every code, what it means and how to fix it is in [Troubleshooting](docs/troubleshooting.md#exit-codes); per-platform failures are in [platforms.md](skills/skipwatch/references/platforms.md).
 
 ## Sharing packs
 
@@ -375,11 +358,12 @@ It downloads the media into the run's work folder to read it, and deletes it aft
 Yes. Generated skills use only the portable Agent Skills frontmatter keys.
 
 **Something failed. Where do I look?**
-Run `/skipwatch doctor` first. Each failure prints one line and keeps the work folder; its `logs/` folder has the details. `/skipwatch resume` picks up where the run stopped.
+Run `/skipwatch doctor` first, then see [Troubleshooting](docs/troubleshooting.md). Each failure prints one line and keeps the work folder; its `logs/` folder has the details. `/skipwatch resume` picks up where the run stopped.
 
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-10-09-skipwatch-design.md): every requirement, file format and decision.
+- [Troubleshooting](docs/troubleshooting.md): every exit code and its fix, sandbox and uv notes, per-platform failures.
 - [Platform notes](skills/skipwatch/references/platforms.md): what each platform returns and how it fails.
 - [Sharing reference](skills/skipwatch/references/sharing.md): list, pack, install and share in detail.
 
