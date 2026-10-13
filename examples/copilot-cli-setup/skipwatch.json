@@ -1,0 +1,34 @@
+{
+  "schema": "skipwatch/manifest/1",
+  "name": "copilot-cli-setup",
+  "description": "Installs GitHub Copilot CLI with npm and starts it in the terminal with a GitHub login. Use when the user wants to get Copilot running in their terminal, for example \"install GitHub Copilot CLI\", \"set up Copilot in my terminal\", \"how do I start the copilot command\". Not for Copilot in VS Code or other editors, or for using Copilot CLI on a codebase after it is running.",
+  "skipwatch_version": "0.1.0",
+  "source": {
+    "url": "https://www.tiktok.com/@github/video/7624273546776153377",
+    "canonical_url": "https://www.tiktok.com/@github/video/7624273546776153377",
+    "platform": "tiktok",
+    "author": "@github",
+    "title": "Get GitHub Copilot directly in your terminal. 💻 Here's how to set it ...",
+    "posted_at": "2026-04-02T21:15:02Z"
+  },
+  "extracted_at": "2026-10-13T02:31:33Z",
+  "fetched_with_cookies": false,
+  "counts": {
+    "steps": 3,
+    "spoken": 1,
+    "on_screen": 2,
+    "written": 0,
+    "inferred": 0,
+    "gaps": 1,
+    "illegible": 0
+  },
+  "confidence": "medium",
+  "critic_score": 8.8,
+  "checks_passed": true,
+  "safety_flags": [],
+  "files": {
+    "SKILL.md": "sha256:530a79d93b2fee221e12b9136a0114131ea1c4bbe17ac677e5ae8437829aca4d",
+    "references/source.md": "sha256:d309a5df33bd5b8879592ea28746e1115ab2660f848ccb288db0662e385540fb",
+    "references/transcript.md": "sha256:7784524e0c769426fee68a6e0b335e8aea371f8f7509a0163c01af7eff1ed3de"
+  }
+}
