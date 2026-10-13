@@ -80,6 +80,17 @@ report first, unchanged, inside a code block, before any commentary (its stderr 
 stdout, starting with the `Tier` line). Do not install anything. If the report lists
 missing pieces, offer each install command and run only the ones the user accepts.
 
+## First run
+
+When doctor's output ends with `Welcome to SkipWatch.`, open your reply with this
+block, verbatim:
+
+```
+ ┌─┐┬┌─┬┌─┐  ┬ ┬┌─┐┌┬┐┌─┐┬ ┬
+ └─┐├┴┐│├─┘  │││├─┤ │ │  ├─┤
+ └─┘┴ ┴┴┴    └┴┘┴ ┴ ┴ └─┘┴ ┴   paste a video, get a skill
+```
+
 ## Run the pipeline
 
 Follow the run files in order, reading each when its stage starts:
