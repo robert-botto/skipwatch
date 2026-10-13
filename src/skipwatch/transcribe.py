@@ -122,8 +122,10 @@ def after_empty_captions(
         note_degradation(work.path, f"no transcript: {message}")  # starts with STALE_NOTE
         raise SkipwatchError(ExitCode.NO_CONTENT, message)
     progress(f"Transcribe: {EMPTY_CAPTIONS}; falling back to {fallback.name}")
-    note_degradation(work.path, f"{EMPTY_CAPTIONS}; transcribed with {fallback.name} instead")
-    return fallback, fallback.transcribe(work, model)
+    transcript = fallback.transcribe(work, model)
+    if transcript.segments:  # never claim a transcription that did not happen
+        note_degradation(work.path, f"{EMPTY_CAPTIONS}; transcribed with {fallback.name} instead")
+    return fallback, transcript
 
 
 def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript:

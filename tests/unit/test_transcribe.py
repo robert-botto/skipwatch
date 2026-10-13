@@ -234,6 +234,23 @@ def test_a_cached_transcript_also_clears_the_stale_note(tmp_path, monkeypatch):
     assert read_degradations(first.path).degradations == []
 
 
+@pytest.mark.parametrize("outcome", ["empty", "raises"])
+def test_a_failed_fallback_is_not_noted_as_a_transcription(tmp_path, monkeypatch, outcome):
+    whisper = _Whisper()
+    if outcome == "empty":
+        whisper.transcribe = lambda work, model: Transcript(origin="faster-whisper", segments=[])
+    else:
+
+        def fail(work, model):
+            raise SkipwatchError(ExitCode.MISSING_DEPENDENCY, "model download failed")
+
+        whisper.transcribe = fail
+    _with_whisper(monkeypatch, whisper)
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    assert transcribe(w).exit_code != 0
+    assert not any("transcribed with" in d for d in read_degradations(w.path).degradations)
+
+
 def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):
     whisper = _Whisper(available=False)
     _with_whisper(monkeypatch, whisper)
