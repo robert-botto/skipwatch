@@ -36,16 +36,27 @@ def refuse_nothing_to_transcribe(bundle: IngestBundle) -> None:
         raise SkipwatchError(ExitCode.NO_CONTENT, "the video has no audio track")
 
 
+def _auto_backend(
+    bundle: IngestBundle, skip: frozenset[str] = frozenset()
+) -> TranscriptionBackend | None:
+    """The available local backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    ranked = sorted(
+        (
+            b
+            for b in transcription_backends().values()
+            if not b.cloud and b.auto_rank is not None and b.name not in skip
+        ),
+        key=lambda b: (b.auto_rank, b.name),
+    )
+    return next((b for b in ranked if b.available(bundle)), None)
+
+
 def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
     """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
     refuse_nothing_to_transcribe(bundle)
     backends = transcription_backends()
     if requested == "auto":
-        ranked = sorted(
-            (b for b in backends.values() if not b.cloud and b.auto_rank is not None),
-            key=lambda b: (b.auto_rank, b.name),
-        )
-        chosen = next((b for b in ranked if b.available(bundle)), None)
+        chosen = _auto_backend(bundle)
         if chosen is not None:
             return chosen
         raise SkipwatchError(
