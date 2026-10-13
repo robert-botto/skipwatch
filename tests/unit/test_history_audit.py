@@ -161,3 +161,35 @@ def test_script_and_tests_hold_no_personal_values(path):
     spec.loader.exec_module(module)
     findings = module.scan_text(path.read_text(encoding="utf-8"))
     assert findings == []
+
+
+def test_reserved_names_are_not_flagged(repo):
+    text = (
+        "redacted" + "@" + "example.invalid, a" + "@" + "mail.test, db" + "@" + "x.example.com,\n"
+        "noreply" + "@" + "github.com, multicast " + ".".join(["224", "0", "0", "1"]) + "\n"
+    )
+    _commit(repo, {"ok.txt": text})
+    r = _audit(repo)
+    assert r.returncode == 0, r.stdout
+
+
+def test_allow_file_suppresses_listed_findings_only(repo, tmp_path):
+    _commit(repo, {"tests/t.py": f"{PUBLIC_IP}\n", "src/s.py": f"{PUBLIC_IP}\n"})
+    allow = tmp_path / "allow.txt"
+    allow.write_text(f"# known test values\n\nip {PUBLIC_IP} tests/*\n", encoding="utf-8")
+    r = _audit(repo, "--allow", str(allow))
+    assert r.returncode == 1
+    assert f"ip {PUBLIC_IP} in src/s.py" in r.stdout
+    assert "tests/t.py" not in r.stdout
+
+    allow.write_text(f"ip {PUBLIC_IP} tests/*\nip * src/*\n", encoding="utf-8")
+    assert _audit(repo, "--allow", str(allow)).returncode == 0
+
+
+def test_allow_file_rejects_malformed_lines(repo, tmp_path):
+    _commit(repo, {"a.txt": "a\n"})
+    allow = tmp_path / "allow.txt"
+    allow.write_text("ip only-two\n", encoding="utf-8")
+    r = _audit(repo, "--allow", str(allow))
+    assert r.returncode == 2
+    assert "allow.txt:1" in r.stderr

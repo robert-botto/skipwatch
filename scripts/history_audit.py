@@ -2,22 +2,30 @@
 
 Usage:
   uv run python scripts/history_audit.py [--repo PATH] [--identity "Name <email>"]
+                                          [--allow FILE]
 
 Scans every commit reachable from any ref: author and committer identities, every commit
 message, and every text blob for
-  ip       IPv4 literals outside the private, loopback, link-local and documentation ranges
-  email    addresses outside GitHub noreply, noreply at anthropic.com and the example domains
+  ip       IPv4 literals outside the private, loopback, link-local, multicast and
+           documentation ranges
+  email    addresses outside GitHub noreply, noreply at anthropic.com, the example domains
+           and the reserved top-level domains (.test, .invalid, .example, .localhost)
   home     absolute home folders (/Users/<name>/, /home/<name>/, C:\\Users\\<name>\\) other
            than the placeholder names me, runner, user and example
   secret   anything skipwatch.redact.redact_text would replace (the kind only, never the value)
 Prints one line per finding, such as `ip <address> in <path> @ <short sha>`, then every
 identity with its count. Exits 0 only when there are no findings and, with --identity,
-every identity equals it; 1 otherwise; 2 when the repository cannot be read.
+every identity equals it; 1 otherwise; 2 when the repository or the allow file cannot be read.
+
+--allow FILE names known, non-personal test values (fake secrets in the redaction tests,
+public addresses the URL tests use), one per line: `<kind> <value or *> <path glob>`, with
+blank lines and `#` comments ignored. Keep that file outside the repository being audited.
 
 The script holds no personal values: everything it reports comes from the scan.
 """
 
 import argparse
+import fnmatch
 import ipaddress
 import re
 import subprocess
@@ -39,12 +47,14 @@ ALLOWED_NETWORKS = [
         "192.0.2.0/24",
         "198.51.100.0/24",
         "203.0.113.0/24",
+        "224.0.0.0/4",
         "1.2.3.4/32",
     )
 ]
 ALLOWED_EMAIL_SUFFIXES = ("@users.noreply.github.com",)
-ALLOWED_EMAIL_DOMAINS = {"anthropic.com": {"noreply"}}
+ALLOWED_EMAIL_DOMAINS = {"anthropic.com": {"noreply"}, "github.com": {"noreply"}}
 EXAMPLE_DOMAINS = {"example.com", "example.org", "example.net"}
+RESERVED_TLDS = {"test", "invalid", "example", "localhost"}
 ALLOWED_HOME_NAMES = {"me", "runner", "user", "example"}
 
 IPV4 = re.compile(r"(?<![\w.])(\d{1,3}(?:\.\d{1,3}){3})(?!\.?\d)(?!\w)")
@@ -69,7 +79,9 @@ def ip_allowed(text: str) -> bool:
 def email_allowed(address: str) -> bool:
     address = address.lower()
     local, _, domain = address.rpartition("@")
-    if address.endswith(ALLOWED_EMAIL_SUFFIXES) or domain in EXAMPLE_DOMAINS:
+    if address.endswith(ALLOWED_EMAIL_SUFFIXES) or domain.rsplit(".", 1)[-1] in RESERVED_TLDS:
+        return True
+    if any(domain == d or domain.endswith("." + d) for d in EXAMPLE_DOMAINS):
         return True
     return local in ALLOWED_EMAIL_DOMAINS.get(domain, set())
 
@@ -152,11 +164,42 @@ def commit_messages(repo: Path):
             yield sha[:7], body
 
 
-def audit(repo: Path) -> list[str]:
+Allowance = tuple[str, str, str]
+
+
+class AllowFileError(ValueError):
+    pass
+
+
+def read_allow_file(path: Path) -> list[Allowance]:
+    allowances: list[Allowance] = []
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) != 3:
+            raise AllowFileError(f"{path}:{number}: expected `<kind> <value or *> <path glob>`")
+        kind, value, glob = parts
+        allowances.append((kind, value, glob))
+    return allowances
+
+
+def allowed(allowances: list[Allowance], kind: str, value: str, where: str) -> bool:
+    return any(
+        kind == k and v in ("*", value)
+        for k, v, glob in allowances
+        if fnmatch.fnmatchcase(where, glob)
+    )
+
+
+def audit(repo: Path, allowances: list[Allowance] | None = None) -> list[str]:
     lines: list[str] = []
     seen: set[tuple[str, str, str]] = set()
 
     def report(kind: str, value: str, where: str, commit: str) -> None:
+        if allowed(allowances or [], kind, value, where):
+            return
         if (kind, value, where) not in seen:
             seen.add((kind, value, where))
             lines.append(f"{kind} {value} in {where} @ {commit}")
@@ -178,10 +221,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=".")
     parser.add_argument("--identity", help='the only allowed "Name <email>"')
+    parser.add_argument("--allow", help="file of known test values to skip (see above)")
     args = parser.parse_args()
     repo = Path(args.repo)
     try:
-        findings = audit(repo)
+        allowances = read_allow_file(Path(args.allow)) if args.allow else []
+    except (OSError, AllowFileError) as exc:
+        print(f"cannot use the allow file: {exc}", file=sys.stderr)
+        return 2
+    try:
+        findings = audit(repo, allowances)
         people = identities(repo)
     except subprocess.CalledProcessError as exc:
         print(f"cannot read {repo}: {exc.stderr.decode(errors='replace').strip()}", file=sys.stderr)
