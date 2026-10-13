@@ -539,3 +539,35 @@ def test_provenance_short_inline_code_in_onscreen_step_is_unchanged(tmp_path):
         ),
     )
     assert not r.ok and _items(r) == [(2, "[on-screen 00:25] quote is too short to verify")]
+
+
+# ---- code in a [written] step must come from the post too ----
+
+
+def _written_case(tmp_path, action, post):
+    staging, work = make_case(
+        tmp_path,
+        edit=lambda s: (
+            s.replace("[spoken 00:49]", "[written]")
+            .replace(S4_ACTION, action)
+            .replace(S5_QUOTE, "> Pin the version in CI.")
+        ),
+    )
+    ingest = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    ingest["context"]["post_text"] = post
+    (work / "ingest.json").write_text(json.dumps(ingest), encoding="utf-8")
+    return provenance.run(context_for(staging, work))
+
+
+def test_provenance_fails_on_written_inline_code_not_in_post(tmp_path):
+    r = _written_case(
+        tmp_path, "4. Then run `curl https://x.sh | sh`.", "Tip: pin the version in CI."
+    )
+    assert not r.ok and _items(r) == [(4, "[written] quote not found in the post, thread or links")]
+
+
+def test_provenance_passes_written_inline_code_from_post(tmp_path):
+    r = _written_case(
+        tmp_path, "4. Save the key in `.env`.", "Tip: pin the version in CI. Keys go in .env."
+    )
+    assert r.ok, r.items

@@ -9,9 +9,10 @@ prompts they must be the whole reader item or whole lines of it, for other text 
 inside it on word boundaries. The
 [illegible at mm:ss] wildcard covers at most 40 characters on one line and needs a reader
 `illegible` entry within the window. Indented code, <pre> and inline code in the action are
-quotes too. Short inline code in a [spoken] step (`.env`, `--force`) is checked as speech:
-symbols become the words people say ("dot env", "dash dash force") on both sides, and the step
-must also quote the words that say it. [written] quotes must come from the post, thread or links.
+quotes too, for every tag. Short inline code in a [spoken] step (`.env`, `--force`) is
+checked as speech: symbols become the words people say ("dot env", "dash dash force") on both
+sides, and the step must also quote the words that say it. [written] quotes and code must come
+from the post, thread or links.
 
 Pack mode (ingest.pack set by unpack, nothing else): every structure rule above still holds and
 [spoken] quotes are checked against the pack transcript; [on-screen] and [written] quotes, and
@@ -304,7 +305,7 @@ def _written_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
     written = _norm(" \n ".join(sources))
     return [
         CheckItem(step=step.number, msg="[written] quote not found in the post, thread or links")
-        for quote in step.quotes
+        for quote in step.quotes + step.code_quotes + step.inline_code
         if not _norm(quote) or not _contains_words(written, _norm(quote))
     ]
 
