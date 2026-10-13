@@ -1088,26 +1088,21 @@ Defaults apply if unanswered; building does not wait on these.
 - **Provenance tag**: `[spoken mm:ss]`, `[on-screen mm:ss]`, `[written]`, `[inferred]`.
 - **Gap**: a step the video skips, written as `GAP: ...`.
 
-## Appendix A. Robert's local configuration
+## Appendix A. Build rules and style configuration
 
-Lives in `~/.skipwatch/config.toml` on Robert's machine, not in the repo.
+The build follows these rules:
+
+- Subagents run on an explicitly chosen model; every dispatch forbids further spawning and
+  states a time budget.
+- No em dashes in any generated or written text. The style setting below enforces this for
+  generated skills.
+- Work happens on feature branches and lands through pull requests, never as direct commits
+  to main.
+
+User configuration lives in `~/.skipwatch/config.toml`, not in the repo. The style section
+that carries the em dash rule:
 
 ```toml
-[providers.treg]
-enabled = true
-
-[exports.mem0]
-enabled = true
-tag = "skipwatch"
-
-[exports.notes]
-enabled = false
-
 [style]
 forbid = ["em-dash"]
 ```
-
-Robert's global rules that the build follows: subagents run on Sonnet or Opus with an
-explicit model; every dispatch forbids further spawning and states a time budget; no em
-dashes in any generated or written text; feature branches and PRs only, never commits to
-main.
