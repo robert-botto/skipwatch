@@ -452,7 +452,10 @@ def _resolve_playlist(playlist: bytes, playlist_url: str) -> bytes:
         body = _read_segment(url, deadline, MAX_CAPTION_BYTES - total)
         total += len(body)
         segments.append(body.decode("utf-8-sig", "replace"))
-    return captions_hls.merge_webvtt(segments).encode("utf-8")
+    try:
+        return captions_hls.merge_webvtt(segments).encode("utf-8")
+    except Exception as exc:  # hostile segment text: a caption failure never ends ingest
+        raise _caption_error(f"could not merge the segments ({type(exc).__name__})") from exc
 
 
 def download_captions(

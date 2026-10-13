@@ -171,3 +171,16 @@ def test_a_broken_segment_body_is_a_captions_error(tmp_path, monkeypatch, x_play
     with pytest.raises(cf.FreeRouteError, match="caption playlist") as e:
         cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
     assert e.value.op == "captions" and segment.closed
+
+
+def test_any_merge_failure_is_a_captions_error(tmp_path, monkeypatch, x_playlist):
+    # "a caption failure never ends ingest": whatever merge_webvtt raises becomes a captions
+    # error, so ingest records it and carries on without captions.
+    _serve_segments(monkeypatch, {SEGMENT_URL: _Vetted(b"WEBVTT\n")})
+
+    def boom(segments):
+        raise OverflowError("int too large to convert to float")
+
+    monkeypatch.setattr(cf.captions_hls, "merge_webvtt", boom)
+    with pytest.raises(cf.FreeRouteError, match="could not merge the segments"):
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
