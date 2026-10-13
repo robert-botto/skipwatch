@@ -104,6 +104,7 @@ def cross_check(transcript: Transcript, bundle: IngestBundle) -> Transcript:
 
 
 EMPTY_CAPTIONS = "captions produced no timed segments"
+STALE_NOTE = f"no transcript: {EMPTY_CAPTIONS}"  # an earlier run's, outdated by a transcript
 
 
 def after_empty_captions(
@@ -118,7 +119,7 @@ def after_empty_captions(
             message = f"{EMPTY_CAPTIONS} and the video has no audio track"
         else:
             message = f"{EMPTY_CAPTIONS} and no Whisper backend; install one: {_whisper_hint()}"
-        note_degradation(work.path, f"no transcript: {message}")
+        note_degradation(work.path, f"no transcript: {message}")  # starts with STALE_NOTE
         raise SkipwatchError(ExitCode.NO_CONTENT, message)
     progress(f"Transcribe: {EMPTY_CAPTIONS}; falling back to {fallback.name}")
     note_degradation(work.path, f"{EMPTY_CAPTIONS}; transcribed with {fallback.name} instead")
@@ -139,6 +140,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
             progress(f"Transcribe: reused cached transcript ({cached.origin}, {age}h old)")
             cached = cross_check(cached, bundle)  # this run's hint, never the cached one
             write_model(work.file("transcript.json"), cached)
+            drop_degradations(work.path, STALE_NOTE)
             return cached
         chosen = select_backend(backend, bundle)
         transcript = chosen.transcribe(work, model)
@@ -149,7 +151,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
         transcript = cross_check(mark_silence(transcript, bundle.source.duration_s), bundle)
         write_model(work.file("transcript.json"), transcript)
-        drop_degradations(work.path, f"no transcript: {EMPTY_CAPTIONS}")  # an earlier run's
+        drop_degradations(work.path, STALE_NOTE)
         runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
 

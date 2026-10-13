@@ -22,8 +22,10 @@ from skipwatch.transcribe import mark_silence, select_backend
 from skipwatch.workdir import WorkDir, read_model, write_model
 
 
-def work_with(tmp_path, vtt: str | None, duration=60.0, name="demo.en.vtt", path="/x/demo.mp4"):
-    w = WorkDir(tmp_path / "w")
+def work_with(
+    tmp_path, vtt: str | None, duration=60.0, name="demo.en.vtt", path="/x/demo.mp4", folder="w"
+):
+    w = WorkDir(tmp_path / folder)
     w.ensure()
     ctx = IngestContext()
     if vtt is not None:
@@ -218,6 +220,18 @@ def test_captions_fetched_again_also_clear_the_stale_note(tmp_path, monkeypatch)
     (w.path / "captions" / "demo.en.vtt").write_text(SPOKEN, encoding="utf-8")  # re-ingested
     assert transcribe(w).exit_code == 0
     assert read_degradations(w.path).degradations == []
+
+
+def test_a_cached_transcript_also_clears_the_stale_note(tmp_path, monkeypatch):
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"x")  # a real file, so the run cache keys on it
+    first = work_with(tmp_path, EMPTY_CAPTIONS, path=str(video), folder="a")
+    _with_whisper(monkeypatch, _Whisper(available=False))
+    assert transcribe(first).exit_code == 7
+    assert transcribe(work_with(tmp_path, SPOKEN, path=str(video), folder="b")).exit_code == 0
+    r = transcribe(first)  # resumed: served from the cache the second folder filled
+    assert r.exit_code == 0 and "reused cached transcript" in r.stderr
+    assert read_degradations(first.path).degradations == []
 
 
 def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):
