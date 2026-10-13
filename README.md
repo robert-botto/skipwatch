@@ -13,7 +13,7 @@ with every step traced to the moment in the video it came from.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat-square)](.claude-plugin/plugin.json)
 
-[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [FAQ](#faq)
+[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [Uninstall](#uninstall) · [FAQ](#faq)
 
 <code>/skipwatch &lt;video link&gt;</code>
 
@@ -335,13 +335,22 @@ Inside `~/.skipwatch`:
 | `config.toml` | your settings, when you made one |
 | `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
 | `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
-To remove SkipWatch:
+## Uninstall
 
-```text
-/plugin uninstall skipwatch@skipwatch
-```
+1. Note where your SkipWatch skills are, if you want to remove them too. `/skipwatch list` prints each one's path; run it before you uninstall.
+2. Remove the plugin and its marketplace, inside Claude Code:
 
-Then delete `~/.skipwatch`. Nothing else is left behind. Skills you installed stay in your skills folder until you delete them.
+   ```text
+   /plugin uninstall skipwatch@skipwatch
+   /plugin marketplace remove skipwatch
+   ```
+
+3. Delete `~/.skipwatch` (or your `SKIPWATCH_HOME`): the work folders with their logs, the run cache, packs, backups of replaced skills, `config.toml`, `doctor.json` and `installs.json`. Work folders of cancelled or stopped runs can hold unredacted text from the video, so delete them rather than keep them around. If a run ever moved its work into a project, delete that project's `<project>/.skipwatch` folder too.
+4. Optional: delete the Whisper models SkipWatch downloaded, if nothing else uses them. They are folders in the Hugging Face cache (`~/.cache/huggingface/hub` by default): `models--Systran--faster-whisper-small` for faster-whisper and `models--mlx-community--whisper-large-v3-turbo` for mlx-whisper, plus any other model you chose with `skipwatch transcribe --model`.
+5. Optional: `uv cache prune` removes the packages in uv's cache that nothing uses any more. The cache is shared with your other uv projects, so do not delete it outright.
+
+Skills SkipWatch installed are normal Agent Skill folders. They keep working after you uninstall SkipWatch, and they stay until you delete them: remove the folder, for example `~/.claude/skills/<name>`.
+
 
 ## Platform terms
 

@@ -272,3 +272,17 @@ def test_readme_install_locations_match_the_code():
     assert "`SKIPWATCH_HOME`" in where and "<project>/.skipwatch" in where
     for entry in ("work/", "cache/", "packs/", "backups/", "logs/", "config.toml", "installs.json"):
         assert f"`{entry}" in where, entry
+
+
+def test_readme_uninstall_lists_every_step():
+    uninstall = _section(_readme(), "Uninstall")
+    for step in (
+        "/plugin uninstall skipwatch@skipwatch",
+        "/plugin marketplace remove skipwatch",  # marketplace.json name
+        "~/.skipwatch",
+        "<project>/.skipwatch",
+        "models--Systran--faster-whisper-small",  # DEFAULT_MODELS in whisper_common.py
+        "models--mlx-community--whisper-large-v3-turbo",
+        "/skipwatch list",
+    ):
+        assert step in uninstall, step
