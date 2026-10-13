@@ -10,8 +10,11 @@ on:
     paths-ignore: ["docs/**"]
   workflow_dispatch:
 
+# Labeled runs get their own group (suffix -labeled) so adding a label cannot cancel the
+# in-flight full run of an opened or synchronize event on the same PR. A new push still
+# cancels the older full run, and a newer label event cancels an older label run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && '-labeled' || '' }}
   cancel-in-progress: true
 
 permissions:
