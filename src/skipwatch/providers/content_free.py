@@ -491,6 +491,7 @@ def download_captions(
         body, ext = _resolve_playlist(body, fetched_from), "vtt"
     folder = work.path / "captions"
     folder.mkdir(parents=True, exist_ok=True)
-    name = f"{_safe_name(str(info.get('id') or 'captions'))}.{lang}.{ext}"
+    # the language code comes from the platform: sanitised like the id, never a path
+    name = f"{_safe_name(str(info.get('id') or 'captions'))}.{_safe_name(lang)}.{ext}"
     (folder / name).write_bytes(body)
     return f"captions/{name}", lang, kind

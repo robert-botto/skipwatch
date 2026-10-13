@@ -184,3 +184,20 @@ def test_any_merge_failure_is_a_captions_error(tmp_path, monkeypatch, x_playlist
     monkeypatch.setattr(cf.captions_hls, "merge_webvtt", boom)
     with pytest.raises(cf.FreeRouteError, match="could not merge the segments"):
         cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+
+
+def _plain_captions(monkeypatch, body: bytes = b"WEBVTT\n"):
+    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", _ydl_serving(body, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+
+
+def test_a_hostile_language_code_never_leaves_captions(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    lang = "../../../escape"
+    info = {"id": "v1", "subtitles": {lang: [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    got = cf.download_captions(info, work, IngestOptions(), (lang, "manual"))
+    assert got is not None and got[0] == "captions/v1.escape.vtt"
+    assert (work.path / got[0]).read_bytes() == b"WEBVTT\n"
+    assert not (tmp_path / "escape.vtt").exists()
