@@ -1021,7 +1021,7 @@ describes it.
 2. **Alpha (after M4).** Ten Claude Code power users invited by DM, private repo. Ask each
    for one video they wish was a skill. Fix what breaks. Collect three quotes.
 3. **Public beta (after M6, v0.1.0).** Repo public. One X post with a 30-second demo
-   (Robert's own UGC pipeline), a Show HN, posts in r/ClaudeAI and r/ClaudeCode, a LinkedIn
+   (the author's own video workflow), a Show HN, posts in r/ClaudeAI and r/ClaudeCode, a LinkedIn
    post, all pointing at the README. Creator outreach wave one: the five golden-set
    creators receive their skill and the share text.
 4. **Directory (v0.2).** Anthropic directory submission, skill directory listings, creator outreach
@@ -1073,7 +1073,7 @@ Defaults apply if unanswered; building does not wait on these.
 2. Supply the golden set links: the motion-graphics tweet plus one TikTok and one Instagram
    reel. Default: agents pick public, stable videos and record them in `golden.json` for
    review.
-3. Confirm the public beta demo video will come from Robert's UGC pipeline. Default: the
+3. Confirm the public beta demo video will come from the author's own video workflow. Default: the
    README ships with a terminal GIF only.
 
 ## 18. Glossary
