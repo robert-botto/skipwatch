@@ -85,3 +85,73 @@ def test_r_arch_3_fails_without_skipwatch_marketplace_entry(tmp_path):
 def test_r_arch_3_passes_on_repo():
     r = _run(ROOT)
     assert r.returncode == 0, r.stdout
+
+
+def _set_marketplace_source(root, source):
+    p = root / ".claude-plugin/marketplace.json"
+    data = json.loads(p.read_text())
+    for entry in data["plugins"]:
+        if entry["name"] == "skipwatch":
+            entry["source"] = source
+    p.write_text(json.dumps(data))
+
+
+def test_marketplace_installs_from_the_checkout_until_the_release_pr():
+    """The tag does not exist before release, so main keeps a source that installs today."""
+    data = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
+    (entry,) = [e for e in data["plugins"] if e["name"] == "skipwatch"]
+    assert entry["source"] == "./"
+
+
+PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0"}
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v9.9.9"},
+        {"source": "github", "repo": "robert-botto/skipwatch"},
+        "./",
+    ],
+)
+def test_r_arch_3_release_fails_on_ref_drift(tmp_path, source):
+    root = _copy(tmp_path)
+    (root / "CHANGELOG.md").write_text("## [0.1.0] - 2026-10-12\n\n- First.\n")
+    _set_marketplace_source(root, source)
+    assert _run(root).returncode == 0  # the pin is checked only for a release
+    r = _run_release(root, "v0.1.0")
+    assert r.returncode == 1, r.stdout
+    assert any(
+        line.startswith("MISMATCH marketplace.json plugins[skipwatch].source.ref")
+        for line in r.stdout.splitlines()
+    ), r.stdout
+    _set_marketplace_source(root, PINNED)
+    assert _run_release(root, "v0.1.0").returncode == 0
+
+
+def _run_release(root, tag):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(root), "--release", tag],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_release_flag_requires_tag_and_changelog_section(tmp_path):
+    root = _copy(tmp_path)
+    _set_marketplace_source(root, PINNED)
+    changelog = root / "CHANGELOG.md"
+    changelog.write_text("# Changelog\n\n## [0.0.9] - 2026-01-01\n\n- Older.\n")
+    r = _run_release(root, "v0.1.0")
+    assert r.returncode == 1 and "CHANGELOG.md" in r.stdout, r.stdout
+
+    changelog.write_text("# Changelog\n\n## [0.1.0] - 2026-10-12\n\n- First release.\n")
+    assert _run_release(root, "v0.1.0").returncode == 0
+    r = _run_release(root, "v0.1.1")
+    assert r.returncode == 1 and "tag" in r.stdout, r.stdout
+    r = _run_release(root, "0.1.0")
+    assert r.returncode == 1 and "tag" in r.stdout, r.stdout
+
+    changelog.unlink()
+    r = _run_release(root, "v0.1.0")
+    assert r.returncode == 1 and "CHANGELOG.md" in r.stdout, r.stdout

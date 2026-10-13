@@ -165,3 +165,126 @@ jobs:
       - run: npm install -g @anthropic-ai/claude-code@2.1.295
       - run: claude plugin validate --strict .
       - run: claude plugin validate --strict .claude-plugin/plugin.json
+
+  # Spec 13 and issue 13: the release artifacts build, and the sdist holds only the allowlist
+  # (tests/unit/test_release_files.py asserts the same, as a pipeline test).
+  build:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv build --out-dir dist
+      - name: sdist and wheel contents
+        run: |
+          uv run --no-project python - <<'PY'
+          import pathlib, sys, tarfile, zipfile
+          dist = pathlib.Path("dist")
+          (sdist,) = dist.glob("*.tar.gz")
+          (wheel,) = dist.glob("*.whl")
+          with tarfile.open(sdist) as tf:
+              tops = {pathlib.PurePosixPath(n).parts[1] for n in tf.getnames() if "/" in n}
+          forbidden = {"tests", "docs", "evals", ".github", "examples", "scripts", "skills"}
+          strays = [n for n in zipfile.ZipFile(wheel).namelist()
+                    if not n.startswith(("skipwatch/", "skipwatch-"))]
+          size = sdist.stat().st_size
+          print(f"sdist {sdist.name}: {size} bytes, top level {sorted(tops)}")
+          errors = []
+          if tops & forbidden:
+              errors.append(f"sdist holds {sorted(tops & forbidden)}")
+          if size >= 200 * 1024:
+              errors.append(f"sdist is {size} bytes, limit 204800")
+          if strays:
+              errors.append(f"wheel holds {strays}")
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY
+
+  # Install acceptance item 4: install the plugin from this checkout into an empty
+  # CLAUDE_CONFIG_DIR with no venv, run doctor through the wrapper, then repeat on a second
+  # fresh install with uv hidden from PATH. main's marketplace.json installs from "./"; the
+  # release PR pins the tag (issue 11), so this job tests the real file.
+  # Pull requests run Linux only (billing); push to main and workflow_dispatch run every OS.
+  clean-machine:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      # Paths in the mixed form (D:/a/_temp on Windows) work in Git Bash and in claude. The
+      # marketplace is this checkout as committed: install copies tracked and untracked files
+      # but not .git, and the logs below go to the temp folder so the checkout stays clean.
+      - name: Paths
+        run: |
+          tmp=$RUNNER_TEMP
+          market=$GITHUB_WORKSPACE
+          if command -v cygpath >/dev/null; then
+            tmp=$(cygpath -m "$tmp")
+            market=$(cygpath -m "$market")
+          fi
+          echo "TMP_DIR=$tmp" >> "$GITHUB_ENV"
+          echo "MARKET=$market" >> "$GITHUB_ENV"
+      - name: Fresh install, then doctor through the wrapper
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config" SKIPWATCH_HOME="$TMP_DIR/sw-home"
+          SECONDS=0
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          test ! -e "$root/.venv" || { echo "::error::the fresh install already has a venv"; exit 1; }
+          set +e
+          "$root/scripts/skipwatch" doctor > "$TMP_DIR/doctor.log" 2>&1
+          code=$?
+          set -e
+          cat "$TMP_DIR/doctor.log"
+          echo "install to first doctor output: ${SECONDS}s"
+          test "$code" -eq 0 || { echo "::error::doctor exited $code, expected 0"; exit 1; }
+          grep -Eq '^Tier [0-9]' "$TMP_DIR/doctor.log" || { echo "::error::no Tier line"; exit 1; }
+          rows=$(grep -Ec '^[* ] [0-9]c? ' "$TMP_DIR/doctor.log" || true)
+          test "$rows" -ge 3 || { echo "::error::tier table has $rows rows"; exit 1; }
+      - name: Fresh install without uv on PATH
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config-nouv" SKIPWATCH_HOME="$TMP_DIR/sw-home-nouv"
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          nouv=""
+          IFS=: read -ra dirs <<< "$PATH"
+          for d in "${dirs[@]}"; do
+            [ -e "$d/uv" ] || [ -e "$d/uv.exe" ] || nouv="$nouv${nouv:+:}$d"
+          done
+          if PATH="$nouv" command -v uv; then echo "::error::uv is still on PATH"; exit 1; fi
+          set +e
+          PATH="$nouv" "$root/scripts/skipwatch" doctor > "$TMP_DIR/nouv.log" 2>&1
+          code=$?
+          set -e
+          cat "$TMP_DIR/nouv.log"
+          test "$code" -eq 127 || { echo "::error::exit $code, expected 127"; exit 1; }
+          grep -qi 'uv is not installed' "$TMP_DIR/nouv.log" || { echo "::error::no uv message"; exit 1; }
+          if grep -q 'Traceback' "$TMP_DIR/nouv.log"; then echo "::error::traceback"; exit 1; fi
