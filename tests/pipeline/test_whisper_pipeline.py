@@ -66,12 +66,20 @@ def run(*args: str):
     return r
 
 
+def new_work(slug: str) -> Path:
+    """A work folder made by the engine's own new-work, so it sits where the --work guard
+    expects it (directly under the home's work/, with a stages.json), as in a real run."""
+    return Path(
+        json.loads(run("new-work", "--slug", slug, "--json").stdout.splitlines()[-1])["work"]
+    )
+
+
 @pytest.mark.parametrize("backend", ["mlx", "faster"])
 def test_whisper_transcript_matches_script(tmp_path, sw_home, monkeypatch, backend):
     require(backend, monkeypatch)
     video = tmp_path / "tutorial-60s.mp4"  # copied alone: no .vtt sidecar beside it
     shutil.copyfile(FIXTURES / "tutorial-60s.mp4", video)
-    work = tmp_path / "work"
+    work = new_work("tutorial-60s")
     run("ingest", str(video), "--work", str(work))
     assert read_model(work / "ingest.json", IngestBundle).context.captions_available is False
 
@@ -97,8 +105,7 @@ def test_auto_picks_a_whisper_backend(tmp_path, sw_home, monkeypatch):
     if not ready:
         pytest.skip("no Whisper backend importable here")
     require(ready[0], monkeypatch)
-    w = WorkDir(tmp_path / "work")
-    w.ensure()
+    w = WorkDir(new_work("narration"))
     write_model(
         w.file("ingest.json"),
         IngestBundle(
@@ -124,7 +131,7 @@ def test_silent_video_sets_silent_and_dense_frames(tmp_path, sw_home, monkeypatc
          "-shortest", "-pix_fmt", "yuv420p", str(video)],
         check=True,
     )  # fmt: skip
-    work = tmp_path / "work"
+    work = new_work("quiet")
     run("ingest", str(video), "--work", str(work))
     run("transcribe", "--work", str(work), "--backend", backend)
     assert read_model(work / "transcript.json", Transcript).silent is True
