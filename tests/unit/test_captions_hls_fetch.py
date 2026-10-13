@@ -201,3 +201,17 @@ def test_a_hostile_language_code_never_leaves_captions(tmp_path, monkeypatch):
     assert got is not None and got[0] == "captions/v1.escape.vtt"
     assert (work.path / got[0]).read_bytes() == b"WEBVTT\n"
     assert not (tmp_path / "escape.vtt").exists()
+
+
+def test_a_planted_symlink_is_replaced_not_followed(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    (work.path / "captions").mkdir(parents=True)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep", encoding="utf-8")
+    (work.path / "captions" / "v1.en.vtt").symlink_to(outside)
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    cf.download_captions(info, work, IngestOptions(), ("en", "manual"))
+    assert outside.read_text(encoding="utf-8") == "keep"
+    target = work.path / "captions" / "v1.en.vtt"
+    assert not target.is_symlink() and target.read_bytes() == b"WEBVTT\n"

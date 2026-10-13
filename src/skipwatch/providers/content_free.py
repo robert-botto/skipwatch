@@ -38,7 +38,7 @@ from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import MediaInfo, ProviderCall
 from skipwatch.output import progress
 from skipwatch.providers import links
-from skipwatch.workdir import WorkDir
+from skipwatch.workdir import WorkDir, write_bytes_atomic
 
 NODE_MIN = (22, 0, 0)  # yt-dlp's own minimum for node
 DENO_MIN = (2, 3, 0)  # and for deno
@@ -493,5 +493,5 @@ def download_captions(
     folder.mkdir(parents=True, exist_ok=True)
     # the language code comes from the platform: sanitised like the id, never a path
     name = f"{_safe_name(str(info.get('id') or 'captions'))}.{_safe_name(lang)}.{ext}"
-    (folder / name).write_bytes(body)
+    write_bytes_atomic(folder / name, body)  # a planted symlink is replaced, never followed
     return f"captions/{name}", lang, kind
