@@ -10,8 +10,11 @@ on:
     paths-ignore: ["docs/**"]
   workflow_dispatch:
 
+# Labeled runs get their own group (suffix -labeled) so adding a label cannot cancel the
+# in-flight full run of an opened or synchronize event on the same PR. A new push still
+# cancels the older full run, and a newer label event cancels an older label run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && '-labeled' || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -19,16 +22,18 @@ permissions:
 
 jobs:
   test:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
     strategy:
       fail-fast: false
-      # macOS bills 10x and Windows 2x on a private repo, so only ubuntu
-      # covers both Python versions.
+      # macOS bills 10x and Windows 2x on a private repo, so pull requests run Linux only
+      # (both Python versions) and push to main or workflow_dispatch runs every OS.
+      # Once the repo is public, restore all OSes on pull requests.
       matrix:
-        include:
-          - { os: ubuntu-latest, python: "3.11" }
-          - { os: ubuntu-latest, python: "3.12" }
-          - { os: macos-latest, python: "3.12" }
-          - { os: windows-latest, python: "3.12" }
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"}]'
+          || '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"},{"os":"macos-latest","python":"3.12"},{"os":"windows-latest","python":"3.12"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -51,11 +56,14 @@ jobs:
 
   # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
   # Whisper tests run in the whisper job, which has the extras and the models.
+  # Pull requests run Linux only (macOS bills 10x on a private repo); main runs both.
   pipeline:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -85,9 +93,13 @@ jobs:
   # pins the default models: faster-whisper small (about 480 MB) everywhere, and mlx-whisper
   # large-v3-turbo (about 1.6 GB) on Apple Silicon only.
   # macOS bills 10x and a cold cache downloads about 2 GB, so both legs run only on push to
-  # main, on workflow_dispatch, and on pull requests labelled run-whisper.
+  # main, on workflow_dispatch, and on pull requests labelled run-whisper. A labeled event
+  # starts it only when the label just added is run-whisper.
   whisper:
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-whisper')
+    if: >-
+      github.event_name != 'pull_request'
+      || (github.event.action == 'labeled' && github.event.label.name == 'run-whisper')
+      || (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'run-whisper'))
     strategy:
       fail-fast: false
       matrix:
@@ -141,6 +153,8 @@ jobs:
             echo "::error::expected ${{ matrix.passed }} Whisper tests to pass"; exit 1; }
 
   plugin-validate:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
