@@ -205,3 +205,90 @@ jobs:
           sys.exit(1 if errors else 0)
           PY
 
+  # Install acceptance item 4: install the plugin from this checkout into an empty
+  # CLAUDE_CONFIG_DIR with no venv, run doctor through the wrapper, then repeat on a second
+  # fresh install with uv hidden from PATH. The checkout is staged with the marketplace source
+  # rewritten to "./", since the committed entry pins the release tag on GitHub (issue 11).
+  # Pull requests run Linux only (billing); push to main and workflow_dispatch run every OS.
+  clean-machine:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      # Temp paths in the mixed form (D:/a/_temp on Windows) work in Git Bash and in claude.
+      - name: Stage the checkout as a local marketplace
+        run: |
+          tmp=$RUNNER_TEMP
+          if command -v cygpath >/dev/null; then tmp=$(cygpath -m "$tmp"); fi
+          echo "TMP_DIR=$tmp" >> "$GITHUB_ENV"
+          echo "MARKET=$tmp/skipwatch-market" >> "$GITHUB_ENV"
+          MARKET="$tmp/skipwatch-market"
+          mkdir -p "$MARKET"
+          git archive HEAD | tar -x -C "$MARKET"
+          node -e '
+            const fs = require("fs");
+            const p = process.argv[1] + "/.claude-plugin/marketplace.json";
+            const m = JSON.parse(fs.readFileSync(p, "utf8"));
+            for (const e of m.plugins) e.source = "./";
+            fs.writeFileSync(p, JSON.stringify(m, null, 2));
+          ' "$MARKET"
+      - name: Fresh install, then doctor through the wrapper
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config" SKIPWATCH_HOME="$TMP_DIR/sw-home"
+          SECONDS=0
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          test ! -e "$root/.venv" || { echo "::error::the fresh install already has a venv"; exit 1; }
+          set +e
+          "$root/scripts/skipwatch" doctor > doctor.log 2>&1
+          code=$?
+          set -e
+          cat doctor.log
+          echo "install to first doctor output: ${SECONDS}s"
+          test "$code" -eq 0 || { echo "::error::doctor exited $code, expected 0"; exit 1; }
+          grep -Eq '^Tier [0-9]' doctor.log || { echo "::error::no Tier line"; exit 1; }
+          rows=$(grep -Ec '^[* ] [0-9]c? ' doctor.log || true)
+          test "$rows" -ge 3 || { echo "::error::tier table has $rows rows"; exit 1; }
+      - name: Fresh install without uv on PATH
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config-nouv" SKIPWATCH_HOME="$TMP_DIR/sw-home-nouv"
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          nouv=""
+          IFS=: read -ra dirs <<< "$PATH"
+          for d in "${dirs[@]}"; do
+            [ -e "$d/uv" ] || [ -e "$d/uv.exe" ] || nouv="$nouv${nouv:+:}$d"
+          done
+          if PATH="$nouv" command -v uv; then echo "::error::uv is still on PATH"; exit 1; fi
+          set +e
+          PATH="$nouv" "$root/scripts/skipwatch" doctor > nouv.log 2>&1
+          code=$?
+          set -e
+          cat nouv.log
+          test "$code" -eq 127 || { echo "::error::exit $code, expected 127"; exit 1; }
+          grep -qi 'uv is not installed' nouv.log || { echo "::error::no uv message"; exit 1; }
+          if grep -q 'Traceback' nouv.log; then echo "::error::traceback"; exit 1; fi
