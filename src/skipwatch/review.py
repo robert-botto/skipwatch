@@ -94,6 +94,17 @@ def note_degradation(work: Path, line: str) -> None:
         write_model(work / DEGRADATIONS_FILE, recorded)
 
 
+def drop_degradations(work: Path, prefix: str) -> None:
+    """Remove every recorded degradation starting with prefix (one a later stage outdated)."""
+    if not (work / DEGRADATIONS_FILE).is_file():
+        return
+    recorded = read_degradations(work)
+    kept = [line for line in recorded.degradations if not line.startswith(prefix)]
+    if len(kept) != len(recorded.degradations):
+        recorded.degradations = kept
+        write_model(work / DEGRADATIONS_FILE, recorded)
+
+
 def _with_noted(work: Path, inputs: ReviewInputs) -> ReviewInputs:
     """The recorded file first, then the command line, without repeats."""
     noted = read_degradations(work)

@@ -17,7 +17,7 @@ from skipwatch.models import (
     Transcript,
 )
 from skipwatch.providers.transcribe_captions import CaptionsBackend
-from skipwatch.review import read_degradations
+from skipwatch.review import note_degradation, read_degradations
 from skipwatch.transcribe import mark_silence, select_backend
 from skipwatch.workdir import WorkDir, read_model, write_model
 
@@ -193,6 +193,31 @@ def test_captions_with_no_cues_fall_back_to_whisper_under_auto(tmp_path, monkeyp
     assert read_degradations(w.path).degradations == [
         "captions produced no timed segments; transcribed with faster instead"
     ]
+
+
+def test_a_later_transcript_clears_the_stale_no_transcript_note(tmp_path, monkeypatch):
+    # First run: no Whisper, so the engine notes "no transcript: ...". The user installs
+    # Whisper and runs transcribe again in the same work folder: the review must not still say
+    # there is no transcript. Notes the orchestrator wrote for other reasons stay.
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    note_degradation(w.path, "critic failed twice")
+    _with_whisper(monkeypatch, _Whisper(available=False))
+    assert transcribe(w).exit_code == 7
+    _with_whisper(monkeypatch, _Whisper())
+    assert transcribe(w).exit_code == 0
+    assert read_degradations(w.path).degradations == [
+        "critic failed twice",
+        "captions produced no timed segments; transcribed with faster instead",
+    ]
+
+
+def test_captions_fetched_again_also_clear_the_stale_note(tmp_path, monkeypatch):
+    w = work_with(tmp_path, EMPTY_CAPTIONS)
+    _with_whisper(monkeypatch, _Whisper(available=False))
+    assert transcribe(w).exit_code == 7
+    (w.path / "captions" / "demo.en.vtt").write_text(SPOKEN, encoding="utf-8")  # re-ingested
+    assert transcribe(w).exit_code == 0
+    assert read_degradations(w.path).degradations == []
 
 
 def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):

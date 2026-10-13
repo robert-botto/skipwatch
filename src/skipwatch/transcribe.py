@@ -12,7 +12,7 @@ from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
 from skipwatch.output import progress
 from skipwatch.providers.base import TranscriptionBackend
 from skipwatch.providers.registry import transcription_backends
-from skipwatch.review import note_degradation
+from skipwatch.review import drop_degradations, note_degradation
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
 
 KNOWN_BACKENDS = frozenset(get_args(TranscribeConfig.model_fields["backend"].annotation)) - {"auto"}
@@ -149,6 +149,7 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
         transcript = cross_check(mark_silence(transcript, bundle.source.duration_s), bundle)
         write_model(work.file("transcript.json"), transcript)
+        drop_degradations(work.path, f"no transcript: {EMPTY_CAPTIONS}")  # an earlier run's
         runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
 
