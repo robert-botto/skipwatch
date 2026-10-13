@@ -649,3 +649,23 @@ def test_provenance_fails_on_fullwidth_written_code(tmp_path):
         tmp_path, "4. Then run `\uff47\uff4f`.", "Tip: pin the version in CI. Then go."
     )
     assert not r.ok and r.items[0].step == 4
+
+
+def test_provenance_passes_written_code_from_a_page_with_html_entities(tmp_path):
+    from skipwatch.htmltext import html_to_text
+
+    _, text = html_to_text("<p>Pin the version in CI.</p><p>Run <code>a &amp;&amp; b</code>.</p>")
+    assert "a && b" in text
+    staging, work = make_case(
+        tmp_path,
+        edit=lambda s: (
+            s.replace("[spoken 00:49]", "[written]")
+            .replace(S4_ACTION, "4. Then run `a && b`.")
+            .replace(S5_QUOTE, "> Pin the version in CI.")
+        ),
+    )
+    ingest = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    ingest["context"]["links"] = [{"url": "https://example.com/doc", "text": text}]
+    (work / "ingest.json").write_text(json.dumps(ingest), encoding="utf-8")
+    r = provenance.run(context_for(staging, work))
+    assert r.ok, r.items
