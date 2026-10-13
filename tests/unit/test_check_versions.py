@@ -96,14 +96,14 @@ def _set_marketplace_source(root, source):
     p.write_text(json.dumps(data))
 
 
-def test_r_arch_3_marketplace_pins_the_release_tag():
+def test_marketplace_installs_from_the_checkout_until_the_release_pr():
+    """The tag does not exist before release, so main keeps a source that installs today."""
     data = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
     (entry,) = [e for e in data["plugins"] if e["name"] == "skipwatch"]
-    assert entry["source"] == {
-        "source": "github",
-        "repo": "robert-botto/skipwatch",
-        "ref": "v" + entry["version"],
-    }
+    assert entry["source"] == "./"
+
+
+PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0"}
 
 
 @pytest.mark.parametrize(
@@ -114,15 +114,19 @@ def test_r_arch_3_marketplace_pins_the_release_tag():
         "./",
     ],
 )
-def test_r_arch_3_fails_on_ref_drift(tmp_path, source):
+def test_r_arch_3_release_fails_on_ref_drift(tmp_path, source):
     root = _copy(tmp_path)
+    (root / "CHANGELOG.md").write_text("## [0.1.0] - 2026-10-12\n\n- First.\n")
     _set_marketplace_source(root, source)
-    r = _run(root)
+    assert _run(root).returncode == 0  # the pin is checked only for a release
+    r = _run_release(root, "v0.1.0")
     assert r.returncode == 1, r.stdout
     assert any(
         line.startswith("MISMATCH marketplace.json plugins[skipwatch].source.ref")
         for line in r.stdout.splitlines()
     ), r.stdout
+    _set_marketplace_source(root, PINNED)
+    assert _run_release(root, "v0.1.0").returncode == 0
 
 
 def _run_release(root, tag):
@@ -135,6 +139,7 @@ def _run_release(root, tag):
 
 def test_release_flag_requires_tag_and_changelog_section(tmp_path):
     root = _copy(tmp_path)
+    _set_marketplace_source(root, PINNED)
     changelog = root / "CHANGELOG.md"
     changelog.write_text("# Changelog\n\n## [0.0.9] - 2026-01-01\n\n- Older.\n")
     r = _run_release(root, "v0.1.0")

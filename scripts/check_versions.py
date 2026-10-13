@@ -53,7 +53,9 @@ def release_problems(root: Path, tag: str, version: str) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
-    parser.add_argument("--release", metavar="TAG", help="also check a release tag and changelog")
+    parser.add_argument(
+        "--release", metavar="TAG", help="also check the tag, marketplace pin and changelog"
+    )
     args = parser.parse_args()
     root = Path(args.root)
     versions = collect_versions(root)
@@ -64,14 +66,15 @@ def main() -> int:
     for name, version in mismatches:
         print(f"MISMATCH: {name} has {version}, pyproject has {expected}")
     problems = []
-    ref = marketplace_ref(root)
-    print(f"marketplace.json plugins[skipwatch].source.ref: {ref}")
-    if ref != "v" + expected:
-        problems.append(
-            f"MISMATCH marketplace.json plugins[skipwatch].source.ref has {ref}, "
-            f"expected v{expected}"
-        )
     if args.release is not None:
+        # Main keeps an installable source; the release PR pins the tag (spec issue 11).
+        ref = marketplace_ref(root)
+        print(f"marketplace.json plugins[skipwatch].source.ref: {ref}")
+        if ref != "v" + expected:
+            problems.append(
+                f"MISMATCH marketplace.json plugins[skipwatch].source.ref has {ref}, "
+                f"expected v{expected}"
+            )
         problems.extend(release_problems(root, args.release, expected))
     for problem in problems:
         print(problem)
