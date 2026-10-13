@@ -73,8 +73,9 @@ says `ingest.log`; nothing was downloaded.
   not be downloaded. Degrade the same way with the engine's message plus
   `(retry: /skipwatch resume <W> once online)`, no offer.
 - Captions with no timed segments: transcribe falls back to local Whisper by itself and
-  notes it; with no Whisper it exits 7 having already noted the degradation (noting it
-  again is a no-op).
+  notes it. With no Whisper it exits 8 and has already noted
+  `no transcript: <the engine's message>`: handle it as the exit 8 above, but note that
+  exact line (a no-op) instead of the no-captions wording.
 - Silent video: `"silent": true` in `<W>/transcript.json`: print
   `Silent video: leaning on frames and post text.`, run frames with `--dense`, and
   prefer `[on-screen]` and `[written]` tags in the outline.

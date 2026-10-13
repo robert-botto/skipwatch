@@ -88,7 +88,7 @@ Install to /Users/me/demo/installed/run-skipdemo-tutorial? [yes / show draft / t
 
 ## Transcription offers
 
-After transcribe exit 8 (no captions and no local Whisper), the prompt line gains these
+After transcribe exit 8 (no usable captions and no local Whisper), the prompt line gains these
 offers at the end:
 
 - No cloud key in `doctor.json`:
