@@ -137,13 +137,13 @@ def test_captions_requested_without_captions_is_exit_7(tmp_path):
 EMPTY_CAPTIONS = "#EXTM3U\n#EXTINF:6.0,\n/subtitles/0/seg.vtt\n#EXT-X-ENDLIST\n"  # X, unresolved
 
 
-def test_captions_with_no_cues_and_no_whisper_is_exit_7_with_a_noted_degradation(
+def test_captions_with_no_cues_and_no_whisper_is_exit_8_with_a_noted_degradation(
     tmp_path, monkeypatch
 ):
     monkeypatch.setattr(transcribe_module, "is_apple_silicon", lambda: False)
     w = work_with(tmp_path, EMPTY_CAPTIONS)
     r = transcribe(w)
-    assert r.exit_code == 7
+    assert r.exit_code == 8  # MISSING_DEPENDENCY: the review screen offers the install
     assert "captions produced no timed segments" in r.stderr
     assert "--extra whisper" in r.stderr  # how to get the fallback next time
     assert not w.file("transcript.json").exists()
@@ -204,7 +204,7 @@ def test_a_later_transcript_clears_the_stale_no_transcript_note(tmp_path, monkey
     w = work_with(tmp_path, EMPTY_CAPTIONS)
     note_degradation(w.path, "critic failed twice")
     _with_whisper(monkeypatch, _Whisper(available=False))
-    assert transcribe(w).exit_code == 7
+    assert transcribe(w).exit_code == 8
     _with_whisper(monkeypatch, _Whisper())
     assert transcribe(w).exit_code == 0
     assert read_degradations(w.path).degradations == [
@@ -216,7 +216,7 @@ def test_a_later_transcript_clears_the_stale_no_transcript_note(tmp_path, monkey
 def test_captions_fetched_again_also_clear_the_stale_note(tmp_path, monkeypatch):
     w = work_with(tmp_path, EMPTY_CAPTIONS)
     _with_whisper(monkeypatch, _Whisper(available=False))
-    assert transcribe(w).exit_code == 7
+    assert transcribe(w).exit_code == 8
     (w.path / "captions" / "demo.en.vtt").write_text(SPOKEN, encoding="utf-8")  # re-ingested
     assert transcribe(w).exit_code == 0
     assert read_degradations(w.path).degradations == []
@@ -227,7 +227,7 @@ def test_a_cached_transcript_also_clears_the_stale_note(tmp_path, monkeypatch):
     video.write_bytes(b"x")  # a real file, so the run cache keys on it
     first = work_with(tmp_path, EMPTY_CAPTIONS, path=str(video), folder="a")
     _with_whisper(monkeypatch, _Whisper(available=False))
-    assert transcribe(first).exit_code == 7
+    assert transcribe(first).exit_code == 8
     assert transcribe(work_with(tmp_path, SPOKEN, path=str(video), folder="b")).exit_code == 0
     r = transcribe(first)  # resumed: served from the cache the second folder filled
     assert r.exit_code == 0 and "reused cached transcript" in r.stderr
@@ -263,7 +263,7 @@ def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):
     whisper = _Whisper(available=False)
     _with_whisper(monkeypatch, whisper)
     w = work_with(tmp_path, EMPTY_CAPTIONS)
-    assert transcribe(w).exit_code == 7
+    assert transcribe(w).exit_code == 8
     assert whisper.calls == 0
 
 

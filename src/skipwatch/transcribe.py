@@ -112,15 +112,22 @@ def after_empty_captions(
 ) -> tuple[TranscriptionBackend, Transcript]:
     """Captions that parse to nothing (an unresolved playlist, a format change) count as no
     captions: the next local backend auto would pick transcribes instead, and the review
-    screen says so. Without one, exit 7 as before, with the degradation already noted."""
+    screen says so. Without one, exit 8 like no captions at all (exit 7 for a video with no
+    audio), with the degradation already noted."""
     fallback = _auto_backend(bundle, skip=frozenset({"captions"}))
     if fallback is None:
+        # exit 8 as for no captions, so the review screen offers the Whisper install; exit 7
+        # when there is no audio, as Whisper could not help
         if bundle.media is not None and not media_has_audio(bundle):
-            message = f"{EMPTY_CAPTIONS} and the video has no audio track"
+            code, message = (
+                ExitCode.NO_CONTENT,
+                f"{EMPTY_CAPTIONS} and the video has no audio track",
+            )
         else:
+            code = ExitCode.MISSING_DEPENDENCY
             message = f"{EMPTY_CAPTIONS} and no Whisper backend; install one: {_whisper_hint()}"
         note_degradation(work.path, f"no transcript: {message}")  # starts with STALE_NOTE
-        raise SkipwatchError(ExitCode.NO_CONTENT, message)
+        raise SkipwatchError(code, message)
     progress(f"Transcribe: {EMPTY_CAPTIONS}; falling back to {fallback.name}")
     transcript = fallback.transcribe(work, model)
     if transcript.segments:  # never claim a transcription that did not happen
