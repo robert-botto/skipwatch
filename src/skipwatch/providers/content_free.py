@@ -8,6 +8,9 @@ yt-dlp errors leave this module as FreeRouteError, so adapters never import yt_d
 - remote_components is never set, so no challenge script is fetched at run time.
 - Cookies only from the explicit --cookies-from-browser flag (R-ING-5).
 - select_format (R-ING-4, plan issue 3): "720p" means the short side, so vertical video works.
+- A caption track that turns out to be an HLS playlist (X lists WebVTT that way) is resolved
+  here: its segments come through links.get_vetted (public addresses only, pinned, no cookies,
+  a generic User-Agent), within a size cap and a deadline, and are merged by captions_hls.
 """
 
 import math
@@ -21,17 +24,19 @@ from http.cookiejar import Cookie
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
+import requests
 import yt_dlp
 from yt_dlp.networking import Request
 from yt_dlp.networking.exceptions import RequestError
 from yt_dlp.utils import DownloadError
 
-from skipwatch import media
+from skipwatch import captions_hls, media
 from skipwatch.adapters.base import IngestOptions
 from skipwatch.adapters.localfile import media_info
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import MediaInfo, ProviderCall
 from skipwatch.output import progress
+from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
 
 NODE_MIN = (22, 0, 0)  # yt-dlp's own minimum for node
@@ -39,6 +44,8 @@ DENO_MIN = (2, 3, 0)  # and for deno
 MIN_SHORT_SIDE = 720
 CAPTION_EXTS = ("json3", "vtt", "srt")  # the formats skipwatch.captions parses, best first
 SOCKET_TIMEOUT_S = 30
+MAX_CAPTION_BYTES = 10_000_000  # every segment of one HLS caption playlist together
+CAPTION_SEGMENTS_DEADLINE_S = 120.0
 
 CaptionKind = Literal["manual", "auto"]
 T = TypeVar("T")
@@ -399,6 +406,53 @@ def _safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", value).strip("_") or "captions"
 
 
+def _caption_error(message: str) -> FreeRouteError:
+    return FreeRouteError("captions", f"caption playlist: {message}")
+
+
+def _read_segment(url: str, deadline: float, room: int) -> bytes:
+    """One segment through the vetted transport, at most `room` bytes, never past deadline."""
+    try:
+        response = links.get_vetted(url, deadline)
+    except links.Refused as exc:
+        raise _caption_error(str(exc)) from exc
+    except requests.RequestException as exc:
+        raise _caption_error(type(exc).__name__) from exc
+    try:
+        if response.status_code != 200:
+            raise _caption_error(f"HTTP {response.status_code} for a segment")
+        body = bytearray()
+        while True:
+            if time.monotonic() >= deadline:
+                raise _caption_error(f"over the {CAPTION_SEGMENTS_DEADLINE_S:g} s deadline")
+            chunk = response.raw.read1(links.CHUNK, decode_content=True)
+            if not chunk:
+                return bytes(body)
+            body.extend(chunk)
+            if len(body) > room:
+                raise _caption_error(f"over the {MAX_CAPTION_BYTES:,} byte cap")
+    except requests.RequestException as exc:
+        raise _caption_error(type(exc).__name__) from exc
+    finally:
+        links.close_vetted(response)
+
+
+def _resolve_playlist(playlist: bytes, playlist_url: str) -> bytes:
+    """The WebVTT text an HLS caption playlist stands for (segments merged)."""
+    try:
+        urls = captions_hls.segment_urls(playlist.decode("utf-8", "replace"), playlist_url)
+    except captions_hls.HlsError as exc:
+        raise _caption_error(str(exc)) from exc
+    deadline = time.monotonic() + CAPTION_SEGMENTS_DEADLINE_S
+    segments: list[str] = []
+    total = 0
+    for url in urls:
+        body = _read_segment(url, deadline, MAX_CAPTION_BYTES - total)
+        total += len(body)
+        segments.append(body.decode("utf-8-sig", "replace"))
+    return captions_hls.merge_webvtt(segments).encode("utf-8")
+
+
 def download_captions(
     info: dict[str, Any],
     work: WorkDir,
@@ -407,7 +461,8 @@ def download_captions(
     failed: list[ProviderCall] | None = None,
 ) -> tuple[str, str, CaptionKind] | None:
     """Fetch one caption track (json3, else vtt, else srt) into captions/. None when the track
-    has no format SkipWatch parses. A transient failure is retried once and logged to failed."""
+    has no format SkipWatch parses. A transient failure is retried once and logged to failed.
+    An HLS playlist in place of the file (X) is resolved into one WebVTT file."""
     lang, kind = track
     tracks = info.get("subtitles" if kind == "manual" else "automatic_captions") or {}
     entries = [e for e in tracks.get(lang) or [] if e.get("url")]
@@ -417,15 +472,18 @@ def download_captions(
         return None
     entry = by_ext[ext]
 
-    def attempt() -> bytes:
+    def attempt() -> tuple[bytes, str]:
         try:
             with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
                 request = Request(entry["url"], headers=entry.get("http_headers"))
-                return ydl.urlopen(request).read()  # pyright: ignore[reportArgumentType]
+                response = ydl.urlopen(request)  # pyright: ignore[reportArgumentType]
+                return response.read(), getattr(response, "url", None) or entry["url"]
         except (DownloadError, RequestError) as exc:
             raise FreeRouteError("captions", str(exc)) from exc
 
-    body = _retry_once("captions", attempt, failed)
+    body, fetched_from = _retry_once("captions", attempt, failed)
+    if captions_hls.is_playlist(body):
+        body, ext = _resolve_playlist(body, fetched_from), "vtt"
     folder = work.path / "captions"
     folder.mkdir(parents=True, exist_ok=True)
     name = f"{_safe_name(str(info.get('id') or 'captions'))}.{lang}.{ext}"
