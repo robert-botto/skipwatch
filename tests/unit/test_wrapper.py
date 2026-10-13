@@ -170,3 +170,62 @@ def test_git_worktree_keeps_dev_tools(tmp_path):
     bin_dir, log = fake_uv(tmp_path)
     assert run(root, "plan", path=f"{bin_dir}:{SYSTEM_PATH}").returncode == 0
     assert "--no-dev" not in log.read_text()
+
+
+def fake_uname(tmp_path: Path, system: str) -> Path:
+    """A `uname` on PATH that reports another OS, so every install hint is testable here."""
+    bin_dir = tmp_path / f"uname-{system}"
+    bin_dir.mkdir()
+    uname = bin_dir / "uname"
+    uname.write_text(f'#!/bin/sh\necho "{system}"\n')
+    uname.chmod(0o755)
+    return bin_dir
+
+
+CURL_INSTALL = "curl -LsSf https://astral.sh/uv/install.sh | sh"
+PS_INSTALL = 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+
+
+@pytest.mark.parametrize(
+    ("system", "expected", "absent"),
+    [
+        ("Darwin", ["brew install uv", CURL_INSTALL], [PS_INSTALL]),
+        ("Linux", [CURL_INSTALL], ["brew install uv", PS_INSTALL]),
+        ("MINGW64_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL, "brew install uv"]),
+        ("MSYS_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL]),
+        ("CYGWIN_NT-10.0-19045", [PS_INSTALL], [CURL_INSTALL]),
+    ],
+)
+def test_no_uv_names_the_install_command_for_this_os(tmp_path, system, expected, absent):
+    root = make_plugin(tmp_path, venv=False)
+    path = f"{fake_uname(tmp_path, system)}:{SYSTEM_PATH}"
+    for env in ({}, {"SKIPWATCH_SYNC_ONLY": "1"}):
+        r = run(root, "doctor", path=path, **env)
+        assert r.returncode == (0 if env else 127)
+        assert "Traceback" not in r.stderr
+        for command in expected:
+            assert command in r.stderr, (system, env, r.stderr)
+        for command in absent:
+            assert command not in r.stderr, (system, env, r.stderr)
+
+
+def test_no_uv_hook_mode_keeps_stdout_empty(tmp_path):
+    # SessionStart stdout becomes Claude's context in every project; stderr on exit 0 is
+    # never shown, so a missing uv costs the session nothing.
+    root = make_plugin(tmp_path, venv=False)
+    r = run(root, SKIPWATCH_SYNC_ONLY="1")
+    assert r.returncode == 0 and r.stdout == ""
+    assert "uv is not installed" in r.stderr
+
+
+def test_no_uv_message_never_runs_an_installer(tmp_path):
+    root = make_plugin(tmp_path, venv=False)
+    bin_dir = tmp_path / "trap"
+    bin_dir.mkdir()
+    log = tmp_path / "trap.log"
+    for tool in ("curl", "brew", "powershell", "wget"):
+        (bin_dir / tool).write_text(f'#!/bin/sh\necho {tool} >> "{log}"\n')
+        (bin_dir / tool).chmod(0o755)
+    r = run(root, "doctor", path=f"{bin_dir}:{SYSTEM_PATH}")
+    assert r.returncode == 127
+    assert not log.exists()
