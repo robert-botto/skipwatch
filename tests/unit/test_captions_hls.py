@@ -98,3 +98,32 @@ def test_a_whitespace_flood_is_linear_when_shifted():
     started = time.monotonic()
     merge_webvtt([first, flood])
     assert time.monotonic() - started < 1.0
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        "MPEGTS:" + "9" * 4000 + ",LOCAL:00:00.000",
+        "MPEGTS:900000,LOCAL:5",
+        "MPEGTS:900000,LOCAL:0:inf",
+        "MPEGTS:900000,LOCAL:0:nan",
+        "MPEGTS:0,LOCAL:" + "9" * 400 + ":00:00.000",
+        "MPEGTS:-5,LOCAL:00:00.000",
+        "MPEGTS:1e9,LOCAL:00:00.000",
+    ],
+    ids=["huge-mpegts", "local-no-colon", "local-inf", "local-nan", "huge-hours", "neg", "exp"],
+)
+def test_a_malformed_timestamp_map_is_ignored(mapping):
+    # p1.py: these crashed with OverflowError, IndexError or ValueError
+    first = SEG.format(mpegts=0, cue="00:00:00.000 --> 00:00:01.000", text="a")
+    second = f"WEBVTT\nX-TIMESTAMP-MAP={mapping}\n\n00:00:05.000 --> 00:00:06.000\nb\n"
+    segs = parse_vtt(merge_webvtt([first, second]))
+    assert [(s.start, s.text) for s in segs] == [(0.0, "a"), (5.0, "b")]
+
+
+def test_a_cue_with_absurd_hours_is_left_alone():
+    first = SEG.format(mpegts=0, cue="00:00:00.000 --> 00:00:01.000", text="a")
+    huge = "9" * 400 + ":00:00.000 --> 00:01.000"
+    second = SEG.format(mpegts=900000, cue=huge, text="x")
+    merged = merge_webvtt([first, second])  # no OverflowError
+    assert huge in merged  # not a timing line SkipWatch shifts

@@ -19,8 +19,8 @@ MPEGTS_HZ = 90_000
 
 _MAP_RE = re.compile(r"^X-TIMESTAMP-MAP=(?P<fields>.*)$", re.MULTILINE)
 _TIMING_RE = re.compile(
-    r"^(?P<lead>[ \t]*)(?P<start>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})(?P<arrow>[ \t]*-->[ \t]*)"
-    r"(?P<end>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})",
+    r"^(?P<lead>[ \t]*)(?P<start>(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3})(?P<arrow>[ \t]*-->[ \t]*)"
+    r"(?P<end>(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3})",
     re.MULTILINE,
 )
 _REFUSED_TAGS = {
@@ -73,18 +73,22 @@ def _stamp(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{rest // 1000:02d}.{rest % 1000:03d}"
 
 
+_MPEGTS_RE = re.compile(r"^\d{1,12}$")  # a 33-bit clock fits in 10 digits
+_LOCAL_RE = re.compile(r"^(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3}$")
+
+
 def _offset(segment: str) -> float | None:
-    """MPEGTS/90000 - LOCAL in seconds, or None when the segment has no usable mapping."""
+    """MPEGTS/90000 - LOCAL in seconds, or None when the segment has no well-formed mapping."""
     found = _MAP_RE.search(segment.replace("\r\n", "\n").replace("\r", "\n"))
     if found is None:
         return None
     fields = dict(part.split(":", 1) for part in found["fields"].strip().split(",") if ":" in part)
-    try:
-        mpegts = int(fields.get("MPEGTS", "0"))
-        local = _seconds(fields.get("LOCAL", "00:00.000"))
-    except ValueError:
+    mpegts = fields.get("MPEGTS", "0").strip()
+    local = fields.get("LOCAL", "00:00.000").strip()
+    # strict shapes only: no huge, signed, exponent, inf or nan values reach the arithmetic
+    if not _MPEGTS_RE.match(mpegts) or not _LOCAL_RE.match(local):
         return None
-    return mpegts / MPEGTS_HZ - local
+    return int(mpegts) / MPEGTS_HZ - _seconds(local)
 
 
 def _shifted(segment: str, shift: float) -> str:
