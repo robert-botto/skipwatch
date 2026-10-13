@@ -1,0 +1,86 @@
+name: release
+
+# Spec 13: a v*.*.* tag builds, tests and publishes to PyPI with trusted publishing (no API
+# token) and attestations, then creates the GitHub release from the CHANGELOG section.
+# workflow_dispatch publishes the same build to TestPyPI only. The pypi and testpypi
+# environments carry Robert as required reviewer, so nothing publishes without his approval.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --dev
+      - if: github.event_name == 'push'
+        run: uv run python scripts/check_versions.py --release "$GITHUB_REF_NAME"
+      - if: github.event_name != 'push'
+        run: uv run python scripts/check_versions.py
+      - run: uv run pytest -m "not pipeline and not live"
+      - run: uv build --out-dir dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          attestations: true
+
+  pypi:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          attestations: true
+
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - run: uv run --no-project python scripts/changelog_section.py "$GITHUB_REF_NAME" > notes.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "SkipWatch $GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

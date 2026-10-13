@@ -1,5 +1,6 @@
 """Release artifacts: what `uv build` ships, and the plugin manifests (spec 13, issue 13)."""
 
+import re
 import shutil
 import subprocess
 import tarfile
@@ -7,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SDIST_LIMIT_BYTES = 200 * 1024
@@ -60,3 +62,59 @@ def test_claude_plugin_validate_strict(target):
         timeout=120,
     )
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+RELEASE_YML = ROOT / ".github" / "workflows" / "release.yml"
+PUBLISH_ACTION = "pypa/gh-action-pypi-publish@"
+
+
+def _release():
+    data = yaml.safe_load(RELEASE_YML.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    return data
+
+
+def _uses(job):
+    return [step["uses"] for step in job["steps"] if "uses" in step]
+
+
+def test_release_triggers_on_version_tags_and_dispatch():
+    data = _release()
+    on = data[True]  # PyYAML reads the bare key `on` as a boolean
+    assert on["push"] == {"tags": ["v*.*.*"]}
+    assert "workflow_dispatch" in on
+    assert data["permissions"] == {"contents": "read"}
+
+
+@pytest.mark.parametrize(
+    ("job", "event", "environment"),
+    [("pypi", "push", "pypi"), ("testpypi", "workflow_dispatch", "testpypi")],
+)
+def test_publish_jobs_use_trusted_publishing(job, event, environment):
+    spec = _release()["jobs"][job]
+    assert spec["environment"] == environment
+    assert spec["permissions"] == {"id-token": "write"}
+    assert spec["if"] == f"github.event_name == '{event}'"
+    (step,) = [s for s in spec["steps"] if s.get("uses", "").startswith(PUBLISH_ACTION)]
+    assert step.get("with", {}).get("attestations") is True
+    test_index = step.get("with", {}).get("repository-url")
+    assert (test_index == "https://test.pypi.org/legacy/") == (environment == "testpypi")
+
+
+def test_publish_action_is_pinned_to_a_commit_sha():
+    text = RELEASE_YML.read_text(encoding="utf-8")
+    pins = re.findall(rf"{re.escape(PUBLISH_ACTION)}(\S+)", text)
+    assert len(pins) == 2
+    assert all(re.fullmatch(r"[0-9a-f]{40}", pin) for pin in pins), pins
+    assert len(set(pins)) == 1
+
+
+def test_only_github_release_can_write_contents():
+    jobs = _release()["jobs"]
+    writers = sorted(
+        name for name, job in jobs.items() if job.get("permissions", {}).get("contents") == "write"
+    )
+    assert writers == ["github-release"]
+    assert jobs["github-release"]["permissions"] == {"contents": "write"}
+    assert jobs["github-release"]["needs"] == "pypi"
+
