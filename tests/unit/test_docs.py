@@ -258,3 +258,17 @@ def test_readme_quickstart_is_near_the_top_and_complete():
         "/skipwatch <video link>",
     ):
         assert line in quickstart, line
+
+
+def test_readme_install_locations_match_the_code():
+    where = _section(_readme(), "What gets installed where")
+    # scripts/skipwatch: venv="$root/.venv"; whisper_common.hf_hub_cache; install.scope_target
+    assert "`.venv`" in where and "`uv sync`" in where and "`uv cache dir`" in where
+    for path in ("~/.cache/huggingface/hub", "HF_HUB_CACHE", "HF_HOME", "XDG_CACHE_HOME"):
+        assert path in where, path
+    for path in ("~/.claude/skills/<name>", "./.claude/skills/<name>", "./.agents/skills/<name>"):
+        assert path in where, path
+    # config.skipwatch_home and the folders the engine makes under it
+    assert "`SKIPWATCH_HOME`" in where and "<project>/.skipwatch" in where
+    for entry in ("work/", "cache/", "packs/", "backups/", "logs/", "config.toml", "installs.json"):
+        assert f"`{entry}" in where, entry

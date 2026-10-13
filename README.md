@@ -315,10 +315,26 @@ The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline,
 
 | What | Where |
 |---|---|
-| The plugin and its Python environment | Claude Code's plugin folder |
-| Work folders, cache, backups, settings | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it) |
-| Your skills | `~/.claude/skills/<name>`, or `./.claude/skills` with `--project`, or `./.agents/skills` with `--agents` |
+| The plugin | Claude Code's plugin folder, managed by `/plugin` |
+| The plugin's Python environment | `.venv` inside the plugin folder, made by `uv sync` |
+| Python packages uv downloads | uv's own cache, shared with your other uv projects (`uv cache dir` prints it) |
+| ffmpeg, only when none is on your `PATH` | inside the plugin's `.venv`, about 70 MB, fetched on first use |
+| Whisper models, only with a Whisper backend installed | the Hugging Face cache: `~/.cache/huggingface/hub`, or `HF_HUB_CACHE`, `HF_HOME/hub` or `XDG_CACHE_HOME/huggingface/hub` when set |
+| SkipWatch's own data | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it), listed below |
+| Work moved into a project | `<project>/.skipwatch`, only when a run cannot write to `~/.skipwatch` from your session; it gets a `.gitignore` of `*` so its files stay out of commits |
+| Your skills | `~/.claude/skills/<name>`; `./.claude/skills/<name>` with `--project`; `./.agents/skills/<name>` with `--agents`; `<dir>/<name>` with `--to <dir>`. `[install] scope` in `config.toml` changes the default. |
 
+Inside `~/.skipwatch`:
+
+| Entry | Holds |
+|---|---|
+| `work/<name>-<time>/` | one folder per run: the downloaded media, transcript, frames, notes, drafts and its `logs/` folder. A successful install deletes the media, notes, frames and drafts, as described under [Privacy](#privacy). |
+| `cache/` | the run cache, so a re-run within 7 days skips that work |
+| `packs/` | packs being checked by `/skipwatch install` |
+| `backups/<name>-<time>/` | the old copy of a skill you chose to replace |
+| `config.toml` | your settings, when you made one |
+| `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
+| `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
 To remove SkipWatch:
 
 ```text
