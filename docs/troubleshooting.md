@@ -21,7 +21,7 @@ The engine (`skipwatch`) and the plugin's wrapper script use these exit codes. I
 | 8 | `MISSING_DEPENDENCY` | A required piece is missing: ffmpeg, the Whisper backend you asked for, a cloud transcription key the provider rejected, or treg under `--provider treg` | Run the install command the engine printed. A missing transcriber never stops a run: it continues from the frames and the review screen offers the install. |
 | 9 | `PACK_INTEGRITY` | A pack failed verification: a checksum or manifest mismatch, or the pack is too large | Do not install it. Get the pack again and compare its sha256 with the one its author posted. |
 | 64 | `USAGE` | The engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside the work folder's `logs/`, a `--home` that is not a `.skipwatch` folder, or a `--to` that is a symlink or inside the SkipWatch home | Fix the argument the message names and run it again. |
-| 70 | `INTERNAL_ERROR` | A bug in the engine, not something you did | Please report it with the files in the work folder's `logs/`. |
+| 70 | `INTERNAL_ERROR` | A bug in the engine, not something you did. It prints one line, `skipwatch: internal error: <type>: <message>`, with secrets removed; the full traceback is in the stage's log in the work folder's `logs/` | Please report it with the files in the work folder's `logs/`. Running the engine yourself with `SKIPWATCH_DEBUG=1` prints the traceback too. |
 | 78 | wrapper: no environment | The wrapper could not create the plugin's Python environment; the engine never ran | Run the `uv sync` command the wrapper printed once in a terminal, outside any sandbox, then try again. |
 | 127 | wrapper: uv missing | uv is not installed and the environment was never set up; the engine never ran | Install uv (the wrapper prints how; SkipWatch never runs an installer itself), then try again. |
 
@@ -29,6 +29,7 @@ Exit 2 with stderr starting `error: ` comes from uv itself: the engine never sta
 
 ## uv, sandboxes and the environment
 
+- **You just installed uv.** Retry right away; there is no need to restart Claude Code. The standalone installers put uv in `~/.local/bin` (older ones in `~/.cargo/bin`), which only new shells have on `PATH`, so the wrapper checks both folders itself.
 - **uv older than 0.9.29 on macOS.** It can panic inside the macOS sandbox Claude Code uses for Bash commands, before Python starts. `/skipwatch doctor` warns about it and prints the upgrade command for the way you installed uv (Homebrew, pipx, pip or the standalone installer).
 - **The first run is slow.** The plugin's SessionStart hook, or the first run, creates the Python environment with `uv sync`. Once it is in sync with the plugin's lockfile, later runs skip uv entirely.
 - **The environment cannot be refreshed.** If a sync fails but an older environment exists, the wrapper says so and uses it. If none exists, it exits 78 with the command to run.

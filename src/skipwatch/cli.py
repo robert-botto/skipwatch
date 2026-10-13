@@ -1,6 +1,8 @@
 import importlib
+import os
 import pkgutil
 import sys
+import traceback
 from pathlib import Path
 from types import ModuleType
 from typing import Annotated
@@ -13,6 +15,7 @@ from typer._click.exceptions import ClickException, UsageError
 from skipwatch import __version__, commands, config, stagelog
 from skipwatch.commands.workfiles import log_path
 from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.redact import redact_message
 from skipwatch.runner import run_command
 
 __all__ = ["app", "main", "run_command"]
@@ -92,6 +95,26 @@ def _dispatch() -> int:
     return code if isinstance(code, int) else 0
 
 
+def _internal_error(exc: Exception) -> int:
+    """An engine bug: one redacted line on stderr, the traceback only in --log or with
+    SKIPWATCH_DEBUG=1, and exit 70 so the skill never reads it as a check or install failure."""
+    first = (str(exc).splitlines() or [""])[0]
+    line = redact_message(f"skipwatch: internal error: {type(exc).__name__}: {first}".rstrip())
+    trace = redact_message("".join(traceback.format_exception(exc)))
+    log = stagelog.active_path()
+    if log is not None:
+        try:
+            stagelog.append(trace + line)
+            line += f" (traceback in {log})"
+        except OSError:
+            pass  # the one line still goes out
+        stagelog.report(ExitCode.INTERNAL_ERROR)
+    elif os.environ.get("SKIPWATCH_DEBUG") == "1":
+        print(trace, end="", file=sys.stderr)
+    print(line, file=sys.stderr, flush=True)
+    return ExitCode.INTERNAL_ERROR
+
+
 def main() -> None:
     """Console entry point. Usage errors exit 64 so they never read as exit 2 (unsupported)."""
     try:
@@ -99,8 +122,11 @@ def main() -> None:
     except KeyboardInterrupt:
         stagelog.report(130)
         raise
+    except Exception as exc:
+        code = _internal_error(exc)
     except BaseException:
         stagelog.report(1)
         raise
-    stagelog.report(code)
+    else:
+        stagelog.report(code)
     sys.exit(code)

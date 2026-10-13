@@ -331,3 +331,11 @@ def test_readme_privacy_names_every_network_destination():
     assert "/skipwatch install <https url>" in privacy
     for destination in ("yt-dlp", "at most 5 per post", "Hugging Face", "treg", "Deepgram"):
         assert destination in privacy, destination
+
+
+def test_troubleshooting_70_row_matches_the_engine():
+    rows = (ROOT / "docs/troubleshooting.md").read_text(encoding="utf-8").splitlines()
+    [row] = [line for line in rows if line.startswith("| 70 |")]
+    cli = (ROOT / "src/skipwatch/cli.py").read_text(encoding="utf-8")
+    assert "skipwatch: internal error: " in row and "skipwatch: internal error: " in cli
+    assert "SKIPWATCH_DEBUG=1" in row and '"SKIPWATCH_DEBUG") == "1"' in cli

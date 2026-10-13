@@ -136,7 +136,7 @@ def test_stderr_is_restored_after_a_logged_run(monkeypatch, capsys, logs):
     assert capsys.readouterr().err.splitlines()[-1] == "after"
 
 
-def test_an_unexpected_crash_still_reports_rc_1_and_reraises(monkeypatch, capsys, logs):
+def test_an_unexpected_crash_reports_rc_70(monkeypatch, capsys, logs):
     app = _fake_app()
 
     @app.command("crash")
@@ -144,11 +144,10 @@ def test_an_unexpected_crash_still_reports_rc_1_and_reraises(monkeypatch, capsys
         progress("about to crash")
         raise RuntimeError("engine bug")
 
-    monkeypatch.setattr(cli, "app", app)
-    monkeypatch.setattr(sys, "argv", ["skipwatch", "--log", str(logs / "c.log"), "crash"])
-    with pytest.raises(RuntimeError):
-        cli.main()
-    assert capsys.readouterr().err.splitlines() == ["rc=1 elapsed=0s", "about to crash"]
+    assert _run(monkeypatch, ["--log", str(logs / "c.log"), "crash"], app) == 70
+    err = capsys.readouterr().err.splitlines()
+    assert err[0] == "rc=70 elapsed=0s"
+    assert err[-1].startswith("skipwatch: internal error: RuntimeError: engine bug")
 
 
 def test_cli_runner_without_main_still_restores_stderr(logs):

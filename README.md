@@ -304,6 +304,7 @@ The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline,
 | Python packages uv downloads | uv's own cache, shared with your other uv projects (`uv cache dir` prints it) |
 | ffmpeg, only when none is on your `PATH` | inside the plugin's `.venv`, about 70 MB, fetched on first use |
 | Whisper models, only with a Whisper backend installed | the Hugging Face cache: `~/.cache/huggingface/hub`, or `HF_HUB_CACHE`, `HF_HOME/hub` or `XDG_CACHE_HOME/huggingface/hub` when set |
+| yt-dlp's cache (YouTube player data it reuses between runs) | `~/.cache/yt-dlp`, or `XDG_CACHE_HOME/yt-dlp` when set |
 | SkipWatch's own data | `~/.skipwatch` (set `SKIPWATCH_HOME` to move it), listed below |
 | Work moved into a project | `<project>/.skipwatch`, only when a run cannot write to `~/.skipwatch` from your session; it gets a `.gitignore` of `*` so its files stay out of commits |
 | Your skills | `~/.claude/skills/<name>`; `./.claude/skills/<name>` with `--project`; `./.agents/skills/<name>` with `--agents`; `<dir>/<name>` with `--to <dir>`. `[install] scope` in `config.toml` changes the default. |
@@ -332,6 +333,7 @@ Inside `~/.skipwatch`:
 3. Delete `~/.skipwatch` (or your `SKIPWATCH_HOME`): the work folders with their logs, the run cache, packs, backups of replaced skills, `config.toml`, `doctor.json` and `installs.json`. Work folders of cancelled or stopped runs can hold unredacted text from the video, so delete them rather than keep them around. If a run ever moved its work into a project, delete that project's `<project>/.skipwatch` folder too.
 4. Optional: delete the Whisper models SkipWatch downloaded, if nothing else uses them. They are folders in the Hugging Face cache (`~/.cache/huggingface/hub` by default): `models--Systran--faster-whisper-small` for faster-whisper and `models--mlx-community--whisper-large-v3-turbo` for mlx-whisper, plus any other model you chose with `skipwatch transcribe --model`.
 5. Optional: `uv cache prune` removes the packages in uv's cache that nothing uses any more. The cache is shared with your other uv projects, so do not delete it outright.
+6. Optional: delete yt-dlp's cache, `~/.cache/yt-dlp` (or `XDG_CACHE_HOME/yt-dlp` when set). It only holds data yt-dlp can fetch again, so it is safe to remove even if you use yt-dlp elsewhere.
 
 Skills SkipWatch installed are normal Agent Skill folders. They keep working after you uninstall SkipWatch, and they stay until you delete them: remove the folder, for example `~/.claude/skills/<name>`.
 
