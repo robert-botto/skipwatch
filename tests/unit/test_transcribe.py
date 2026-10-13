@@ -251,6 +251,14 @@ def test_a_failed_fallback_is_not_noted_as_a_transcription(tmp_path, monkeypatch
     assert not any("transcribed with" in d for d in read_degradations(w.path).degradations)
 
 
+def test_a_corrupt_degradations_file_never_fails_a_written_transcript(tmp_path):
+    w = work_with(tmp_path, SPOKEN)
+    (w.path / "degradations.json").write_text("{not json", encoding="utf-8")
+    r = transcribe(w)
+    assert r.exit_code == 0, r.output
+    assert read_model(w.file("transcript.json"), Transcript).origin == "captions"
+
+
 def test_an_unavailable_whisper_is_no_fallback(tmp_path, monkeypatch):
     whisper = _Whisper(available=False)
     _with_whisper(monkeypatch, whisper)
