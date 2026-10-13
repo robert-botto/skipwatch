@@ -1,6 +1,6 @@
 # SkipWatch launch film: design
 
-Status: approved in conversation on 2026-10-13. This document is the brief every film builder works from.
+Status: approved by Robert on 2026-10-13. This document is the brief every film builder works from.
 
 ## Goal
 
@@ -101,7 +101,7 @@ The default proof screen is the real review screen from the `jq-json-parsing` ex
 - Vertical 9:16 or square cuts. These can be added later from the same scenes.
 - Paid stock footage or music.
 
-## Open items
+## Decisions
 
-- Proof screen: the jq example (default) or a SkipWatch-owned demo.
-- Robert creates the private `skipwatch-launch-film` repository, or approves creating it.
+- Proof screen: the `jq-json-parsing` example's real review screen (Robert, 2026-10-13).
+- The private `robert-botto/skipwatch-launch-film` repository is created by the orchestrator (approved by Robert, 2026-10-13).
