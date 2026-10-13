@@ -86,9 +86,9 @@ When doctor's output ends with `Welcome to SkipWatch.`, open your reply with thi
 block, verbatim:
 
 ```
- ┌─┐┬┌─┬┌─┐  ┬ ┬┌─┐┌┬┐┌─┐┬ ┬
- └─┐├┴┐│├─┘  │││├─┤ │ │  ├─┤
- └─┘┴ ┴┴┴    └┴┘┴ ┴ ┴ └─┘┴ ┴   paste a video, get a skill
+╔═╗╦╔═╦╔═╗╦ ╦╔═╗╔╦╗╔═╗╦ ╦
+╚═╗╠╩╗║╠═╝║║║╠═╣ ║ ║  ╠═╣
+╚═╝╩ ╩╩╩  ╚╩╝╩ ╩ ╩ ╚═╝╩ ╩  never send a human to watch a tutorial.
 ```
 
 ## Run the pipeline

@@ -10,10 +10,12 @@ from skipwatch import firstrun
 from skipwatch.cli import app
 
 SKILL_MD = Path(__file__).resolve().parents[2] / "skills/skipwatch/SKILL.md"
+# `pyfiglet -f calvin_s SKIPWATCH`; the tagline is Robert's pick and the one line to swap
+TAGLINE = "never send a human to watch a tutorial."
 WORDMARK = [
-    " ┌─┐┬┌─┬┌─┐  ┬ ┬┌─┐┌┬┐┌─┐┬ ┬",
-    " └─┐├┴┐│├─┘  │││├─┤ │ │  ├─┤",
-    " └─┘┴ ┴┴┴    └┴┘┴ ┴ ┴ └─┘┴ ┴   paste a video, get a skill",
+    "╔═╗╦╔═╦╔═╗╦ ╦╔═╗╔╦╗╔═╗╦ ╦",
+    "╚═╗╠╩╗║╠═╝║║║╠═╣ ║ ║  ╠═╣",
+    "╚═╝╩ ╩╩╩  ╚╩╝╩ ╩ ╩ ╚═╝╩ ╩  " + TAGLINE,
 ]
 
 
@@ -58,9 +60,9 @@ def test_unwritable_home_never_fails_or_repeats(tmp_path):
 def test_skill_prints_the_agreed_wordmark_verbatim():
     text = SKILL_MD.read_text(encoding="utf-8")
     blocks = re.findall(r"^```\n(.*?)^```$", text, re.M | re.S)
-    marks = [b.splitlines() for b in blocks if "┌─┐" in b]
+    marks = [b.splitlines() for b in blocks if "╔═╗" in b]
     assert marks == [WORDMARK]  # exactly one copy, exactly these lines
-    assert all(len(line) <= 60 for line in WORDMARK)
+    assert all(len(line) <= 70 for line in WORDMARK)
     section = text.split("\n## First run\n", 1)[1].split("\n## ", 1)[0]
     assert f"`{firstrun.WELCOME}`" in section and "verbatim" in section
 
