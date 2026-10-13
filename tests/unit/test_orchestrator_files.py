@@ -143,6 +143,7 @@ def test_run_protocol_doctor_cached_by_mtime():
         read(f) for f in RUN_FILES
     )
     assert "Exit 127 (no synced environment and `uv` not installed)" in text
+    assert "SkipWatch needs uv:" not in text  # the 127 row relays the wrapper's own advice
     assert "-mmin" not in text and "grep -m1" not in text
     import typer
 
@@ -983,7 +984,9 @@ def test_exit_64_covers_refused_folders_log_paths_and_homes():
 def test_exit_127_and_78_each_have_one_row():
     skill = read(SKILL / "SKILL.md")
     doctor = [line for line in skill.splitlines() if line.startswith("| 127 | doctor |")]
-    assert doctor and "SkipWatch needs uv: https://docs.astral.sh/uv/" in doctor[0]
+    # the wrapper prints the installer for this OS; the skill relays it, never its own
+    assert doctor and "uv is not installed" in doctor[0] and "stderr" in doctor[0]
+    assert "astral.sh" not in doctor[0] and "brew" not in doctor[0]
     rows = [line for line in skill.splitlines() if re.match(r"\| [\d, ]*\b78\b", line)]
     assert len(rows) == 1, rows
     assert "for exit 78 above" not in skill

@@ -70,8 +70,7 @@ One Bash call; the engine reuses a `doctor.json` under 24 h old, else rebuilds i
     <ENGINE> doctor --json --max-age-hours 24
 
 Take `tier` from its JSON and print `SkipWatch: checking tools... Tier <tier> (<n>s)`.
-Exit 127 (no synced environment and `uv` not installed): stop with
-`SkipWatch needs uv: https://docs.astral.sh/uv/getting-started/installation/`.
+Exit 127 (no synced environment and `uv` not installed): relay the wrapper's stderr.
 
 ## Stage 2: work folder and arguments
 
