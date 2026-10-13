@@ -429,3 +429,113 @@ def test_provenance_short_spoken_quote_points_at_on_screen_tag(tmp_path):
     r = _run(tmp_path, _step5_quote("copilot"))
     assert not r.ok and r.items[0].msg == "[spoken 00:49] quote is too short to verify"
     assert "[on-screen mm:ss]" in (r.items[0].fix or "")
+
+
+# ---- short inline code in a [spoken] step's action (G8 run) ----
+
+S4_ACTION = "4. Click run to see the result."
+
+
+def _spoken_inline(tmp_path, action, quote, heard):
+    """Step 4 ([spoken 00:49]) with a new action line and quote; segment 6 (49 s) says `heard`."""
+
+    def edit(s):
+        s = s.replace(S4_ACTION, action)
+        return s.replace(S5_QUOTE, f"> {quote}" if quote else "Do it now.")
+
+    staging, work = make_case(tmp_path, edit=edit)
+    path = work / "transcript.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["segments"][6]["text"] = heard
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return provenance.run(context_for(staging, work))
+
+
+def test_provenance_passes_g8_short_inline_code_heard_inside_a_word(tmp_path):
+    # G8: captions run the filename into the word before it ("local.env").
+    r = _spoken_inline(
+        tmp_path,
+        "4. Save the key in a local `.env` file in your project folder.",
+        "so in your local.env file",
+        "so in your local.env file",
+    )
+    assert r.ok, r.items
+
+
+def test_provenance_passes_short_inline_code_heard_verbatim(tmp_path):
+    r = _spoken_inline(
+        tmp_path,
+        "4. Save the key in `.env`.",
+        "save the key in your project",
+        "save the key in your project, in the .env file.",
+    )
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "heard"),
+    [
+        (".env", "then open the Dot Env file and paste it"),
+        ("--force", "run it again with dash dash force"),
+        ("--force", "run it again with double dash force"),
+        ("src/app.py", "open src slash app dot py now"),
+    ],
+)
+def test_provenance_passes_short_inline_code_heard_as_words(tmp_path, code, heard):
+    r = _spoken_inline(tmp_path, f"4. Use `{code}`.", heard, heard)
+    assert r.ok, r.items
+
+
+def test_provenance_fails_short_inline_code_not_heard(tmp_path):
+    r = _spoken_inline(
+        tmp_path,
+        "4. Push with `--force`.",
+        "Finally, click run to see the result.",
+        "Finally, click run to see the result.",
+    )
+    assert not r.ok and _items(r) == [
+        (4, "[spoken 00:49] inline code `--force` not heard within 20 s")
+    ]
+    fix = r.items[0].fix or ""
+    assert "> quote" in fix and "[on-screen mm:ss]" in fix and "[inferred]" in fix
+
+
+def test_provenance_sentence_full_stop_is_not_a_spoken_dot(tmp_path):
+    r = _spoken_inline(
+        tmp_path,
+        "4. Save the key in `.env`.",
+        "that part is done. Env vars come next",
+        "that part is done. Env vars come next",
+    )
+    assert not r.ok and "inline code `.env` not heard" in r.items[0].msg
+
+
+def test_provenance_fails_short_inline_code_without_a_quote(tmp_path):
+    # Without a quote of the words, one short token in a 40 s window is too weak alone.
+    r = _spoken_inline(tmp_path, "4. Save the key in `.env`.", None, "put it in the .env file")
+    assert not r.ok and _items(r) == [
+        (4, "[spoken 00:49] inline code `.env` needs a > quote of the words that say it")
+    ]
+
+
+def test_provenance_long_inline_code_in_spoken_step_is_unchanged(tmp_path):
+    # Long inline code still has to be heard as written; spoken words are not accepted for it.
+    r = _spoken_inline(
+        tmp_path,
+        "4. Run `skipdemo deploy --prod`.",
+        "now run skipdemo deploy dash dash prod",
+        "now run skipdemo deploy dash dash prod",
+    )
+    assert not r.ok and _items(r) == [
+        (4, "[spoken 00:49] quote not found in transcript within 20 s")
+    ]
+
+
+def test_provenance_short_inline_code_in_onscreen_step_is_unchanged(tmp_path):
+    r = _run(
+        tmp_path,
+        lambda s: s.replace(
+            "2. Paste the prompt into the prompt box.", "2. Paste the prompt into `.env`."
+        ),
+    )
+    assert not r.ok and _items(r) == [(2, "[on-screen 00:25] quote is too short to verify")]

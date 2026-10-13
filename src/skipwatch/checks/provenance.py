@@ -9,7 +9,9 @@ prompts they must be the whole reader item or whole lines of it, for other text 
 inside it on word boundaries. The
 [illegible at mm:ss] wildcard covers at most 40 characters on one line and needs a reader
 `illegible` entry within the window. Indented code, <pre> and inline code in the action are
-quotes too. [written] quotes must come from the post, thread or links.
+quotes too. Short inline code in a [spoken] step (`.env`, `--force`) is checked as speech:
+symbols become the words people say ("dot env", "dash dash force") on both sides, and the step
+must also quote the words that say it. [written] quotes must come from the post, thread or links.
 
 Pack mode (ingest.pack set by unpack, nothing else): every structure rule above still holds and
 [spoken] quotes are checked against the pack transcript; [on-screen] and [written] quotes, and
@@ -50,6 +52,35 @@ QUOTE_FOLD = str.maketrans(
         "\u2033": '"',
     }
 )
+# Symbols as speech-to-text writes them out. Only symbols inside a token count: a full stop
+# that ends a sentence is never "dot".
+SYMBOL_WORDS = {
+    ".": "dot",
+    "-": "dash",
+    "_": "underscore",
+    "/": "slash",
+    "\\": "backslash",
+    "~": "tilde",
+    "@": "at",
+    "#": "hash",
+    "=": "equals",
+    ":": "colon",
+    "+": "plus",
+    "*": "star",
+    "$": "dollar",
+    "|": "pipe",
+    "&": "and",
+    "%": "percent",
+}
+SPOKEN_SYNONYMS = [
+    (re.compile(r"\bdouble dash\b"), "dash dash"),
+    (re.compile(r"\b(?:hyphen|minus)\b"), "dash"),
+    (re.compile(r"\bperiod\b"), "dot"),
+    (re.compile(r"\bforward slash\b"), "slash"),
+    (re.compile(r"\b(?:equal|equals) sign\b"), "equals"),
+    (re.compile(r"\b(dollar|at) sign\b"), r"\1"),
+]
+TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
 
@@ -75,6 +106,24 @@ def _too_short(quote: str) -> bool:
     return len(quote.split()) < MIN_WORDS and len(quote) < MIN_CHARS
 
 
+def _spoken_form(text: str, code: bool = False) -> str:
+    """Words as spoken: NFKC, lower case, symbols inside a token spelled out. Transcript tokens
+    lose their sentence punctuation first; code keeps every character."""
+    words = []
+    for token in unicodedata.normalize("NFKC", text).translate(QUOTE_FOLD).lower().split():
+        if not code:
+            token = TOKEN_EDGES.sub("", token)
+        for part in re.findall(r"[^\W_]+|\S", token):
+            if part[0].isalnum():
+                words.append(part)
+            elif part in SYMBOL_WORDS:
+                words.append(SYMBOL_WORDS[part])
+    spoken = " ".join(words)
+    for pattern, repl in SPOKEN_SYNONYMS:
+        spoken = pattern.sub(repl, spoken)
+    return spoken
+
+
 def _fix(t: float) -> str:
     return f"re-read {mmss(t - WINDOW_S)} to {mmss(t + WINDOW_S)}"
 
@@ -95,7 +144,11 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
         )
     )
     items = []
-    for quote in step.quotes + step.code_quotes + step.inline_code:
+    short_inline = [code for code in step.inline_code if _too_short(_norm(code))]
+    for code in short_inline:
+        items += _short_inline_items(step, code, label, heard, t)
+    long_inline = [code for code in step.inline_code if code not in short_inline]
+    for quote in step.quotes + step.code_quotes + long_inline:
         q = _norm(quote)
         if _too_short(q):
             # A short spoken quote is too weak alone (any common word is in some transcript).
@@ -116,6 +169,33 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
                 )
             )
     return items
+
+
+def _short_inline_items(step: Step, code: str, label: str, heard: str, t: float) -> list[CheckItem]:
+    """Short inline code in the action (`.env`, `--force`): heard in the step's quotes or within
+    the window, symbols compared as spoken words. It never stands alone: the step must quote
+    the words that say it, so a common short token cannot verify by chance."""
+    shown = f"`{redact_text(code)[0]}`"
+    if not step.quotes:
+        return [
+            CheckItem(
+                step=step.number,
+                msg=f"{label} inline code {shown} needs a > quote of the words that say it",
+                fix=f"add the line that says it as a > quote; {_fix(t)}",
+            )
+        ]
+    needle = _spoken_form(code, code=True)
+    if needle and any(f" {needle} " in f" {_spoken_form(text)} " for text in [heard, *step.quotes]):
+        return []
+    return [
+        CheckItem(
+            step=step.number,
+            msg=f"{label} inline code {shown} not heard within {WINDOW_S:.0f} s",
+            fix=f"{_fix(t)} and add the line that says it as a > quote; if it is only shown, "
+            "make it an [on-screen mm:ss] step; if it is neither said nor shown, tag the step "
+            "[inferred] and list it under Unverified and gaps",
+        )
+    ]
 
 
 def _screen_line(text: str) -> str:
