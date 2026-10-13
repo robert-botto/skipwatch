@@ -106,9 +106,9 @@ def _contains_code(haystack: str, code: str) -> bool:
     """Code named whole in normalised text: whitespace, an opening bracket or quote, or the
     edge before it; whitespace, closing punctuation or the edge after it; and no flag running
     on, so `git push` is not cut from "git push --dry-run" nor `rm -rf build` from
-    "rm -rf build/cache"."""
+    "rm -rf build/cache". Code that is not already NFKC (a full-width lookalike) never matches."""
     q = _norm(code)
-    if not q:
+    if not q or unicodedata.normalize("NFKC", code) != code:
         return False
     pattern = (
         r"(?:^|(?<=[\s(\[\"'`]))" + re.escape(q) + r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+-\S)"

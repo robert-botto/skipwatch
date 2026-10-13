@@ -642,3 +642,10 @@ def test_provenance_fails_on_written_code_cut_from_a_longer_command(tmp_path, co
 def test_provenance_passes_written_code_named_whole_in_the_post(tmp_path, code, post):
     r = _written_case(tmp_path, f"4. Then run `{code}`.", post)
     assert r.ok, r.items
+
+
+def test_provenance_fails_on_fullwidth_written_code(tmp_path):
+    r = _written_case(
+        tmp_path, "4. Then run `\uff47\uff4f`.", "Tip: pin the version in CI. Then go."
+    )
+    assert not r.ok and r.items[0].step == 4
