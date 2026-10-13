@@ -102,6 +102,20 @@ def _contains_words(haystack: str, quote: str) -> bool:
     return re.search(r"(?<!\w)" + re.escape(quote) + r"(?!\w)", haystack) is not None
 
 
+def _contains_code(haystack: str, code: str) -> bool:
+    """Code named whole in normalised text: whitespace, an opening bracket or quote, or the
+    edge before it; whitespace, closing punctuation or the edge after it; and no flag running
+    on, so `git push` is not cut from "git push --dry-run" nor `rm -rf build` from
+    "rm -rf build/cache"."""
+    q = _norm(code)
+    if not q:
+        return False
+    pattern = (
+        r"(?:^|(?<=[\s(\[\"'`]))" + re.escape(q) + r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+-\S)"
+    )
+    return re.search(pattern, haystack) is not None
+
+
 def _too_short(quote: str) -> bool:
     return len(quote.split()) < MIN_WORDS and len(quote) < MIN_CHARS
 
@@ -309,10 +323,11 @@ def _written_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
     sources = [context.post_text or "", *context.thread, *context.author_replies]
     sources += [link.text for link in context.links]
     written = _norm(" \n ".join(sources))
+    missing = [q for q in step.quotes if not _norm(q) or not _contains_words(written, _norm(q))]
+    missing += [c for c in step.code_quotes + step.inline_code if not _contains_code(written, c)]
     return [
         CheckItem(step=step.number, msg="[written] quote not found in the post, thread or links")
-        for quote in step.quotes + step.code_quotes + step.inline_code
-        if not _norm(quote) or not _contains_words(written, _norm(quote))
+        for _ in missing
     ]
 
 

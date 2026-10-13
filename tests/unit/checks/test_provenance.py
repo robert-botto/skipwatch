@@ -615,3 +615,30 @@ def test_provenance_passes_written_inline_code_from_post(tmp_path):
         tmp_path, "4. Save the key in `.env`.", "Tip: pin the version in CI. Keys go in .env."
     )
     assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("rm -rf build", "Tip: pin the version in CI. Then run rm -rf build/cache to reset."),
+        ("git push", "Tip: pin the version in CI. Use git push --dry-run first."),
+    ],
+)
+def test_provenance_fails_on_written_code_cut_from_a_longer_command(tmp_path, code, post):
+    # Review r1: code must not be a truncation of a longer command in the post.
+    r = _written_case(tmp_path, f"4. Then run `{code}`.", post)
+    assert not r.ok and _items(r) == [(4, "[written] quote not found in the post, thread or links")]
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("rm -rf build", "Tip: pin the version in CI. Then run rm -rf build to reset."),
+        ("git push", "Tip: pin the version in CI. When it is green, git push."),
+        ("git push", "Tip: pin the version in CI. Then push it (`git push`)."),
+        ("ls -R", "Tip: pin the version in CI.\nls -R\nshows everything."),
+    ],
+)
+def test_provenance_passes_written_code_named_whole_in_the_post(tmp_path, code, post):
+    r = _written_case(tmp_path, f"4. Then run `{code}`.", post)
+    assert r.ok, r.items
