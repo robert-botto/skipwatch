@@ -11,8 +11,8 @@ inside it on word boundaries. The
 `illegible` entry within the window. Indented code, <pre> and inline code in the action are
 quotes too, for every tag. Short inline code in a [spoken] step (`.env`, `--force`) is
 checked as speech: symbols become the words people say ("dot env", "dash dash force") on both
-sides, and the step must also quote the words that say it. [written] quotes and code must come
-from the post, thread or links.
+sides, and the words that say it must be inside the step's own quote. [written] quotes and
+code must come from the post, thread or links.
 
 Pack mode (ingest.pack set by unpack, nothing else): every structure rule above still holds and
 [spoken] quotes are checked against the pack transcript; [on-screen] and [written] quotes, and
@@ -147,7 +147,7 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
     items = []
     short_inline = [code for code in step.inline_code if _too_short(_norm(code))]
     for code in short_inline:
-        items += _short_inline_items(step, code, label, heard, t)
+        items += _short_inline_items(step, code, label, t)
     long_inline = [code for code in step.inline_code if code not in short_inline]
     for quote in step.quotes + step.code_quotes + long_inline:
         q = _norm(quote)
@@ -172,10 +172,10 @@ def _spoken_items(ctx: CheckContext, step: Step, tag: Tag) -> list[CheckItem]:
     return items
 
 
-def _short_inline_items(step: Step, code: str, label: str, heard: str, t: float) -> list[CheckItem]:
-    """Short inline code in the action (`.env`, `--force`): heard in the step's quotes or within
-    the window, symbols compared as spoken words. It never stands alone: the step must quote
-    the words that say it, so a common short token cannot verify by chance."""
+def _short_inline_items(step: Step, code: str, label: str, t: float) -> list[CheckItem]:
+    """Short inline code in the action (`.env`, `--force`): said inside the step's own quotes,
+    which are themselves checked against the transcript, symbols compared as spoken words. The
+    wider window is not evidence: a common short token is somewhere in any 40 s of speech."""
     shown = f"`{redact_text(code)[0]}`"
     if not step.quotes:
         return [
@@ -186,13 +186,13 @@ def _short_inline_items(step: Step, code: str, label: str, heard: str, t: float)
             )
         ]
     needle = _spoken_form(code, code=True)
-    if needle and any(f" {needle} " in f" {_spoken_form(text)} " for text in [heard, *step.quotes]):
+    if needle and any(f" {needle} " in f" {_spoken_form(quote)} " for quote in step.quotes):
         return []
     return [
         CheckItem(
             step=step.number,
-            msg=f"{label} inline code {shown} not heard within {WINDOW_S:.0f} s",
-            fix=f"{_fix(t)} and add the line that says it as a > quote; if it is only shown, "
+            msg=f"{label} inline code {shown} is not said in the step's quote",
+            fix=f"{_fix(t)} and quote the line that says it as a > quote; if it is only shown, "
             "make it an [on-screen mm:ss] step; if it is neither said nor shown, tag the step "
             "[inferred] and list it under Unverified and gaps",
         )

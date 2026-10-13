@@ -462,12 +462,12 @@ def test_provenance_passes_g8_short_inline_code_heard_inside_a_word(tmp_path):
     assert r.ok, r.items
 
 
-def test_provenance_passes_short_inline_code_heard_verbatim(tmp_path):
+def test_provenance_passes_short_inline_code_in_its_quote_verbatim(tmp_path):
     r = _spoken_inline(
         tmp_path,
         "4. Save the key in `.env`.",
-        "save the key in your project",
-        "save the key in your project, in the .env file.",
+        "save the key in the .env file",
+        "save the key in the .env file.",
     )
     assert r.ok, r.items
 
@@ -475,15 +475,19 @@ def test_provenance_passes_short_inline_code_heard_verbatim(tmp_path):
 @pytest.mark.parametrize(
     ("code", "heard"),
     [
-        (".env", "then open the Dot Env file and paste it"),
-        ("--force", "run it again with dash dash force"),
-        ("--force", "run it again with double dash force"),
-        ("src/app.py", "open src slash app dot py now"),
+        ("go", "Finally, click run to see the result. Let's go."),
+        ("y", "Finally, click run to see the result. Y not."),
+        ("npm i", "Finally, click run to see the result. Then npm i."),
     ],
 )
-def test_provenance_passes_short_inline_code_heard_as_words(tmp_path, code, heard):
-    r = _spoken_inline(tmp_path, f"4. Use `{code}`.", heard, heard)
-    assert r.ok, r.items
+def test_provenance_short_inline_code_heard_only_outside_the_quote_fails(tmp_path, code, heard):
+    # Review r1: the window is not evidence for the code; only the step's own quote is.
+    r = _spoken_inline(
+        tmp_path, f"4. Use `{code}`.", "Finally, click run to see the result.", heard
+    )
+    assert not r.ok and _items(r) == [
+        (4, f"[spoken 00:49] inline code `{code}` is not said in the step's quote")
+    ]
 
 
 def test_provenance_fails_short_inline_code_not_heard(tmp_path):
@@ -494,7 +498,7 @@ def test_provenance_fails_short_inline_code_not_heard(tmp_path):
         "Finally, click run to see the result.",
     )
     assert not r.ok and _items(r) == [
-        (4, "[spoken 00:49] inline code `--force` not heard within 20 s")
+        (4, "[spoken 00:49] inline code `--force` is not said in the step's quote")
     ]
     fix = r.items[0].fix or ""
     assert "> quote" in fix and "[on-screen mm:ss]" in fix and "[inferred]" in fix
@@ -507,7 +511,7 @@ def test_provenance_sentence_full_stop_is_not_a_spoken_dot(tmp_path):
         "that part is done. Env vars come next",
         "that part is done. Env vars come next",
     )
-    assert not r.ok and "inline code `.env` not heard" in r.items[0].msg
+    assert not r.ok and "inline code `.env` is not said" in r.items[0].msg
 
 
 def test_provenance_fails_short_inline_code_without_a_quote(tmp_path):
