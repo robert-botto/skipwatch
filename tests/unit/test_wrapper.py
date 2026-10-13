@@ -266,7 +266,7 @@ def syncing_uv(tmp_path: Path) -> tuple[Path, Path]:
         f'echo "$*" >> "{log}"\n'
         'while [ $# -gt 0 ]; do [ "$1" = --project ] && proj=$2; shift; done\n'
         'mkdir -p "$proj/.venv/bin"\n'
-        "printf '#!/bin/sh\\necho \"engine ran in $0\"\\n' > \"$proj/.venv/bin/skipwatch\"\n"
+        'printf \'#!/bin/sh\\necho "engine ran in $0"\\n\' > "$proj/.venv/bin/skipwatch"\n'
         'chmod 755 "$proj/.venv/bin/skipwatch"\n'
     )
     uv.chmod(0o755)
