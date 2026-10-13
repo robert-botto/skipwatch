@@ -729,3 +729,68 @@ def test_provenance_fails_on_onscreen_code_cut_from_a_longer_item(tmp_path, code
 def test_provenance_passes_onscreen_code_named_whole(tmp_path, code, kind, text):
     r = _onscreen_inline(tmp_path, code, kind, text)
     assert r.ok, r.items
+
+
+# ---- review r2: honest text around code ----
+
+PIN = "Tip: pin the version in CI. "
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        (
+            "https://airia.com/register/",
+            "Start a trial today: https://airia.com/register/\n---\n\nMore",
+        ),
+        ("npm test", "Run npm test\n---\nMore below"),
+        ("npm install", "Run npm install -> it builds."),
+    ],
+)
+def test_provenance_written_code_before_a_rule_or_arrow_passes(tmp_path, code, post):
+    # G1: a horizontal rule or an arrow after the code is not a flag running on.
+    r = _written_case(tmp_path, f"4. Use `{code}`.", PIN + post)
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("git push", "Then git push\n--dry-run first."),
+        ("git push", "Then git push -f now."),
+        ("npm install", "Run npm install --then open it."),
+    ],
+)
+def test_provenance_written_code_before_a_flag_on_the_next_token_fails(tmp_path, code, post):
+    # "--then" is flag-shaped; it cannot be told apart from "--dry-run".
+    r = _written_case(tmp_path, f"4. Use `{code}`.", PIN + post)
+    assert not r.ok and r.items[0].step == 4
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("npm", "Set my_npm first."),
+        ("npm i", "Run pnpm i now."),
+        ("npm i", "Run **npm i>out** now."),
+    ],
+)
+def test_provenance_written_code_inside_a_longer_token_still_fails(tmp_path, code, post):
+    r = _written_case(tmp_path, f"4. Use `{code}`.", PIN + post)
+    assert not r.ok and r.items[0].step == 4
+
+
+def test_provenance_onscreen_code_before_a_rule_passes(tmp_path):
+    r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", "skipdemo deploy\n---")
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "kind", "text"),
+    [
+        ("skipdemo deploy", "text", "skipdemo deploy --prod"),
+    ],
+)
+def test_provenance_onscreen_code_cut_still_fails(tmp_path, code, kind, text):
+    r = _onscreen_inline(tmp_path, code, kind, text)
+    assert not r.ok and r.items[0].step == 2

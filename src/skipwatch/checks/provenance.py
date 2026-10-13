@@ -84,9 +84,10 @@ SPOKEN_SYNONYMS = [
 # ordinary prose too, so they never count as code running on.
 JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
 # Code is named whole: whitespace, an opening bracket or quote, or the edge before it;
-# whitespace, closing punctuation or the edge after it; and no flag running on after it.
+# whitespace, closing punctuation or the edge after it; and no flag (`-f`, `--dry-run`)
+# running on after it. A rule (---) or an arrow (->) is not a flag.
 CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`]))"
-CODE_AFTER = r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+-\S)"
+CODE_AFTER = r"(?=$|\s|[.,;:!?)\]\"'`]+(?:\s|$))(?!\s+--?[A-Za-z0-9])"
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
