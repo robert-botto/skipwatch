@@ -24,7 +24,12 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
-from urllib3.exceptions import ConnectTimeoutError, LocationParseError, NewConnectionError
+from urllib3.exceptions import (
+    ConnectTimeoutError,
+    HTTPError,
+    LocationParseError,
+    NewConnectionError,
+)
 from urllib3.util import parse_url
 
 from skipwatch.htmltext import html_to_text
@@ -391,7 +396,8 @@ def _fetch(url: str, deadline: float) -> LinkContext:
             raise Refused(f"skipped content type {mime or '(none)'}")
         try:
             body = _read(response, deadline)
-        except requests.RequestException as exc:
+        except (requests.RequestException, HTTPError) as exc:
+            # read1 raises urllib3's own errors (a short body, a read timeout, bad gzip)
             raise Refused(_failure(exc, deadline)) from exc
         _in_time(deadline)
     finally:

@@ -379,3 +379,38 @@ def test_ambiguous_numeric_hosts_are_refused_before_resolving(net, monkeypatch, 
 def test_a_numeric_looking_domain_name_is_still_a_name(net):
     net["pages"]["https://123.example.com/"] = FakeResponse(body=b"<p>ok</p>")
     assert links.fetch_link("https://123.example.com/") is not None
+
+
+def _broken_reads():
+    from urllib3.exceptions import DecodeError, IncompleteRead, ProtocolError, ReadTimeoutError
+
+    return [
+        ProtocolError("Connection broken", IncompleteRead(8, 992)),
+        ReadTimeoutError(None, "/", "Read timed out."),  # pyright: ignore[reportArgumentType]
+        DecodeError("Received response with content-encoding: gzip, but failed to decode it."),
+    ]
+
+
+class _BrokenPage:
+    status_code = 200
+    headers = {"Content-Type": "text/html"}
+
+    def __init__(self, error: Exception):
+        error_to_raise = error
+
+        class Raw:
+            def read1(self, n, decode_content=True):
+                raise error_to_raise
+
+        self.raw = Raw()
+
+    def close(self):
+        pass
+
+
+@pytest.mark.parametrize("error", _broken_reads(), ids=["short-body", "stall", "bad-gzip"])
+def test_a_broken_page_body_is_refused_not_raised(monkeypatch, error):
+    # urllib3's own read errors are a Refused with the error's name, like requests' errors
+    monkeypatch.setattr(links, "get_vetted", lambda url, deadline: _BrokenPage(error))
+    with pytest.raises(links.Refused, match=type(error).__name__):
+        links._fetch("https://example.com/", time.monotonic() + 10)

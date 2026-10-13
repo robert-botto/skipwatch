@@ -12,6 +12,7 @@ from skipwatch.models import IngestBundle, TranscribeConfig, Transcript
 from skipwatch.output import progress
 from skipwatch.providers.base import TranscriptionBackend
 from skipwatch.providers.registry import transcription_backends
+from skipwatch.review import drop_degradations, note_degradation
 from skipwatch.workdir import WorkDir, read_model, run_stage, write_model
 
 KNOWN_BACKENDS = frozenset(get_args(TranscribeConfig.model_fields["backend"].annotation)) - {"auto"}
@@ -36,16 +37,27 @@ def refuse_nothing_to_transcribe(bundle: IngestBundle) -> None:
         raise SkipwatchError(ExitCode.NO_CONTENT, "the video has no audio track")
 
 
+def _auto_backend(
+    bundle: IngestBundle, skip: frozenset[str] = frozenset()
+) -> TranscriptionBackend | None:
+    """The available local backend with the lowest auto_rank; cloud never (R-TR-2)."""
+    ranked = sorted(
+        (
+            b
+            for b in transcription_backends().values()
+            if not b.cloud and b.auto_rank is not None and b.name not in skip
+        ),
+        key=lambda b: (b.auto_rank, b.name),
+    )
+    return next((b for b in ranked if b.available(bundle)), None)
+
+
 def select_backend(requested: str, bundle: IngestBundle) -> TranscriptionBackend:
     """auto: the available backend with the lowest auto_rank; cloud never (R-TR-2)."""
     refuse_nothing_to_transcribe(bundle)
     backends = transcription_backends()
     if requested == "auto":
-        ranked = sorted(
-            (b for b in backends.values() if not b.cloud and b.auto_rank is not None),
-            key=lambda b: (b.auto_rank, b.name),
-        )
-        chosen = next((b for b in ranked if b.available(bundle)), None)
+        chosen = _auto_backend(bundle)
         if chosen is not None:
             return chosen
         raise SkipwatchError(
@@ -91,6 +103,38 @@ def cross_check(transcript: Transcript, bundle: IngestBundle) -> Transcript:
     return transcript
 
 
+EMPTY_CAPTIONS = "captions produced no timed segments"
+STALE_NOTE = f"no transcript: {EMPTY_CAPTIONS}"  # an earlier run's, outdated by a transcript
+
+
+def after_empty_captions(
+    work: WorkDir, bundle: IngestBundle, model: str | None
+) -> tuple[TranscriptionBackend, Transcript]:
+    """Captions that parse to nothing (an unresolved playlist, a format change) count as no
+    captions: the next local backend auto would pick transcribes instead, and the review
+    screen says so. Without one, exit 8 like no captions at all (exit 7 for a video with no
+    audio), with the degradation already noted."""
+    fallback = _auto_backend(bundle, skip=frozenset({"captions"}))
+    if fallback is None:
+        # exit 8 as for no captions, so the review screen offers the Whisper install; exit 7
+        # when there is no audio, as Whisper could not help
+        if bundle.media is not None and not media_has_audio(bundle):
+            code, message = (
+                ExitCode.NO_CONTENT,
+                f"{EMPTY_CAPTIONS} and the video has no audio track",
+            )
+        else:
+            code = ExitCode.MISSING_DEPENDENCY
+            message = f"{EMPTY_CAPTIONS} and no Whisper backend; install one: {_whisper_hint()}"
+        note_degradation(work.path, f"no transcript: {message}")  # starts with STALE_NOTE
+        raise SkipwatchError(code, message)
+    progress(f"Transcribe: {EMPTY_CAPTIONS}; falling back to {fallback.name}")
+    transcript = fallback.transcribe(work, model)
+    if transcript.segments:  # never claim a transcription that did not happen
+        note_degradation(work.path, f"{EMPTY_CAPTIONS}; transcribed with {fallback.name} instead")
+    return fallback, transcript
+
+
 def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript:
     ingest_json = work.file("ingest.json")
     if not ingest_json.exists():
@@ -105,14 +149,18 @@ def run_transcribe(work: WorkDir, backend: str, model: str | None) -> Transcript
             progress(f"Transcribe: reused cached transcript ({cached.origin}, {age}h old)")
             cached = cross_check(cached, bundle)  # this run's hint, never the cached one
             write_model(work.file("transcript.json"), cached)
+            drop_degradations(work.path, STALE_NOTE)
             return cached
         chosen = select_backend(backend, bundle)
         transcript = chosen.transcribe(work, model)
+        if not transcript.segments and chosen.name == "captions" and backend == "auto":
+            chosen, transcript = after_empty_captions(work, bundle, model)
         if not transcript.segments:
             # R-TR-1: never write a transcript without timed segments.
             raise SkipwatchError(ExitCode.NO_CONTENT, f"{chosen.name} produced no timed segments")
         transcript = cross_check(mark_silence(transcript, bundle.source.duration_s), bundle)
         write_model(work.file("transcript.json"), transcript)
+        drop_degradations(work.path, STALE_NOTE)
         runcache.remember_transcript(bundle, work.file("transcript.json"))
         return transcript
 
