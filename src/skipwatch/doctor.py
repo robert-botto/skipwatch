@@ -13,6 +13,7 @@ on PyPI, so without a project root the commands install from the git repository.
 
 import importlib.metadata
 import importlib.util
+import json
 import os
 import platform
 import shutil
@@ -89,6 +90,7 @@ class Probe:
     macos: bool = False
     whisper_model: str | None = None  # the model `auto` would load first
     whisper_model_cached: bool = False
+    engine: str = skipwatch.__version__  # the code that is running, not the plugin's files
 
 
 def _version_output(exe: str) -> str | None:
@@ -208,6 +210,20 @@ def with_whisper_model(p: Probe) -> Probe:
     else:
         return p
     return replace(p, whisper_model=name, whisper_model_cached=hf_cached(repo))
+
+
+def plugin_version(plugin_root: str | None) -> str | None:
+    """The version in <plugin root>/.claude-plugin/plugin.json, or None outside a plugin."""
+    if not plugin_root:
+        return None
+    try:
+        manifest = json.loads(
+            (Path(plugin_root) / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError):
+        return None  # a broken manifest never stops doctor
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    return version if isinstance(version, str) else None
 
 
 def _node_ok(version: str | None) -> bool:
@@ -348,6 +364,13 @@ def _warnings(p: Probe, today: date, plugin_root: str | None) -> list[str]:
             f"uv {p.uv} is older than {minimum} and can panic in the macOS sandbox; "
             f"run: {upgrade_uv}"
         )
+    plugin = plugin_version(plugin_root)
+    if plugin and plugin != p.engine:
+        # A venv synced for another plugin folder (copied on update) runs that folder's code.
+        warnings.append(
+            f"plugin {plugin} runs engine {p.engine}; run: "
+            f"{_reinstall_command(plugin_root, 'skipwatch')}"
+        )
     upgrade = ytdlp_upgrade_command(plugin_root)
     if p.ytdlp is None:
         warnings.append(f"yt-dlp is not importable; run: {upgrade}")
@@ -400,7 +423,15 @@ def _treg_detail(p: Probe) -> str:
 
 
 def _components(p: Probe, plugin_root: str | None) -> list[DoctorComponent]:
+    plugin = plugin_version(plugin_root)
     return [
+        DoctorComponent(name="skipwatch", found=True, version=p.engine),
+        DoctorComponent(
+            name="plugin",
+            found=plugin is not None,
+            version=plugin,
+            detail="" if plugin_root else "not running from a plugin",
+        ),
         DoctorComponent(name="uv", found=p.uv is not None, version=p.uv),
         DoctorComponent(name="python", found=True, version=p.python),
         DoctorComponent(
