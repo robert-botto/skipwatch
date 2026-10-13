@@ -8,8 +8,8 @@ from skipwatch.captions_json3 import parse_json3
 from skipwatch.models import Segment
 
 _TIMING_RE = re.compile(
-    r"^\s*(?P<start>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*"
-    r"(?P<end>(?:\d+:)?\d{1,2}:\d{2}[.,]\d{1,3})"
+    r"^\s*(?P<start>(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*"
+    r"(?P<end>(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3})"
 )
 # Only caption markup is stripped, so spoken text such as "x < y and z > w" survives. Covers
 # WebVTT class variants (<c.colorE5E5E5>, <v.loud Name>), <lang en>, inline timestamps

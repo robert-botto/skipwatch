@@ -158,3 +158,9 @@ def test_vtt_strips_x_word_timing_tags():
         "<X-word-ms ms=419,260 index=3 character_ranges=0-7,8-14>released that's</X-word-ms>\n"
     )
     assert [s.text for s in parse_vtt(text)] == ["Yesterday", "released that's"]
+
+
+def test_a_cue_with_absurd_hours_is_skipped_not_an_overflow():
+    huge = "9" * 400 + ":00:00.000 --> 00:01.000"
+    text = f"WEBVTT\n\n00:00:00.000 --> 00:00:01.000\na\n\n{huge}\nx\n"
+    assert [s.text for s in parse_vtt(text)] == ["a"]
