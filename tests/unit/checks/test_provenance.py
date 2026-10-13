@@ -804,10 +804,16 @@ def test_provenance_onscreen_code_in_markdown_bold_passes(tmp_path):
     assert r.ok, r.items
 
 
+def test_provenance_onscreen_code_after_a_url_scheme_passes(tmp_path):
+    r = _onscreen_inline(tmp_path, "localhost:8787/app", "text", "http://localhost:8787/app")
+    assert r.ok, r.items
+
+
 @pytest.mark.parametrize(
     ("code", "kind", "text"),
     [
         ("skipdemo deploy", "text", "skipdemo deploy --prod"),
+        ("localhost:8787/app", "text", "http://localhost:8787/app/admin"),
     ],
 )
 def test_provenance_onscreen_code_cut_still_fails(tmp_path, code, kind, text):

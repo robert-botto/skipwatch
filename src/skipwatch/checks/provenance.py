@@ -84,10 +84,11 @@ SPOKEN_SYNONYMS = [
 # ordinary prose too, so they never count as code running on.
 JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
 # Code is named whole: whitespace, an opening bracket, quote, `*` or `<` (markdown bold and
-# autolinks) or the edge before it; whitespace, closing punctuation (`*` and `>` included)
-# or the edge after it; and no flag (`-f`, `--dry-run`) running on after it. A rule (---) or
-# an arrow (->) is not a flag. `_` is left out so `npm` is never cut from `my_npm`.
-CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`*<]))"
+# autolinks), a URL scheme's "://" or the edge before it; whitespace, closing punctuation
+# (`*` and `>` included) or the edge after it; and no flag (`-f`, `--dry-run`) running on
+# after it. A rule (---) or an arrow (->) is not a flag. `_` is left out so `npm` is never
+# cut from `my_npm`.
+CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`*<])|(?<=://))"
 CODE_AFTER = r"(?=$|\s|[.,;:!?)\]\"'`*>]+(?:\s|$))(?!\s+--?[A-Za-z0-9])"
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
