@@ -29,6 +29,7 @@ Exit 2 with stderr starting `error: ` comes from uv itself: the engine never sta
 
 ## uv, sandboxes and the environment
 
+- **You just installed uv.** Retry right away; there is no need to restart Claude Code. The standalone installers put uv in `~/.local/bin` (older ones in `~/.cargo/bin`), which only new shells have on `PATH`, so the wrapper checks both folders itself.
 - **uv older than 0.9.29 on macOS.** It can panic inside the macOS sandbox Claude Code uses for Bash commands, before Python starts. `/skipwatch doctor` warns about it and prints the upgrade command for the way you installed uv (Homebrew, pipx, pip or the standalone installer).
 - **The first run is slow.** The plugin's SessionStart hook, or the first run, creates the Python environment with `uv sync`. Once it is in sync with the plugin's lockfile, later runs skip uv entirely.
 - **The environment cannot be refreshed.** If a sync fails but an older environment exists, the wrapper says so and uses it. If none exists, it exits 78 with the command to run.
