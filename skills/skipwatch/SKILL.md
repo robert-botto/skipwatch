@@ -86,14 +86,9 @@ missing pieces, offer each install command and run only the ones the user accept
 
 ## First run
 
-When doctor's output ends with `Welcome to SkipWatch.`, open your reply with this
-block, verbatim:
-
-```
-╔═╗╦╔═╦╔═╗╦ ╦╔═╗╔╦╗╔═╗╦ ╦
-╚═╗╠╩╗║╠═╝║║║╠═╣ ║ ║  ╠═╣
-╚═╝╩ ╩╩╩  ╚╩╝╩ ╩ ╩ ╚═╝╩ ╩  never send a human to watch a tutorial.
-```
+When doctor's stderr ends with `Welcome to SkipWatch.`, Read
+`references/first-run-banner.md` and open your reply with its block, verbatim, inside a
+```` ```text ```` fence.
 
 ## Run the pipeline
 
