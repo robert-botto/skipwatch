@@ -236,3 +236,25 @@ def test_readme_privacy_names_the_run_cache_and_how_to_clear_it():
     privacy = _readme().split("## Privacy", 1)[1].split("\n## ", 1)[0]
     assert "The run cache under `~/.skipwatch/cache/` keeps its own copy" in privacy
     assert "`skipwatch cache --clear` removes it" in privacy
+
+
+# Install, uninstall and troubleshooting docs (M6 install docs)
+
+TROUBLESHOOTING = ROOT / "docs/troubleshooting.md"
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
+def test_readme_quickstart_is_near_the_top_and_complete():
+    text = _readme()
+    quickstart = _section(text, "Quickstart")
+    assert text.index("## Quickstart") < text.index("## Why")
+    assert "Claude Code" in quickstart and "uv" in quickstart
+    for line in (
+        "/plugin marketplace add robert-botto/skipwatch",
+        "/plugin install skipwatch@skipwatch",
+        "/skipwatch <video link>",
+    ):
+        assert line in quickstart, line

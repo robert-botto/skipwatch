@@ -13,7 +13,7 @@ with every step traced to the moment in the video it came from.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat-square)](.claude-plugin/plugin.json)
 
-[Install](#install) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [FAQ](#faq)
+[Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [FAQ](#faq)
 
 <code>/skipwatch &lt;video link&gt;</code>
 
@@ -24,6 +24,18 @@ with every step traced to the moment in the video it came from.
 </div>
 
 ---
+
+## Quickstart
+
+You need Claude Code and [uv](https://docs.astral.sh/uv/getting-started/installation/). Inside Claude Code:
+
+```text
+/plugin marketplace add robert-botto/skipwatch
+/plugin install skipwatch@skipwatch
+/skipwatch <video link>
+```
+
+The first two lines install the plugin. The third turns a video into a skill and shows you the review screen before anything installs. The first run takes longer: SkipWatch sets up its own Python environment with uv. If uv is missing, SkipWatch prints how to install it and stops; it never installs uv for you. More install options are under [Install](#install).
 
 ## Why
 
@@ -63,26 +75,13 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 
 ## Install
 
-Inside Claude Code:
-
-```text
-/plugin marketplace add robert-botto/skipwatch
-/plugin install skipwatch@skipwatch
-```
-
-Or from a terminal, in one line:
+The [Quickstart](#quickstart) lines install the plugin from inside Claude Code. From a terminal, in one line:
 
 ```bash
 claude plugin install skipwatch --marketplace robert-botto/skipwatch
 ```
 
-Then run your first video:
-
-```text
-/skipwatch https://www.youtube.com/watch?v=<id>
-```
-
-The only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time a session starts. You never run pip or create a virtualenv.
+The only requirement besides Claude Code is [uv](https://docs.astral.sh/uv/getting-started/installation/). SkipWatch sets up its own Python environment the first time it runs. You never run pip or create a virtualenv.
 
 Installing the plugin also installs a SessionStart hook. At the start of a session, when the plugin's lockfile changed since its last sync (the first session after an install or update), it runs `uv sync` for the plugin's own environment: that downloads the locked Python dependencies from PyPI and can take up to 300 s. Otherwise it does nothing, and it never fails your session.
 
