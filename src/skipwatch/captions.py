@@ -13,9 +13,11 @@ _TIMING_RE = re.compile(
 )
 # Only caption markup is stripped, so spoken text such as "x < y and z > w" survives. Covers
 # WebVTT class variants (<c.colorE5E5E5>, <v.loud Name>), <lang en>, inline timestamps
-# (<00:00:01.000>) and the <font ...> tag common in SRT files.
+# (<00:00:01.000>), the <font ...> tag common in SRT files and X's per-word timing tag
+# (<X-word-ms ms=... index=...>).
 _TAG_RE = re.compile(
-    r"</?(?:c|v|b|i|u|ruby|rt|lang|font)(?:[.\s][^<>]*)?>|<(?:\d+:)?\d{1,2}:\d{2}[.,]\d{3}>",
+    r"</?(?:c|v|b|i|u|ruby|rt|lang|font|x-word-ms)(?:[.\s][^<>]*)?>"
+    r"|<(?:\d+:)?\d{1,2}:\d{2}[.,]\d{3}>",
     re.IGNORECASE,
 )
 MIN_CUE_S = 0.05  # YouTube auto-captions put 10 ms transition cues between real ones

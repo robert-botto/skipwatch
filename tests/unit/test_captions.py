@@ -147,3 +147,14 @@ def test_known_caption_tags_are_stripped():
         " <lang en-GB>f</lang> <00:00:00.500>g</v>\n"
     )
     assert parse_vtt(vtt)[0].text == "a b c de f g"
+
+
+def test_vtt_strips_x_word_timing_tags():
+    # X (Twitter) wraps every cue in a custom <X-word-ms ...> tag with per-word timings.
+    text = (
+        "WEBVTT\n\n00:00:00.120 --> 00:00:01.120\n"
+        "<X-word-ms ms=1000 index=1 character_ranges=0-8>Yesterday</X-word-ms>\n\n"
+        "00:00:03.001 --> 00:00:06.102\n"
+        "<X-word-ms ms=419,260 index=3 character_ranges=0-7,8-14>released that's</X-word-ms>\n"
+    )
+    assert [s.text for s in parse_vtt(text)] == ["Yesterday", "released that's"]
