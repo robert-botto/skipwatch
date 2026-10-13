@@ -3,8 +3,10 @@
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from skipwatch import firstrun
+from skipwatch.cli import app
 
 
 def test_claim_is_true_once_per_home(tmp_path):
@@ -12,6 +14,16 @@ def test_claim_is_true_once_per_home(tmp_path):
     assert firstrun.claim(home) is True
     assert firstrun.claim(home) is False
     assert (home / firstrun.MARKER).is_file()
+
+
+def test_doctor_reports_first_run_once(sw_home):
+    first = CliRunner().invoke(app, ["doctor", "--json"])
+    assert first.exit_code == 0, first.output
+    assert first.stderr.startswith("Tier ")
+    assert first.stderr.splitlines()[-1] == firstrun.WELCOME
+    second = CliRunner().invoke(app, ["doctor", "--json"])
+    assert second.exit_code == 0, second.output
+    assert firstrun.WELCOME not in second.stderr
 
 
 def test_marker_symlink_is_not_followed(tmp_path):
