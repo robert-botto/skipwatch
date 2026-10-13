@@ -21,14 +21,14 @@ jobs:
   test:
     strategy:
       fail-fast: false
-      # macOS bills 10x and Windows 2x on a private repo, so only ubuntu
-      # covers both Python versions.
+      # macOS bills 10x and Windows 2x on a private repo, so pull requests run Linux only
+      # (both Python versions) and push to main or workflow_dispatch runs every OS.
+      # Once the repo is public, restore all OSes on pull requests.
       matrix:
-        include:
-          - { os: ubuntu-latest, python: "3.11" }
-          - { os: ubuntu-latest, python: "3.12" }
-          - { os: macos-latest, python: "3.12" }
-          - { os: windows-latest, python: "3.12" }
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"}]'
+          || '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"},{"os":"macos-latest","python":"3.12"},{"os":"windows-latest","python":"3.12"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -51,11 +51,12 @@ jobs:
 
   # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
   # Whisper tests run in the whisper job, which has the extras and the models.
+  # Pull requests run Linux only (macOS bills 10x on a private repo); main runs both.
   pipeline:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
