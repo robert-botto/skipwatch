@@ -112,6 +112,24 @@ def test_offer_skips_dev_tools_exactly_as_the_wrapper_does(tmp_path):
     assert '[ -e "$root/.git" ] || sync_args="$sync_args --no-dev"' in wrapper
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        lambda root: doctor.extra_command(root, "whisper"),
+        doctor.ytdlp_upgrade_command,
+        doctor._reinstall_command,
+        lambda root: doctor._reinstall_command(root, "static-ffmpeg"),
+    ],
+)
+def test_every_printed_sync_skips_dev_tools_like_the_wrapper(tmp_path, command):
+    # the .git decision lives in _sync, so no advice pulls the dev group into a plugin venv
+    plugin = tmp_path / "plugin"
+    plugin.mkdir()
+    assert command(str(plugin)).endswith(" --no-dev")
+    (plugin / ".git").mkdir()
+    assert "--no-dev" not in command(str(plugin))
+
+
 def _flat(text: str) -> str:
     return " ".join(text.split())
 
