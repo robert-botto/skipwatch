@@ -202,3 +202,14 @@ def test_mem0_missing_key_is_exit_8(skill, monkeypatch, sw_home):
     monkeypatch.delenv("MEM0_API_KEY")
     r = CliRunner().invoke(app, ["export", str(skill), "--provider", "mem0"])
     assert r.exit_code == 8 and "set MEM0_API_KEY to export to Mem0" in r.stderr
+
+
+@pytest.mark.parametrize(
+    "response", [FakeResponse(200, {}), FakeResponse(200), FakeResponse(201, [])]
+)
+def test_mem0_2xx_without_event_id_is_still_a_success(skill, monkeypatch, response):
+    # review M2: Mem0 accepted the write; failing would make the next export a duplicate
+    monkeypatch.setenv("MEM0_API_KEY", KEY)
+    fake_post(monkeypatch, response)
+    item = export_mem0.PROVIDER.export(skill, manifest(skill), cfg())
+    assert item.ok and item.location == "mem0"

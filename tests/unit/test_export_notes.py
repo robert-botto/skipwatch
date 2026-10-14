@@ -116,3 +116,19 @@ def test_notes_refuse_a_name_that_is_not_a_file_name(skill, home, name):
         export_notes.PROVIDER.export(skill, m, cfg(str(vault)))
     assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
     assert list(vault.iterdir()) == []
+
+
+def test_notes_write_is_atomic(skill, home, monkeypatch):
+    # review M1: a half-written note must never replace a good one
+    vault = home / "vault"
+    vault.mkdir()
+    writes: list[tuple] = []
+    real = export_notes.write_bytes_atomic
+
+    def spy(path, data):
+        writes.append((path, data))
+        real(path, data)
+
+    monkeypatch.setattr(export_notes, "write_bytes_atomic", spy)
+    export_notes.PROVIDER.export(skill, manifest(skill), cfg(str(vault)))
+    assert writes == [(vault / "run-x.md", NOTE.encode("utf-8"))]
