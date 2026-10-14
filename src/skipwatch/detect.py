@@ -93,7 +93,12 @@ def detect(value: str, cwd: Path | None = None) -> Detected:
     if not path.exists() and _looks_like_scheme_less_url(value):
         return detect("https://" + value.strip(), cwd)
     if not path.is_file():
-        raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"not a URL and no such file: {value}")
+        hint = (
+            " (include https:// for a web link)" if not path.exists() and _host_part(value) else ""
+        )
+        raise SkipwatchError(
+            ExitCode.UNSUPPORTED_SOURCE, f"not a URL and no such file: {value}{hint}"
+        )
     if path.suffix.lower() not in MEDIA_EXTENSIONS:
         known = " ".join(sorted(MEDIA_EXTENSIONS))
         raise SkipwatchError(

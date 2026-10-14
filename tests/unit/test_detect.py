@@ -193,3 +193,16 @@ def test_scheme_less_known_host_or_path_is_a_url(tmp_path, value, platform):
     d = detect(value, cwd=tmp_path)
     assert (d.kind, d.platform, d.value) == ("url", platform, "https://" + value)
 
+
+@pytest.mark.parametrize("value", ["notes.md", "example.com", "notes.md/"])
+def test_missing_domain_like_name_hints_at_https(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert str(e.value) == f"not a URL and no such file: {value} (include https:// for a web link)"
+
+
+@pytest.mark.parametrize("value", ["clip.mp4", "./notes.md", "my notes", "a/b.md"])
+def test_missing_plain_name_has_no_https_hint(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert str(e.value) == f"not a URL and no such file: {value}"
