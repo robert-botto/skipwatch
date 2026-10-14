@@ -773,11 +773,32 @@ def test_provenance_written_code_before_a_flag_on_the_next_token_fails(tmp_path,
         ("npm test", "Run **npm test** then deploy."),
         ("npm test", "Run <npm test> then deploy."),
         ("https://x.dev/a", "Docs <https://x.dev/a>."),
-        ("npm test", "Run npm test* now."),
+        ("npm test", "**Run npm test**"),
+        ("npm test", "**npm test first**"),
+        ("npm install foo", "**npm install foo to start**, then deploy."),
     ],
 )
 def test_provenance_written_code_in_markdown_emphasis_or_autolink_passes(tmp_path, code, post):
     r = _written_case(tmp_path, f"4. Use `{code}`.", PIN + post)
+    assert r.ok, r.items
+
+
+def test_provenance_written_code_before_a_quote_reply_in_the_thread_passes(tmp_path):
+    # Review I2: code never spans two sources, so a thread reply quoting with "> " is not a
+    # redirect after the post's last command.
+    staging, work = make_case(
+        tmp_path,
+        edit=lambda s: (
+            s.replace("[spoken 00:49]", "[written]")
+            .replace(S4_ACTION, "4. Then run `npm test`.")
+            .replace(S5_QUOTE, "> Pin the version in CI.")
+        ),
+    )
+    ingest = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    ingest["context"]["post_text"] = PIN + "To finish, run npm test"
+    ingest["context"]["thread"] = ["> this saved me hours"]
+    (work / "ingest.json").write_text(json.dumps(ingest), encoding="utf-8")
+    r = provenance.run(context_for(staging, work))
     assert r.ok, r.items
 
 
@@ -794,13 +815,76 @@ def test_provenance_written_code_inside_a_longer_token_still_fails(tmp_path, cod
     assert not r.ok and r.items[0].step == 4
 
 
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("rm -rf build", "Then run rm -rf build* to reset."),
+        ("rm -rf build", "Then run rm -rf build*"),
+        ("npm test", "Run npm test* now."),
+        ("npm run build", "Run npm run build > out.txt first."),
+        ("npm run build", "Run npm run build >> out.txt first."),
+        ("npm run build", "Run npm run build 2> err.txt first."),
+        ("npm run build", "Run npm run build> out.txt first."),
+        ("npm run build", "Run npm run build>out.txt first."),
+        ("build", "Then run rm -rf *build* to reset."),
+        ("build", "Then run rm -rf <build to reset."),
+    ],
+)
+def test_provenance_written_code_cut_before_a_glob_or_redirect_fails(tmp_path, code, post):
+    # Follow-up 57: an unpaired `*`, `<` or `>` is shell, not markdown, so it never ends code.
+    r = _written_case(tmp_path, f"4. Then run `{code}`.", PIN + post)
+    assert not r.ok and _items(r) == [(4, "[written] quote not found in the post, thread or links")]
+
+
+@pytest.mark.parametrize(
+    ("code", "post"),
+    [
+        ("rm -rf build*", "Then run rm -rf build* to reset."),
+        ("npm run build > out.txt", "Run npm run build > out.txt first."),
+        ("rm -rf build", "Run **rm -rf build**, then **npm test**."),
+        ("npm test", "Run **rm -rf build**, then **npm test**."),
+    ],
+)
+def test_provenance_written_code_with_its_glob_or_redirect_or_in_bold_passes(tmp_path, code, post):
+    r = _written_case(tmp_path, f"4. Then run `{code}`.", PIN + post)
+    assert r.ok, r.items
+
+
+@pytest.mark.parametrize(
+    ("code", "text"),
+    [
+        ("rm -rf build", "Then run rm -rf build* to reset"),
+        ("npm run build", "npm run build > out.txt"),
+        ("npm run build", "npm run build>out.txt"),
+    ],
+)
+def test_provenance_onscreen_code_cut_before_a_glob_or_redirect_fails(tmp_path, code, text):
+    r = _onscreen_inline(tmp_path, code, "text", text)
+    assert not r.ok and r.items[0].step == 2
+
+
+@pytest.mark.parametrize(
+    ("code", "text"),
+    [
+        ("rm -rf build*", "Then run rm -rf build* to reset"),
+        ("npm run build > out.txt", "npm run build > out.txt"),
+    ],
+)
+def test_provenance_onscreen_code_with_its_glob_or_redirect_passes(tmp_path, code, text):
+    r = _onscreen_inline(tmp_path, code, "text", text)
+    assert r.ok, r.items
+
+
 def test_provenance_onscreen_code_before_a_rule_passes(tmp_path):
     r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", "skipdemo deploy\n---")
     assert r.ok, r.items
 
 
-def test_provenance_onscreen_code_in_markdown_bold_passes(tmp_path):
-    r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", "Run **skipdemo deploy** now")
+@pytest.mark.parametrize(
+    "text", ["Run **skipdemo deploy** now", "**Run skipdemo deploy**", "**skipdemo deploy now**"]
+)
+def test_provenance_onscreen_code_in_markdown_bold_passes(tmp_path, text):
+    r = _onscreen_inline(tmp_path, "skipdemo deploy", "text", text)
     assert r.ok, r.items
 
 

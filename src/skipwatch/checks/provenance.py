@@ -83,16 +83,30 @@ SPOKEN_SYNONYMS = [
 # Symbol words that join code into a longer token. "at", "plus" and "star" are
 # ordinary prose too, so they never count as code running on.
 JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
-# Code is named whole: whitespace, an opening bracket, quote, `*` or `<` (markdown bold and
-# autolinks), a URL scheme's "://" or the edge before it; whitespace, closing punctuation
-# (`*` and `>` included) or the edge after it; and no flag (`-f`, `--dry-run`) running on
-# after it. A rule (---) or an arrow (->) is not a flag. `_` is left out so `npm` is never
-# cut from `my_npm`.
-CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`*<])|(?<=://))"
-CODE_AFTER = r"(?=$|\s|[.,;:!?)\]\"'`*>]+(?:\s|$))(?!\s+--?[A-Za-z0-9])"
+# Code is named whole: whitespace, an opening bracket, quote, `**`, a URL scheme's "://" or the
+# edge before it; whitespace, closing punctuation (after an optional `**`) or the edge after
+# it; and no flag (`-f`, `--dry-run`) or redirect (`>`, `>>`, `2>`) running on after it. A rule
+# (---) or an arrow (->) is not a flag. `_` is left out so `npm` is never cut from `my_npm`.
+# `**` counts on either side on its own, so "**Run npm test**" names `npm test`: a double star
+# touching a name is markdown bold far more often than a glob. A single `*` is a glob, never
+# italics, on purpose: `rm -rf build` must not be cut from "rm -rf build*", so "*npm test*"
+# does not name `npm test`. A lone `>` is a redirect; only a <code> pair is an autolink
+# (follow-up 57).
+CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`])|(?<=\*\*)|(?<=://))"
+CODE_END = r"(?:\*\*)?(?:$|\s|[.,;:!?)\]\"'`]+(?:\s|$))"
+RUNS_ON = r"\s+(?:--?[A-Za-z0-9]|[0-9&]?>)"
+CODE_AFTER = rf"(?={CODE_END})(?!(?:\*\*)?{RUNS_ON})"
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
+
+
+def _code_re(pattern: str) -> str:
+    """pattern named whole as code: plain (bold included) or in <autolink> brackets."""
+    return (
+        rf"(?:{CODE_BEFORE}{pattern}{CODE_AFTER}"
+        rf"|(?<=<){pattern}(?=>{CODE_END})(?!>{RUNS_ON}))"
+    )
 
 
 def mmss(seconds: float) -> str:
@@ -113,13 +127,13 @@ def _contains_words(haystack: str, quote: str) -> bool:
 
 
 def _contains_code(haystack: str, code: str) -> bool:
-    """Code named whole in normalised text (CODE_BEFORE, CODE_AFTER), so `git push` is not cut
+    """Code named whole in normalised text (_code_re), so `git push` is not cut
     from "git push --dry-run" nor `rm -rf build` from "rm -rf build/cache". Code that is not
     already NFKC (a full-width lookalike) never matches."""
     q = _norm(code)
     if not q or unicodedata.normalize("NFKC", code) != code:
         return False
-    return re.search(CODE_BEFORE + re.escape(q) + CODE_AFTER, haystack) is not None
+    return re.search(_code_re(re.escape(q)), haystack) is not None
 
 
 def _too_short(quote: str) -> bool:
@@ -253,7 +267,7 @@ def _wild_pattern(quote_line: str) -> str:
 
 def _line_matches(quote_line: str, seen_line: str, whole: bool, code: bool = False) -> bool:
     """One quote line against one note line: equal when whole, else on word boundaries, or on
-    code boundaries (CODE_BEFORE, CODE_AFTER) for inline and unfenced code."""
+    code boundaries (_code_re) for inline and unfenced code."""
     if ILLEGIBLE.search(quote_line):
         pattern = _wild_pattern(quote_line)
     else:
@@ -261,7 +275,7 @@ def _line_matches(quote_line: str, seen_line: str, whole: bool, code: bool = Fal
     if whole:
         return re.fullmatch(pattern, seen_line) is not None
     if code:
-        return re.search(CODE_BEFORE + pattern + CODE_AFTER, seen_line) is not None
+        return re.search(_code_re(pattern), seen_line) is not None
     return re.search(r"(?<!\w)" + pattern + r"(?!\w)", seen_line) is not None
 
 
@@ -350,7 +364,14 @@ def _written_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
     sources += [link.text for link in context.links]
     written = _norm(" \n ".join(sources))
     missing = [q for q in step.quotes if not _norm(q) or not _contains_words(written, _norm(q))]
-    missing += [c for c in step.code_quotes + step.inline_code if not _contains_code(written, c)]
+    # Code never spans two sources: checked per source, a thread reply quoting with "> " is
+    # not read as a redirect after the post's last command.
+    each = [_norm(source) for source in sources]
+    missing += [
+        c
+        for c in step.code_quotes + step.inline_code
+        if not any(_contains_code(text, c) for text in each)
+    ]
     return [
         CheckItem(step=step.number, msg="[written] quote not found in the post, thread or links")
         for _ in missing
