@@ -287,7 +287,8 @@ def _sync(root: str, flags: str = "") -> str:
 def extra_command(plugin_root: str | None, extra: str) -> str:
     root = _project_root(plugin_root)
     if root:
-        return _sync(root, f"--extra {extra}")
+        # the wrapper's own sync flags: --locked never rewrites the plugin's shipped uv.lock
+        return _sync(root, f"--extra {extra} --locked --quiet")
     return f'uv tool install "skipwatch[{extra}]"'
 
 

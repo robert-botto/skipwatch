@@ -51,7 +51,8 @@ def test_first_run_offers_the_platform_extra_before_the_welcome(sw_home, monkeyp
     lines = _doctor(monkeypatch, P(apple_silicon=apple))
     assert lines[-1] == firstrun.WELCOME  # SKILL.md still keys on the last line
     assert (
-        lines[-2] == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra} --no-dev'
+        lines[-2]
+        == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra} --locked --quiet --no-dev'
     )
 
 
@@ -88,7 +89,7 @@ def test_offer_from_a_cached_report(sw_home, monkeypatch):
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/plug")
     result = CliRunner().invoke(app, ["doctor", "--json", "--max-age-hours", "24"])
     assert result.exit_code == 0, result.output
-    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper --no-dev'
+    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper --locked --quiet --no-dev'
     assert result.stderr.splitlines()[-2:] == [offer, firstrun.WELCOME]
 
 
@@ -128,6 +129,18 @@ def test_every_printed_sync_skips_dev_tools_like_the_wrapper(tmp_path, command):
     assert command(str(plugin)).endswith(" --no-dev")
     (plugin / ".git").mkdir()
     assert "--no-dev" not in command(str(plugin))
+
+
+def test_offer_uses_the_wrappers_sync_flags(tmp_path):
+    # the same flags as scripts/skipwatch's own sync: --locked never rewrites the shipped
+    # uv.lock inside the plugin folder (M6F-FR1 minor 4)
+    wrapper = (ROOT / "scripts/skipwatch").read_text(encoding="utf-8")
+    wrapper_flags = set(re.search(r'^sync_args="([^"]+)"', wrapper, re.M).group(1).split())
+    assert wrapper_flags == {"--quiet", "--locked", "--inexact"}
+    plugin = tmp_path / "plugin"
+    plugin.mkdir()
+    flags = {w for w in doctor.extra_command(str(plugin), "mlx").split() if w.startswith("--")}
+    assert flags == wrapper_flags | {"--no-dev", "--project", "--extra"}
 
 
 def _flat(text: str) -> str:
