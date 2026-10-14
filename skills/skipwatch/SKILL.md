@@ -81,9 +81,8 @@ guess and do not start a run.
 
 If the first argument is `doctor`, run `<ENGINE> doctor`, one plain command as above, and print its
 report first, unchanged, inside a code block, before any commentary (its stderr and
-stdout, starting with the `Tier` line). Do not install anything. If the report lists
-missing pieces, offer each install command (not Whisper if just offered) and run only the
-ones the user accepts.
+stdout, starting with the `Tier` line). If the report lists missing pieces, offer each
+install command (not Whisper if just offered) and run only the ones the user accepts.
 
 ## First run
 
