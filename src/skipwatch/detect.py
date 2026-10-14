@@ -62,12 +62,24 @@ def _as_url(value: str) -> tuple[str, str] | None:
     return value.strip(), parts.hostname
 
 
+def _host_part(value: str) -> tuple[str, str] | None:
+    """(host, rest) when value starts with a bare host that is not a media file name."""
+    first, *rest = re.split(r"([/?#])", value.strip(), maxsplit=1)
+    if not _HOST_RE.match(first) or Path(first).suffix.lower() in MEDIA_EXTENSIONS:
+        return None
+    return first, "".join(rest)
+
+
 def _looks_like_scheme_less_url(value: str) -> bool:
-    """True for "youtube.com/watch?v=1" but not for a file name such as "clip.mov"."""
-    first = re.split(r"[/?#]", value.strip(), maxsplit=1)[0]
-    if not _HOST_RE.match(first):
+    """True for "youtube.com/watch?v=1", "youtube.com" or "example.com/talk"; false for a file
+    name such as "clip.mov", "notes.md" or "notes.md/" (ruling FU-R1). A bare name is a URL only
+    when it is a known platform host, so a missing notes.md never turns into a request to
+    https://notes.md; any other host needs more than a lone "/" after it."""
+    found = _host_part(value)
+    if found is None:
         return False
-    return Path(first).suffix.lower() not in MEDIA_EXTENSIONS
+    host, rest = found
+    return platform_for_host(host) != "generic" or rest.strip("/") != ""
 
 
 def detect(value: str, cwd: Path | None = None) -> Detected:
@@ -81,7 +93,12 @@ def detect(value: str, cwd: Path | None = None) -> Detected:
     if not path.exists() and _looks_like_scheme_less_url(value):
         return detect("https://" + value.strip(), cwd)
     if not path.is_file():
-        raise SkipwatchError(ExitCode.UNSUPPORTED_SOURCE, f"not a URL and no such file: {value}")
+        hint = (
+            " (include https:// for a web link)" if not path.exists() and _host_part(value) else ""
+        )
+        raise SkipwatchError(
+            ExitCode.UNSUPPORTED_SOURCE, f"not a URL and no such file: {value}{hint}"
+        )
     if path.suffix.lower() not in MEDIA_EXTENSIONS:
         known = " ".join(sorted(MEDIA_EXTENSIONS))
         raise SkipwatchError(
