@@ -232,10 +232,19 @@ def test_export_is_next_only_when_the_feature_exists_and_is_enabled(tmp_path, sw
     w = work_at(tmp_path / "w", done=FINISHED)
     sw_home.mkdir(parents=True, exist_ok=True)
     (sw_home / "config.toml").write_text("[exports.notes]\nenabled = true\n")
-    assert resume_info(w.path).next_stage is None  # enabled, but no export command yet
     monkeypatch.setattr(resume_mod, "_export_command_exists", lambda: True)
     assert resume_info(w.path).next_stage == "export"  # the M6 seam
     (sw_home / "config.toml").write_text("[exports.notes]\nenabled = false\n")
+    assert resume_info(w.path).next_stage is None
+
+
+def test_export_marked_done_ends_a_run_with_exports_enabled(tmp_path, sw_home):
+    # the orchestrator marks export done whatever its exit, so a finished run is not resumed
+    w = work_at(tmp_path / "w", done=FINISHED)
+    sw_home.mkdir(parents=True, exist_ok=True)
+    (sw_home / "config.toml").write_text("[exports.mem0]\nenabled = true\n")
+    assert resume_info(w.path).next_stage == "export"
+    w.mark("export", "done")
     assert resume_info(w.path).next_stage is None
 
 
