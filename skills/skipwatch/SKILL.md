@@ -50,7 +50,7 @@ Look at the first token of the arguments:
 |---|---|
 | `doctor` | the doctor section below |
 | `resume` | the resume section below |
-| `list`, `pack`, `install`, `share` | read `references/sharing.md` first, then do its section for that token |
+| `list`, `pack`, `install`, `share`, `export` | read `references/sharing.md` first, then do its section for that token |
 | `update` | reply `SkipWatch: update is not available yet.` and stop |
 | nothing | reply with the usage line below and stop |
 | anything else | a source (file path or URL), then flags: run the pipeline |
@@ -104,7 +104,7 @@ stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.
 - `references/distill-rules.md` before writing the outline.
 - `references/skill-template.md` before drafting the skill.
 - `references/review-screen.md` before printing the review screen.
-- `references/sharing.md` for `list`, `pack`, `install <pack or url>` and `share`.
+- `references/sharing.md` for `list`, `pack`, `install <pack or url>`, `share` and `export`.
 - `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
   text posts) and whenever a source behaves unexpectedly.
 

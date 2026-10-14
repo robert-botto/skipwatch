@@ -1,4 +1,4 @@
-# Sharing: list, pack, install from a pack or URL, share
+# Sharing: list, pack, install from a pack or URL, share, export
 
 ## Contents
 
@@ -6,8 +6,9 @@
 - pack `<skill>`
 - install `<pack or url>`
 - share `<skill>`
+- export `<skill>`
 
-These four commands work on installed skills and packs, not on a video. `<ENGINE>` is the
+These five commands work on installed skills and packs, not on a video. `<ENGINE>` is the
 engine command defined in SKILL.md; `<P>` is the literal absolute current directory.
 Every message below is one line,
 except the list and the share post, which go in code blocks.
@@ -120,7 +121,9 @@ inside double quotes. Resolve `--to <dir>` to an absolute path now, as a run doe
    collision prompt. Exit 1 with `staging changed since check`: re-run check once, then
    install; any other exit 1: show its message and stop. On success print the same two lines as a run
    (`Installed to <path>. Try it: "<first trigger phrase>".` and the credit line from
-   `source` in `<staging>/skipwatch.json`), then delete the pack work folder, and the test
+   `source` in `<staging>/skipwatch.json`), then run the export call
+   exactly as `## Stage 10: install` in `run-review-install.md` shows, with `<W>` = `<work>`
+   and no mark; an export failure prints its one line and never undoes the install. Then delete the pack work folder, and the test
    run's fallback scratch folder when it was used, with one engine call (`<work>` the
    exact path unpack printed):
 
@@ -157,3 +160,20 @@ about itself.
 
 Never write the post yourself or change its wording; the engine keeps it under the post
 length and free of characters the style rule forbids.
+
+## export `<skill>`
+
+    <ENGINE> export "<skill>" --json
+
+- Exit 0: one line per item in the JSON `results`: `Exported to Mem0.` for `mem0`,
+  `Wrote a note to <location>.` for `notes`, and `<provider>: unchanged since last export`
+  for a `skipped` item. No items: `No exports are enabled; turn one on under [exports] in config.toml.`
+- Exit 8: the engine's line, which names the fix (`MEM0_API_KEY`, or the
+  `[exports.notes] folder` setting), and stop.
+- Exit 3: `Export did not complete: <engine message>.` and stop.
+- Exit 2 with `no installed SkipWatch skill named` in the message:
+  `No installed SkipWatch skill named <skill>. /skipwatch list shows them.` Any other
+  exit 2: the engine's line.
+- Exit 64 whose message says `pass the path instead`: the engine's line, then stop.
+
+An export only reads the installed skill; it never changes or reinstalls it.

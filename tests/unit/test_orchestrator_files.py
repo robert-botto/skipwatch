@@ -1942,7 +1942,10 @@ def test_skill_md_checklist_matches_the_protocol_stages():
 
 def test_skill_md_routes_sharing_commands_and_m5_flags():
     text = flat(SKILL / "SKILL.md")
-    assert "| `list`, `pack`, `install`, `share` | read `references/sharing.md` first" in text
+    assert (
+        "| `list`, `pack`, `install`, `share`, `export` | read `references/sharing.md` first"
+        in text
+    )
     assert "no effect yet" not in text
     assert "| `--fast` | skip the critic" in text
     assert "| `--test` | test run before the review screen" in text
@@ -2074,6 +2077,66 @@ def test_stage_10_star_nudge_share_line_and_draft_cleanup():
     assert "printenv" not in stage10 and "rm -rf" not in stage10
     # no shell chains: each cleanup step is its own call
     assert "||" not in stage10 and "&& echo" not in stage10
+
+
+def test_stage_10_exports_after_install_without_failing_the_run():
+    stage10 = re.sub(r"\s+", " ", protocol().split("## Stage 10: install", 1)[1])
+    stage10 = stage10.split("## Resume", 1)[0]
+    export = logged("export") + ' "<installed path>" --json'
+    assert export in stage10
+    assert _before(stage10, "<ENGINE> nudge", export)
+    assert _before(stage10, export, "/skipwatch share <name> prints")
+    assert _before(stage10, export, logged("cleanup"))
+    mark_export = logged("mark") + ' --work "<W>" --stage export --status done'
+    assert _before(stage10, export, mark_export)  # resume must not reopen a finished run
+    assert "marking it done on any exit" in stage10
+    for line in ("`Exported to Mem0.`", "`Wrote a note to <location>.`"):
+        assert line in stage10
+    assert (
+        "`Export did not complete: <engine message>. The skill is installed; run /skipwatch"
+        " export later.`" in stage10
+    )
+    assert "never undoes the install and never fails the run" in stage10  # R-TIER-2
+    sharing = flat(SHARING)
+    assert "run the export call exactly as `## Stage 10: install` in `run-review-install.md`" in (
+        sharing
+    )
+    assert "with `<W>` = `<work>` and no mark" in sharing
+    assert _before(sharing, "run the export call", "<ENGINE> discard-pack")
+    assert "never undoes the install" in sharing
+
+
+def test_sharing_export_section_maps_every_exit():
+    text = read(SHARING)
+    assert "\n## export `<skill>`\n" in text and "- export `<skill>`" in text
+    section = re.sub(r"\s+", " ", text.split("\n## export `<skill>`\n", 1)[1])
+    assert '<ENGINE> export "<skill>" --json' in section
+    for phrase in (
+        "`Exported to Mem0.` for `mem0`",
+        "`Wrote a note to <location>.` for `notes`",
+        "`<provider>: unchanged since last export` for a `skipped` item",
+        "No items: `No exports are enabled; turn one on under [exports] in config.toml.`",
+        "Exit 8: the engine's line, which names the fix",
+        "Exit 3: `Export did not complete: <engine message>.`",
+        "`No installed SkipWatch skill named <skill>. /skipwatch list shows them.`",
+        "Exit 64 whose message says `pass the path instead`",
+        "it never changes or reinstalls it",
+    ):
+        assert phrase in section, phrase
+    skill = flat(SKILL / "SKILL.md")
+    assert "`share` and `export`." in skill
+
+
+def test_export_messages_match_the_engine():
+    from skipwatch.export import UNCHANGED
+    from skipwatch.providers.export_mem0 import PROVIDER as MEM0
+    from skipwatch.providers.export_notes import FOLDER_FIX
+    from skipwatch.providers.export_notes import PROVIDER as NOTES
+
+    sharing = flat(SHARING)
+    assert UNCHANGED == "unchanged since last export" and UNCHANGED in sharing
+    assert (MEM0.name, NOTES.name) == ("mem0", "notes")
+    assert "[exports.notes] folder" in FOLDER_FIX
 
 
 def test_resume_at_critique_runs_the_critic_on_the_staged_draft():
