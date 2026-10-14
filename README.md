@@ -369,6 +369,7 @@ Run `/skipwatch doctor` first, then see [Troubleshooting](docs/troubleshooting.m
 - [Troubleshooting](docs/troubleshooting.md): every exit code and its fix, sandbox and uv notes, per-platform failures.
 - [Platform notes](skills/skipwatch/references/platforms.md): what each platform returns and how it fails.
 - [Sharing reference](skills/skipwatch/references/sharing.md): list, pack, install and share in detail.
+- [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md): how to help, and how to report a vulnerability.
 
 ## License
 
