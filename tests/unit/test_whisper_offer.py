@@ -142,6 +142,13 @@ def test_offer_is_never_asked_under_yes():
     assert "The first-run Whisper offer comes before the run and is also never asked" in rules
 
 
+def test_doctor_command_does_not_offer_whisper_twice():
+    # `/skipwatch doctor` as the first command: the first-run offer already asked
+    skill = SKILL_MD.read_text(encoding="utf-8")
+    section = _flat(skill.split("\n## doctor\n", 1)[1].split("\n## ", 1)[0])
+    assert "except Whisper when the Whisper offer was just asked" in section
+
+
 def test_no_em_dash_in_offer_sources():
     for path in (SKILL_MD, BANNER_MD, Path(doctor.__file__), Path(__file__)):
         assert chr(0x2014) not in path.read_text(encoding="utf-8"), path
