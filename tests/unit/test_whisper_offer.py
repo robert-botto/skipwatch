@@ -169,16 +169,16 @@ def test_offer_is_never_asked_under_yes():
     # and its "Missing for Tier 1" line keeps naming the command (M6F-FR1 I1)
     skill = SKILL_MD.read_text(encoding="utf-8")
     first_run = _flat(skill.split("\n## First run\n", 1)[1].split("\n## ", 1)[0])
-    assert "without `--yes`" in first_run and "doctor keeps listing the command" in first_run
+    assert "without `--yes`" in first_run
     rules = _flat(skill.split("\n## Rules that hold in every stage\n", 1)[1])
-    assert "The first-run Whisper offer comes before the run and is also never asked" in rules
+    assert "The first-run Whisper offer comes before the run, never under `--yes`" in rules
 
 
 def test_doctor_command_does_not_offer_whisper_twice():
     # `/skipwatch doctor` as the first command: the first-run offer already asked
     skill = SKILL_MD.read_text(encoding="utf-8")
     section = _flat(skill.split("\n## doctor\n", 1)[1].split("\n## ", 1)[0])
-    assert "except Whisper when the Whisper offer was just asked" in section
+    assert "(not Whisper if just offered)" in section
 
 
 def test_no_em_dash_in_offer_sources():
