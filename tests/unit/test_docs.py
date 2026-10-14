@@ -441,3 +441,11 @@ def test_code_of_conduct_has_the_enforcement_contact():
     assert "Contributor Covenant" in text and "version 2.1" in text
     assert "a private report through the repository's Security tab" in text
     assert "INSERT CONTACT METHOD" not in text
+
+
+def test_readme_lists_the_first_run_marker_from_the_source():
+    from skipwatch import firstrun
+
+    where = _section(_readme(), "What gets installed where")
+    assert f"`{firstrun.MARKER}`" in where
+

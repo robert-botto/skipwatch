@@ -318,6 +318,7 @@ Inside `~/.skipwatch`:
 | `packs/` | packs being checked by `/skipwatch install` |
 | `backups/<name>-<time>/` | the old copy of a skill you chose to replace |
 | `config.toml` | your settings, when you made one |
+| `first-run.done` | an empty marker file made by the first `doctor` run, so the welcome line shows once |
 | `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
 | `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
 ## Uninstall
