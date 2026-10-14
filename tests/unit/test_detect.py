@@ -111,3 +111,40 @@ def test_existing_path_wins_over_domain_shape(tmp_path):
     (tmp_path / "youtube.com").mkdir()
     (tmp_path / "youtube.com" / "clip.mp4").write_bytes(b"x")
     assert detect("youtube.com/clip.mp4", cwd=tmp_path).kind == "file"
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["m.youtube.com/watch?v=abc123", "WWW.YouTube.com/watch?v=abc123", "youtube.com"],
+)
+def test_scheme_less_youtube_variants_are_urls(tmp_path, value):
+    d = detect(value, cwd=tmp_path)
+    assert (d.kind, d.platform, d.value) == ("url", "youtube", "https://" + value)
+
+
+def test_scheme_less_url_with_surrounding_space_is_stripped(tmp_path):
+    d = detect("  youtube.com/watch?v=abc123 ", cwd=tmp_path)
+    assert d.value == "https://youtube.com/watch?v=abc123"
+
+
+def test_dot_slash_media_file_resolves_as_file(tmp_path):
+    (tmp_path / "clip.mp4").write_bytes(b"x")
+    found = detect("./clip.mp4", cwd=tmp_path)
+    assert (found.kind, found.platform) == ("file", "local")
+
+
+def test_existing_dotted_file_is_a_file_not_a_url(tmp_path):
+    """notes.md has a domain shape (.md is a TLD) but exists, so it is judged as a file."""
+    (tmp_path / "notes.md").write_text("x")
+    with pytest.raises(SkipwatchError) as e:
+        detect("notes.md", cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert "unsupported file type .md" in str(e.value)
+
+
+@pytest.mark.parametrize("value", ["./clip.mp4", "my clip.com/x", "youtube .com/watch"])
+def test_missing_paths_without_a_domain_shape_are_exit_2(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert "no such file" in str(e.value)
