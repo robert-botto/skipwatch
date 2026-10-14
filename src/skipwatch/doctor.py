@@ -37,6 +37,8 @@ YTDLP_MAX_AGE_DAYS = 60
 NODE_MIN_MAJOR = 22
 UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
+# printed before the first-run welcome; SKILL.md `## First run` keys on it verbatim
+WHISPER_OFFER = "Whisper offer: "
 TREG_OFF = (
     "logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg"
 )
@@ -275,14 +277,29 @@ def _project_root(plugin_root: str | None) -> str | None:
 
 
 def _sync(root: str, flags: str = "") -> str:
-    return f'uv sync --inexact --project "{root}"' + (f" {flags}" if flags else "")
+    # --no-dev exactly when scripts/skipwatch adds it (no .git), so no advice pulls pytest,
+    # ruff and pyright into a marketplace install's venv
+    no_dev = "" if (Path(root) / ".git").exists() else "--no-dev"
+    tail = " ".join(part for part in (flags, no_dev) if part)
+    return f'uv sync --inexact --project "{root}"' + (f" {tail}" if tail else "")
 
 
 def extra_command(plugin_root: str | None, extra: str) -> str:
     root = _project_root(plugin_root)
     if root:
-        return _sync(root, f"--extra {extra}")
+        # the wrapper's own sync flags: --locked never rewrites the plugin's shipped uv.lock
+        return _sync(root, f"--extra {extra} --locked --quiet")
     return f'uv tool install "skipwatch[{extra}]"'
+
+
+def whisper_offer(r: DoctorReport, plugin_root: str | None) -> str | None:
+    """The Whisper extra a first run offers (mlx on Apple silicon, whisper elsewhere), or None
+    when a backend is installed or uv is missing (the command needs uv). Printed only; the
+    skill runs it after an explicit yes (M6-F)."""
+    found = {c.name for c in r.components if c.found}
+    if "uv" not in found or found & {"whisper-mlx", "whisper-faster"}:
+        return None
+    return extra_command(plugin_root, "mlx" if "apple-silicon" in found else "whisper")
 
 
 def ytdlp_upgrade_command(plugin_root: str | None) -> str:

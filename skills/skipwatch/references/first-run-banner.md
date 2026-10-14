@@ -19,3 +19,12 @@ verbatim, `text` fence included, as the start of your reply.
 ﾌ ｽ ﾅ ｲ     ･ ｺ ﾑ   ｳ       ･ ﾗ     ｴ ｵ   ﾆ ﾀ   ﾅ ﾊ   ﾐ ｲ   ﾆ     ﾐ ｿ
 ﾔ ﾝ   ﾆ ･   ﾁ ﾊ ｻ ･ ﾝ       ﾑ ｹ     ｱ ﾗ   ﾍ ﾊ ･ ｹ ﾌ ･ ﾏ ﾐ ･ ﾁ   ﾒ ﾊ ﾝ ･
 ```
+
+## Whisper offer
+
+No Whisper backend is installed. Ask once and wait: `Install local Whisper to transcribe
+videos without captions? (yes/no)`. Only on an explicit yes, run the command after
+`Whisper offer: ` exactly, as one plain Bash call, then `<ENGINE> doctor --json` so the
+tier is current. Otherwise, or if it fails, print `Whisper not installed: captions first,
+then frames only.` with its exit code, if any, never a traceback, and carry on. Never ask
+again.

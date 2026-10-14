@@ -75,14 +75,14 @@ Flags and what they do:
 | `--test` | test run before the review screen (never on a flagged skill without asking) |
 
 A flag not in this table is a usage error: reply with the usage line and stop. Do not
-guess what the user meant and do not start a run.
+guess and do not start a run.
 
 ## doctor
 
 If the first argument is `doctor`, run `<ENGINE> doctor`, one plain command as above, and print its
 report first, unchanged, inside a code block, before any commentary (its stderr and
-stdout, starting with the `Tier` line). Do not install anything. If the report lists
-missing pieces, offer each install command and run only the ones the user accepts.
+stdout, starting with the `Tier` line). If the report lists missing pieces, offer each
+install command (not Whisper if just offered) and run only the ones the user accepts.
 
 ## First run
 
@@ -90,16 +90,18 @@ When doctor's stderr ends with `Welcome to SkipWatch.`, Read
 `references/first-run-banner.md` and open your reply with its block, verbatim, inside a
 ```` ```text ```` fence.
 
+Then, without `--yes`, if the line before it starts with `Whisper offer:`, do that file's
+`## Whisper offer` before anything else runs.
+
 ## Run the pipeline
 
-Follow the run files in order, reading each when its stage starts:
+Follow the run files in order, each when its stage starts:
 `references/run-engine.md` (stages 1 to 4; read it now, its conventions hold in every
 stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.md`
-(9 to 10 and resume). Load the other references when a run file reaches them:
+(9 to 10 and resume). Load the others when a run file reaches them:
 
-- `references/run-branches.md` when a run file points to one of its sections (long
-  video, failed probe or ingest, special sources, no transcript, frames exits, reader
-  retries) and for `resume`.
+- `references/run-branches.md` when a run file points to one of its sections, and for
+  `resume`.
 - `references/run-fallbacks.md` when the work folder cannot be written.
 - `references/distill-rules.md` before writing the outline.
 - `references/skill-template.md` before drafting the skill.
@@ -133,6 +135,7 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 
 - The only question in a run is the review prompt, with one named exception, never asked
   under `--yes`: a video over 60 minutes gets one "continue?" question after probe.
+  The first-run Whisper offer comes before the run, never under `--yes`.
 - A missing optional dependency never fails a run: degrade, continue, and note it
   (`<ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"`,
   run-engine.md conventions); the review screen shows it under Unverified.
@@ -148,8 +151,8 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 
 ## When the engine stops
 
-This table is the one place exit codes are handled; the run files add only stage-specific
-messages. Show one line, keep `<W>` and `<W>/media/`, print the path and
+Exit codes are handled only here; run files add stage-specific messages. Show one line,
+keep `<W>` and `<W>/media/`, print the path and
 `Work files at <W> may hold unredacted text from the video.`, and stop. Never
 retry a failed stage with different inputs to get past it.
 
@@ -163,10 +166,10 @@ retry a failed stage with different inputs to get past it.
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then the `Check failed twice.` line from stage 8 in `run-distill.md` |
 | 6 | install | show the review screen again with the collision prompt. |
-| 64 | any | the engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside `<W>/logs/` (no `rc=` line) or a `--home` not ending in `.skipwatch`. Fix it from the engine's message and retry once; a second 64 stops with `SkipWatch: engine could not start: <last 3 stderr lines>`. |
+| 64 | any | the engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside `<W>/logs/` (no `rc=` line) or a `--home` not ending in `.skipwatch`. Fix it from its message and retry once; a second 64 stops with `SkipWatch: engine could not start: <last 3 stderr lines>`. |
 | 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |
-| 127 | doctor | stderr says "uv is not installed": show the wrapper's stderr lines exactly (the uv install command for this OS), then stop. Any other stderr: the last row. |
-| 78 | any | `SkipWatch: engine could not start: environment could not be created.` Then the wrapper's stderr ("could not create the Python environment" and the `uv sync` command to run). |
+| 127 | doctor | stderr says "uv is not installed": show the wrapper's stderr lines exactly, then stop. Any other stderr: the last row. |
+| 78 | any | `SkipWatch: engine could not start: environment could not be created.` Then the wrapper's stderr ("could not create the Python environment" and its `uv sync` command). |
 | 70 | any | `SkipWatch: internal error in skipwatch: <last 3 stderr lines>`. Suggest filing an issue with the files in `<W>/logs`. |
 | 101, 126, 127, any other code | any (127 outside doctor) | `SkipWatch: engine could not start: <last 3 stderr lines>`. Same for exit 2 when stderr starts with "error: " (uv's own argument error, before the engine runs). |
 

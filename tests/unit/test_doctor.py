@@ -45,7 +45,10 @@ def test_r_tier_1_report_names_next_tier_and_command():
     r = doctor.build_report(P(), TODAY, plugin_root="/plug")
     assert r.tier == "0" and r.next_tier == "1"
     whisper = next(m for m in r.missing if m.name == "whisper")
-    assert whisper.install_command == 'uv sync --inexact --project "/plug" --extra mlx'
+    assert (
+        whisper.install_command
+        == 'uv sync --inexact --project "/plug" --extra mlx --locked --quiet --no-dev'
+    )
     lines = doctor.render_table(r)
     assert lines[0].startswith("Tier 0 (")
     assert any(line.startswith("Missing for Tier 1: whisper: uv sync") for line in lines)
@@ -77,7 +80,9 @@ def test_install_commands_without_plugin_root_use_source_checkout(monkeypatch, t
     monkeypatch.setattr(doctor, "_source_checkout_root", lambda: tmp_path)
     r = doctor.build_report(P(apple_silicon=False), TODAY, plugin_root=None)
     whisper = next(m for m in r.missing if m.name == "whisper")
-    assert whisper.install_command == f'uv sync --inexact --project "{tmp_path}" --extra whisper'
+    assert whisper.install_command == (
+        f'uv sync --inexact --project "{tmp_path}" --extra whisper --locked --quiet --no-dev'
+    )
 
 
 def test_install_commands_without_any_root_install_from_pypi(monkeypatch):
@@ -211,7 +216,7 @@ def test_r_tier_1_broken_static_ffmpeg_still_exits_zero(monkeypatch, sw_home):
 
 def test_extra_command_is_public():
     assert doctor.extra_command("/plug", "whisper") == (
-        'uv sync --inexact --project "/plug" --extra whisper'
+        'uv sync --inexact --project "/plug" --extra whisper --locked --quiet --no-dev'
     )
 
 

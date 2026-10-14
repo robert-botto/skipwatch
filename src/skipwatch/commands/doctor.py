@@ -37,16 +37,18 @@ def _doctor(json_out: bool, max_age_hours: float | None) -> int:
     home = skipwatch_home()
     report = None if max_age_hours is None else _cached(home / "doctor.json", max_age_hours)
     fresh = report is None
+    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT")
     if report is None:
-        report = doctor.build_report(
-            doctor.probe_machine(), date.today(), os.environ.get("CLAUDE_PLUGIN_ROOT")
-        )
+        report = doctor.build_report(doctor.probe_machine(), date.today(), plugin_root)
     for line in doctor.render_table(report):
         progress(line)
     if fresh:
         home.mkdir(parents=True, exist_ok=True)
         write_model(home / "doctor.json", report)
     if firstrun.claim(home):
+        offer = doctor.whisper_offer(report, plugin_root)
+        if offer:  # the marker makes this once per home, so the skill asks once
+            progress(doctor.WHISPER_OFFER + offer)
         progress(firstrun.WELCOME)  # last stderr line, after the Tier table
     if json_out:
         emit_json(report)
