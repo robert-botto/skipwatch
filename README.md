@@ -295,6 +295,19 @@ No telemetry, no analytics, no update pings. The engine runs on your machine. Cl
 
 The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline, critique, transcript and post text, which can contain secrets shown or said in the video. A successful install deletes them, the drafts and the downloaded media (unless `--keep-media`); a cancelled or stopped run keeps them for `/skipwatch resume`, and SkipWatch says so. The run cache under `~/.skipwatch/cache/` keeps its own copy of the transcript and post text so a re-run within 7 days skips that work; `skipwatch cache --clear` removes it.
 
+## Permissions
+
+SkipWatch asks for the least it needs. The skill's `allowed-tools` (in `skills/skipwatch/SKILL.md`) are:
+
+| Tool | What SkipWatch uses it for |
+|---|---|
+| `Bash` | Only the engine wrapper, `scripts/skipwatch`, and `mkdir -p`. The engine runs yt-dlp and ffmpeg itself, so they are never separate Bash commands. |
+| `Read` | Reading the run's files: the transcript, notes, outline and drafts. |
+| `Write` | The run's own files in its work folder under `~/.skipwatch/work/`: the outline, the draft skill and its notes. The engine's `install` step puts the finished skill in your skills folder, only after the review screen. |
+| `Agent` | Starting the `frame-reader`, `skill-critic` and, with `--test`, `skill-tester` agents. |
+
+Network access is listed under [Privacy](#privacy): PyPI for the plugin's Python environment, the platform your link points to through yt-dlp, the pages a post links to, the pack address you give `/skipwatch install`, Hugging Face and an ffmpeg build as one-time downloads, treg only when you turn it on, and cloud transcription (Deepgram, OpenAI or Groq) only after you name the provider.
+
 ## What gets installed where
 
 | What | Where |
@@ -318,6 +331,7 @@ Inside `~/.skipwatch`:
 | `packs/` | packs being checked by `/skipwatch install` |
 | `backups/<name>-<time>/` | the old copy of a skill you chose to replace |
 | `config.toml` | your settings, when you made one |
+| `first-run.done` | an empty marker file made by the first `doctor` run, so the welcome line shows once |
 | `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
 | `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
 ## Uninstall
@@ -369,6 +383,7 @@ Run `/skipwatch doctor` first, then see [Troubleshooting](docs/troubleshooting.m
 - [Troubleshooting](docs/troubleshooting.md): every exit code and its fix, sandbox and uv notes, per-platform failures.
 - [Platform notes](skills/skipwatch/references/platforms.md): what each platform returns and how it fails.
 - [Sharing reference](skills/skipwatch/references/sharing.md): list, pack, install and share in detail.
+- [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md): how to help, and how to report a vulnerability.
 
 ## License
 

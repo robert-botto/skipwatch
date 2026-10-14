@@ -415,3 +415,125 @@ def test_troubleshooting_70_row_matches_the_engine():
     cli = (ROOT / "src/skipwatch/cli.py").read_text(encoding="utf-8")
     assert "skipwatch: internal error: " in row and "skipwatch: internal error: " in cli
     assert "SKIPWATCH_DEBUG=1" in row and '"SKIPWATCH_DEBUG") == "1"' in cli
+
+
+# Community files (plan Task M6-B2)
+
+CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+SECURITY = ROOT / "SECURITY.md"
+COMMUNITY = [
+    CONTRIBUTING,
+    SECURITY,
+    ROOT / "CODE_OF_CONDUCT.md",
+    ROOT / "CHANGELOG.md",
+    ROOT / "THIRD_PARTY_NOTICES",
+    ROOT / ".github/pull_request_template.md",
+    *sorted((ROOT / ".github/ISSUE_TEMPLATE").glob("*.yml")),
+]
+
+
+def _relative_targets(text: str) -> list[str]:
+    targets = re.findall(r"\]\(([^)\s]+)\)", FENCE.sub("", text))
+    return [t for t in targets if not re.match(r"[a-z]+:|#", t)]
+
+
+def test_community_files_exist_and_are_clean():
+    assert len(COMMUNITY) >= 9
+    for path in COMMUNITY:
+        text = path.read_text(encoding="utf-8")
+        for bad in (EM_DASH, "/Users/", "@gmail.com", "/private/tmp"):
+            assert bad not in text, (path.name, bad)
+
+
+def test_contributing_and_security_links_resolve_and_readme_links_them():
+    for path in (CONTRIBUTING, SECURITY):
+        for target in _relative_targets(path.read_text(encoding="utf-8")):
+            assert (path.parent / target.split("#")[0]).exists(), (path.name, target)
+    readme = _readme()
+    assert "](CONTRIBUTING.md)" in readme and "](SECURITY.md)" in readme
+
+
+def test_security_policy_states_the_response_time_and_pack_hash_limit():
+    text = SECURITY.read_text(encoding="utf-8")
+    assert "72 hours" in text and "Report a vulnerability" in text
+    assert "do not prove who made it" in text
+
+
+def test_contributing_names_the_extension_points_and_rules():
+    text = CONTRIBUTING.read_text(encoding="utf-8")
+    for name in ("PLATFORMS", "ADAPTER", "BACKENDS", "PROVIDER", "auto_rank", "missing_hint"):
+        assert name in text, name
+    for phrase in ("uv sync --dev", "bash scripts/ci_local.sh", "requirement IDs"):
+        assert phrase in text, phrase
+    assert "--scaffold --allow-tools Bash Write" in text
+
+
+def test_pr_template_asks_for_requirement_ids_and_the_failing_test():
+    text = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8").lower()
+    assert "requirement ids" in text and "failing test" in text
+
+
+def test_issue_templates_parse_as_yaml():
+    import yaml
+
+    directory = ROOT / ".github/ISSUE_TEMPLATE"
+    config = yaml.safe_load((directory / "config.yml").read_text(encoding="utf-8"))
+    assert config["blank_issues_enabled"] is False and config["contact_links"]
+    required = {
+        "platform-failure.yml": {"url-shape", "platform", "doctor", "ytdlp-version", "failure"},
+        "bad-skill.yml": {"source", "check-report", "what-went-wrong"},
+    }
+    for name, ids in required.items():
+        form = yaml.safe_load((directory / name).read_text(encoding="utf-8"))
+        assert form["name"], name
+        fields = {item["id"]: item for item in form["body"]}
+        assert set(fields) == ids, name
+        for field_id, item in fields.items():
+            assert item["attributes"]["label"], (name, field_id)
+            assert item["validations"]["required"] is True, (name, field_id)
+
+
+def test_changelog_has_unreleased_and_the_first_release():
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [Unreleased]" in text and "## [0.1.0] - unreleased" in text
+    assert "Export installed skills to Mem0 or a notes folder" in text.split("## [0.1.0]")[0]
+    section = _script("changelog_section").section(text, "0.1.0")
+    assert section and "export" not in section.lower()
+
+
+def test_third_party_notices_list_every_direct_dependency():
+    import tomllib
+
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    text = (ROOT / "THIRD_PARTY_NOTICES").read_text(encoding="utf-8")
+    assert "No third-party source code is vendored." in text
+    for dep in pyproject["project"]["dependencies"]:
+        name = re.split(r"[\[<>=;]", dep)[0].strip()
+        assert name in text, name
+
+
+def test_code_of_conduct_has_the_enforcement_contact():
+    text = (ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
+    assert "Contributor Covenant" in text and "version 2.1" in text
+    assert "a private report through the repository's Security tab" in text
+    assert "INSERT CONTACT METHOD" not in text
+
+
+def test_readme_lists_the_first_run_marker_from_the_source():
+    from skipwatch import firstrun
+
+    where = _section(_readme(), "What gets installed where")
+    assert f"`{firstrun.MARKER}`" in where
+
+
+def test_readme_permissions_match_skill_md_allowed_tools():
+    text = (ROOT / "skills/skipwatch/SKILL.md").read_text(encoding="utf-8")
+    allowed = re.search(r"^allowed-tools: (.*)$", text, flags=re.M)
+    assert allowed
+    perms = _section(_readme(), "Permissions")
+    for tool in ("Bash", "Read", "Write", "Agent"):
+        assert tool in allowed.group(1) and f"`{tool}" in perms, tool
+    assert "mkdir -p" in allowed.group(1) and "`mkdir -p`" in perms
+    privacy = _section(_readme(), "Privacy")
+    for destination in ("PyPI", "yt-dlp", "Hugging Face", "treg", "Deepgram"):
+        assert destination in privacy and destination in perms, destination
