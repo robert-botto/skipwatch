@@ -7,8 +7,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import ModuleType
 
+import pytest
 import typer
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from skipwatch.cli import app
 from skipwatch.errors import ExitCode
@@ -94,16 +95,91 @@ def test_how_it_works_uses_the_real_stage_names():
     assert "frame-reader" in light and "skill-critic" in light
 
 
-def test_social_preview_is_1280x640_and_deterministic():
+def test_social_preview_is_a_1280x640_png_under_1_mb():
     path = ASSETS / "social-preview.png"
     assert path.stat().st_size < 1024 * 1024
     with Image.open(path) as card:
         assert card.format == "PNG" and card.size == (1280, 640)
+
+
+def _rain_font_or_skip(make: ModuleType) -> Path:
+    font = make.find_rain_font()
+    if font is None:
+        pytest.skip("no font with half-width katakana on this machine")
+    return font
+
+
+def test_social_preview_is_deterministic():
     make = _script("make_social_preview")
+    font = _rain_font_or_skip(make)
     first, second = io.BytesIO(), io.BytesIO()
-    make.render(first)
-    make.render(second)
+    make.render(first, font)
+    make.render(second, font)
     assert first.getvalue() == second.getvalue()
+
+
+def _rain_problems(make: ModuleType, font: Path) -> dict[str, bool]:
+    """Where the rain landed: on drawn pixels, within 10 px of them, or inside the clear ellipse."""
+    plain = make.render_plain()
+    rained = make.add_rain(plain, font)
+    size = plain.size
+    drawn = ImageChops.difference(plain, Image.new("RGB", size, make.BG)).convert("L")
+    drawn = drawn.point(lambda v: 255 if v else 0)
+    rain = ImageChops.difference(plain, rained).convert("L").point(lambda v: 255 if v else 0)
+    inside = Image.new("L", size, 0)
+    ImageDraw.Draw(inside).rectangle((36, 36, size[0] - 36, size[1] - 36), fill=255)
+    near = ImageChops.multiply(drawn, inside).filter(ImageFilter.MaxFilter(21))
+    center = Image.new("L", size, 0)
+    ax, ay = 0.31 * size[0], 0.26 * size[1]
+    cx, cy = size[0] / 2, size[1] / 2
+    ImageDraw.Draw(center).ellipse((cx - ax, cy - ay, cx + ax, cy + ay), fill=255)
+    return {
+        "rain": rain.getbbox() is not None,
+        "on_drawn": ImageChops.multiply(rain, drawn).getbbox() is not None,
+        "near_text": ImageChops.multiply(rain, near).getbbox() is not None,
+        "in_center": ImageChops.multiply(rain, center).getbbox() is not None,
+    }
+
+
+def test_social_preview_rain_stays_off_the_text():
+    make = _script("make_social_preview")
+    font = _rain_font_or_skip(make)
+    assert _rain_problems(make, font) == {
+        "rain": True,
+        "on_drawn": False,
+        "near_text": False,
+        "in_center": False,
+    }
+
+
+def test_social_preview_rain_check_catches_a_missing_vignette(monkeypatch: pytest.MonkeyPatch):
+    make = _script("make_social_preview")
+    font = _rain_font_or_skip(make)
+    monkeypatch.setattr(make, "_vignette", lambda: Image.new("L", (make.WIDTH, make.HEIGHT), 255))
+    assert _rain_problems(make, font)["in_center"]
+
+
+def test_social_preview_rain_check_catches_a_missing_halo(monkeypatch: pytest.MonkeyPatch):
+    make = _script("make_social_preview")
+    font = _rain_font_or_skip(make)
+    monkeypatch.setattr(make, "_clearance", lambda drawn: Image.new("L", drawn.size, 255))
+    assert _rain_problems(make, font)["near_text"]
+
+
+def test_social_preview_refuses_to_render_without_a_katakana_font(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    make = _script("make_social_preview")
+    not_a_font = tmp_path / "not-a-font.ttf"
+    not_a_font.write_bytes(b"not a font")
+    out = tmp_path / "card.png"
+    argv = ["make_social_preview.py", "-o", str(out), "--rain-font", str(not_a_font)]
+    monkeypatch.setattr("sys.argv", argv)
+    with pytest.raises(SystemExit) as exited:
+        make.main()
+    assert exited.value.code not in (0, None)
+    assert "half-width katakana" in capsys.readouterr().err
+    assert not out.exists()
 
 
 # README (plan Task M6-B1)
