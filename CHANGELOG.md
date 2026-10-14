@@ -4,10 +4,6 @@ All notable changes to SkipWatch are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
-### Added
-
-- Export installed skills to Mem0 or a notes folder
-
 ## [0.1.0] - unreleased
 
 First release.
@@ -28,5 +24,7 @@ First release.
 - Optional treg content provider (`--provider treg`), off unless you enable it.
 - `--cookies-from-browser` for private content you can open in your browser, `--thorough` for more frames, `--keep-media`, `--no-frames` and `--name`.
 - The `skipwatch` engine runs without Claude Code through `uvx skipwatch` or `uv tool install skipwatch`.
+- `export` writes a pointer to an installed skill to Mem0 or a notes folder, from `[exports]` in `config.toml`; re-exporting an unchanged skill does nothing unless you pass `--force`.
+- The first run offers to install local Whisper once, never under `--yes`.
 - A Claude Code plugin with a SessionStart hook that syncs the plugin's Python environment with uv.
 - Example skills under `examples/`, a troubleshooting guide with every exit code, and a design spec.
