@@ -73,6 +73,14 @@ def test_mark_install_done(tmp_path):
     assert state(w, "install")["status"] == "done"
 
 
+def test_mark_export_done(tmp_path):
+    # export takes an installed skill, not --work; the orchestrator marks it done whatever
+    # its exit, so a finished run with exports enabled is not offered for resume
+    w = work(tmp_path)
+    assert mark(w, "export", "done").exit_code == 0
+    assert state(w, "export")["status"] == "done"
+
+
 def test_mark_needs_an_existing_work_folder(tmp_path):
     r = CliRunner().invoke(
         app,
