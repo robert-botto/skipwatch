@@ -215,3 +215,26 @@ def test_a_planted_symlink_is_replaced_not_followed(tmp_path, monkeypatch):
     assert outside.read_text(encoding="utf-8") == "keep"
     target = work.path / "captions" / "v1.en.vtt"
     assert not target.is_symlink() and target.read_bytes() == b"WEBVTT\n"
+
+
+def test_a_directory_planted_at_the_captions_path_is_a_captions_error(tmp_path, monkeypatch):
+    # IsADirectoryError used to escape download_captions and end ingest with a traceback.
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    (work.path / "captions" / "v1.en.vtt").mkdir(parents=True)
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    with pytest.raises(cf.FreeRouteError, match="could not write captions/v1.en.vtt") as e:
+        cf.download_captions(info, work, IngestOptions(), ("en", "manual"))
+    assert e.value.op == "captions"
+    assert (work.path / "captions" / "v1.en.vtt").is_dir()
+    assert [p.name for p in (work.path / "captions").iterdir()] == ["v1.en.vtt"]  # no temp left
+
+
+def test_a_file_planted_at_the_captions_folder_is_a_captions_error(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    (work.path / "captions").write_text("not a folder", encoding="utf-8")
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    with pytest.raises(cf.FreeRouteError, match="could not write captions/v1.en.vtt"):
+        cf.download_captions(info, work, IngestOptions(), ("en", "manual"))
