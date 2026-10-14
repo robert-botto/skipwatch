@@ -1,0 +1,19 @@
+No third-party source code is vendored. Runtime dependencies keep their own licenses.
+Licenses below are from each package's installed metadata.
+
+Direct dependencies
+
+  typer         MIT
+  pydantic      MIT
+  pyyaml        MIT
+  pillow        MIT-CMU
+  static-ffmpeg MIT
+  yt-dlp        Unlicense
+  requests      Apache-2.0
+
+Optional extras, installed only if you ask for them
+
+  faster-whisper  see the package's own license
+  mlx-whisper     see the package's own license
+
+Each package's full license text ships with the package in your Python environment.
