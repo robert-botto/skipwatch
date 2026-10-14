@@ -83,26 +83,28 @@ SPOKEN_SYNONYMS = [
 # Symbol words that join code into a longer token. "at", "plus" and "star" are
 # ordinary prose too, so they never count as code running on.
 JOINING_WORDS = {"dot", "dash", "underscore", "slash", "backslash", "tilde", "colon", "equals"}
-# Code is named whole: whitespace, an opening bracket, quote, a URL scheme's "://" or the edge
-# before it; whitespace, closing punctuation or the edge after it; and no flag (`-f`,
-# `--dry-run`) or redirect (`>`, `>>`, `2>`) running on after it. A rule (---) or an arrow
-# (->) is not a flag. `_` is left out so `npm` is never cut from `my_npm`. Markdown bold
-# (**code**) and autolinks (<code>) count only as pairs: a lone `*` or `>` is a glob or a
-# redirect, so `rm -rf build` is never cut from "rm -rf build*" (follow-up 57).
-CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`])|(?<=://))"
-CODE_END = r"(?:$|\s|[.,;:!?)\]\"'`]+(?:\s|$))"
+# Code is named whole: whitespace, an opening bracket, quote, `**`, a URL scheme's "://" or the
+# edge before it; whitespace, closing punctuation (after an optional `**`) or the edge after
+# it; and no flag (`-f`, `--dry-run`) or redirect (`>`, `>>`, `2>`) running on after it. A rule
+# (---) or an arrow (->) is not a flag. `_` is left out so `npm` is never cut from `my_npm`.
+# `**` counts on either side on its own, so "**Run npm test**" names `npm test`: a double star
+# touching a name is markdown bold far more often than a glob. A single `*` is a glob, never
+# italics, on purpose: `rm -rf build` must not be cut from "rm -rf build*", so "*npm test*"
+# does not name `npm test`. A lone `>` is a redirect; only a <code> pair is an autolink
+# (follow-up 57).
+CODE_BEFORE = r"(?:^|(?<=[\s(\[\"'`])|(?<=\*\*)|(?<=://))"
+CODE_END = r"(?:\*\*)?(?:$|\s|[.,;:!?)\]\"'`]+(?:\s|$))"
 RUNS_ON = r"\s+(?:--?[A-Za-z0-9]|[0-9&]?>)"
-CODE_AFTER = rf"(?={CODE_END})(?!{RUNS_ON})"
+CODE_AFTER = rf"(?={CODE_END})(?!(?:\*\*)?{RUNS_ON})"
 TOKEN_EDGES = re.compile(r"^[\"'(\[]+|[.,!?;:\"')\]]+$")
 # "Step 4: <reason of 3+ words>" as its own line or list item under Unverified and gaps.
 INFERRED_LINE = r"(?im)^\s*(?:[-*]\s+|\d+\.\s+)?step\s+{n}\s*[:\-]\s*\S+(?:\s+\S+){{2,}}"
 
 
 def _code_re(pattern: str) -> str:
-    """pattern named whole as code: plain, in **bold** or in <autolink> brackets."""
+    """pattern named whole as code: plain (bold included) or in <autolink> brackets."""
     return (
         rf"(?:{CODE_BEFORE}{pattern}{CODE_AFTER}"
-        rf"|(?<=\*\*){pattern}(?=\*\*{CODE_END})(?!\*\*{RUNS_ON})"
         rf"|(?<=<){pattern}(?=>{CODE_END})(?!>{RUNS_ON}))"
     )
 
