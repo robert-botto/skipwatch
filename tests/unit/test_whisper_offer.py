@@ -50,7 +50,9 @@ def _offers(lines):
 def test_first_run_offers_the_platform_extra_before_the_welcome(sw_home, monkeypatch, apple, extra):
     lines = _doctor(monkeypatch, P(apple_silicon=apple))
     assert lines[-1] == firstrun.WELCOME  # SKILL.md still keys on the last line
-    assert lines[-2] == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra}'
+    assert (
+        lines[-2] == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra} --no-dev'
+    )
 
 
 def test_offer_is_printed_once_per_home(sw_home, monkeypatch):
@@ -86,7 +88,7 @@ def test_offer_from_a_cached_report(sw_home, monkeypatch):
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/plug")
     result = CliRunner().invoke(app, ["doctor", "--json", "--max-age-hours", "24"])
     assert result.exit_code == 0, result.output
-    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper'
+    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper --no-dev'
     assert result.stderr.splitlines()[-2:] == [offer, firstrun.WELCOME]
 
 
@@ -96,6 +98,18 @@ def test_offer_never_runs_anything(sw_home, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: pytest.fail(f"ran {a}"))
     monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: pytest.fail(f"ran {a}"))
     assert len(_offers(_doctor(monkeypatch, P()))) == 1
+
+
+def test_offer_skips_dev_tools_exactly_as_the_wrapper_does(tmp_path):
+    # scripts/skipwatch syncs with --no-dev unless the root has .git (marketplace installs
+    # have none), so the offer must not pull pytest, ruff and pyright into a plugin venv
+    plugin = tmp_path / "plugin"
+    plugin.mkdir()
+    assert doctor.extra_command(str(plugin), "mlx").split()[-1] == "--no-dev"
+    (plugin / ".git").mkdir()
+    assert "--no-dev" not in doctor.extra_command(str(plugin), "mlx")
+    wrapper = (ROOT / "scripts/skipwatch").read_text(encoding="utf-8")
+    assert '[ -e "$root/.git" ] || sync_args="$sync_args --no-dev"' in wrapper
 
 
 def _flat(text: str) -> str:

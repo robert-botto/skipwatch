@@ -283,7 +283,10 @@ def _sync(root: str, flags: str = "") -> str:
 def extra_command(plugin_root: str | None, extra: str) -> str:
     root = _project_root(plugin_root)
     if root:
-        return _sync(root, f"--extra {extra}")
+        # --no-dev exactly when scripts/skipwatch adds it (no .git), so an extra never pulls
+        # pytest, ruff and pyright into a marketplace install's venv
+        no_dev = "" if (Path(root) / ".git").exists() else " --no-dev"
+        return _sync(root, f"--extra {extra}{no_dev}")
     return f'uv tool install "skipwatch[{extra}]"'
 
 
