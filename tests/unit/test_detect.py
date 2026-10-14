@@ -93,6 +93,7 @@ def test_missing_path_is_exit_2(tmp_path):
         ("x.com/u/status/1", "x"),
         ("youtu.be/abc123", "youtube"),
         ("vimeo.com/123", "generic"),
+        ("example.com?v=1", "generic"),  # anything but a lone "/" after the host
     ],
 )
 def test_r_det_1_scheme_less_urls(tmp_path, value, platform):
@@ -148,3 +149,60 @@ def test_missing_paths_without_a_domain_shape_are_exit_2(tmp_path, value):
         detect(value, cwd=tmp_path)
     assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
     assert "no such file" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "notes.md",
+        "report.pdf",
+        "clip.mp4",
+        "notes.txt",
+        "example.com",
+        "notes.md/",
+        "example.com/",
+        "vimeo.com",  # vimeo has no adapter of its own: generic, so a bare name is a file
+    ],
+)
+def test_missing_bare_name_is_a_missing_file_not_a_url(tmp_path, value):
+    # Ruling FU-R1: a missing notes.md must not become a request to https://notes.md. With no
+    # "/" after it, only a known platform host is read as a URL.
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert "no such file" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "value,platform",
+    [
+        ("youtube.com/watch?v=x", "youtube"),
+        ("www.youtube.com/watch?v=x", "youtube"),
+        ("youtu.be/x", "youtube"),
+        ("x.com/u/status/1", "x"),
+        ("example.com/post", "generic"),
+        ("youtube.com", "youtube"),
+        ("www.tiktok.com", "tiktok"),
+        ("youtube.com?v=x", "youtube"),
+        ("x.com", "x"),
+        ("example.com/talk", "generic"),
+        ("vimeo.com/123", "generic"),
+    ],
+)
+def test_scheme_less_known_host_or_path_is_a_url(tmp_path, value, platform):
+    d = detect(value, cwd=tmp_path)
+    assert (d.kind, d.platform, d.value) == ("url", platform, "https://" + value)
+
+
+@pytest.mark.parametrize("value", ["notes.md", "example.com", "notes.md/"])
+def test_missing_domain_like_name_hints_at_https(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert str(e.value) == f"not a URL and no such file: {value} (include https:// for a web link)"
+
+
+@pytest.mark.parametrize("value", ["clip.mp4", "./notes.md", "my notes", "a/b.md"])
+def test_missing_plain_name_has_no_https_hint(tmp_path, value):
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert str(e.value) == f"not a URL and no such file: {value}"
