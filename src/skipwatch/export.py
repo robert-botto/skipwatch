@@ -1,8 +1,9 @@
 """Export an installed skill to Mem0 or a notes folder (spec 8.10, M5-M6 issues 8 and 9).
 
 Without a provider name every provider enabled in config runs; a named provider runs even when
-disabled (an explicit request). Re-exporting an unchanged skill is a no-op (R-CLI-1):
-$SKIPWATCH_HOME/exports.json remembers (provider, name, sha256 of skipwatch.json).
+disabled (an explicit request). Re-exporting an unchanged skill to the same place is a no-op
+(R-CLI-1): $SKIPWATCH_HOME/exports.json remembers (provider, name, sha256 of skipwatch.json
+and the destination); --force exports anyway.
 """
 
 import hashlib
@@ -24,6 +25,7 @@ from skipwatch.models import (
     Manifest,
 )
 from skipwatch.output import progress
+from skipwatch.providers.base import ExportProvider
 from skipwatch.providers.registry import export_providers
 from skipwatch.workdir import read_model, write_model
 
@@ -67,9 +69,26 @@ def _save_log(log: ExportLog) -> None:
     write_model(home / EXPORTS, log)
 
 
-def run_exports(skill_dir: Path, provider: str | None, cfg: Config, now: datetime) -> ExportResult:
-    """Export one installed skill. Raises the first provider's SkipwatchError after logging the
-    providers that succeeded before it."""
+def _digest(p: ExportProvider, cfg: Config, data: bytes) -> str:
+    """sha256 of the skipwatch.json bytes, plus the provider's destination when it names one
+    (the notes folder, the Mem0 user), so a new destination is a new export (review M4)."""
+    destination = getattr(p, "destination", None)
+    where = destination(cfg) if destination is not None else ""
+    payload = data + b"\0" + where.encode("utf-8") if where else data
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def _unchanged(p: ExportProvider, entry: ExportLogEntry) -> bool:
+    """The logged export is still there (a deleted note is exported again)."""
+    present = getattr(p, "present", None)
+    return present is None or present(entry.ref)
+
+
+def run_exports(
+    skill_dir: Path, provider: str | None, cfg: Config, now: datetime, force: bool = False
+) -> ExportResult:
+    """Export one installed skill; force re-exports an unchanged one. Raises the first
+    provider's SkipwatchError after logging the providers that succeeded before it."""
     path = skill_dir / MANIFEST_NAME
     try:
         data = path.read_bytes()
@@ -87,7 +106,6 @@ def run_exports(skill_dir: Path, provider: str | None, cfg: Config, now: datetim
     else:
         chosen = [p for p in registered.values() if p.enabled(cfg)]
 
-    digest = "sha256:" + hashlib.sha256(data).hexdigest()
     stamp = now.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     log = _load_log()
     result = ExportResult(name=manifest.name)
@@ -95,7 +113,11 @@ def run_exports(skill_dir: Path, provider: str | None, cfg: Config, now: datetim
     try:
         for p in chosen:
             key = (p.name, manifest.name)
-            if any((e.provider, e.name, e.manifest_sha256) == (*key, digest) for e in log.entries):
+            digest = _digest(p, cfg, data)
+            done = [
+                e for e in log.entries if (e.provider, e.name, e.manifest_sha256) == (*key, digest)
+            ]
+            if not force and done and _unchanged(p, done[0]):
                 result.results.append(
                     ExportItem(provider=p.name, ok=True, skipped=True, detail=UNCHANGED)
                 )

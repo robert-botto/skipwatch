@@ -39,6 +39,13 @@ class NotesExport:
     def enabled(self, cfg: Config) -> bool:
         return cfg.exports.notes.enabled
 
+    def destination(self, cfg: Config) -> str:
+        folder = cfg.exports.notes.folder.strip()
+        return str(Path(folder).expanduser().absolute()) if folder else ""
+
+    def present(self, ref: str | None) -> bool:
+        return ref is not None and Path(ref).is_file()
+
     def export(self, skill_dir: Path, manifest: Manifest, cfg: Config) -> ExportItem:
         configured = cfg.exports.notes.folder.strip()
         if not configured:

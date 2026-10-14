@@ -44,6 +44,10 @@ class Mem0Export:
     def enabled(self, cfg: Config) -> bool:
         return cfg.exports.mem0.enabled
 
+    def destination(self, cfg: Config) -> str:
+        user_id = cfg.exports.mem0.user_id
+        return f"user_id:{user_id}" if user_id else f"agent_id:{AGENT_ID}"
+
     def export(self, skill_dir: Path, manifest: Manifest, cfg: Config) -> ExportItem:
         key = os.environ.get("MEM0_API_KEY", "").strip()
         if not key:

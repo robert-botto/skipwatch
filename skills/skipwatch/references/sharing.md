@@ -163,7 +163,10 @@ length and free of characters the style rule forbids.
 
 ## export `<skill>`
 
-    <ENGINE> export "<skill>" --json
+    <ENGINE> export "<skill>" [--force] --json
+
+`--force` only when the user asked for it (`/skipwatch export <skill> --force`): it exports
+again even when the skill is unchanged since its last export to the same place.
 
 - Exit 0: one line per item in the JSON `results`: `Exported to Mem0.` for `mem0`,
   `Wrote a note to <location>.` for `notes`, and `<provider>: unchanged since last export`

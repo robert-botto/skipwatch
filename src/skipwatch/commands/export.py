@@ -11,9 +11,9 @@ from skipwatch.output import emit_json, progress
 from skipwatch.runner import run_command
 
 
-def _export(skill: str, provider: str | None, json_out: bool) -> int:
+def _export(skill: str, provider: str | None, force: bool, json_out: bool) -> int:
     folder = locate(skill, Path.cwd(), Path.home())
-    result = run_exports(folder, provider, load_config(), datetime.now(UTC))
+    result = run_exports(folder, provider, load_config(), datetime.now(UTC), force=force)
     if not result.results:
         progress("no exports enabled")
     for item in result.results:
@@ -31,7 +31,8 @@ def register(app: typer.Typer) -> None:
             str | None,
             typer.Option("--provider", help="Run this export (mem0 or notes) even if disabled."),
         ] = None,
+        force: bool = typer.Option(False, "--force", help="Export even if unchanged."),
         json_out: bool = typer.Option(False, "--json", help="Print the result as JSON."),
     ):
         """Export an installed skill to the exports enabled in config.toml."""
-        run_command(lambda: _export(skill, provider, json_out))
+        run_command(lambda: _export(skill, provider, force, json_out))

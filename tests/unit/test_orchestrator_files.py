@@ -2114,7 +2114,8 @@ def test_sharing_export_section_maps_every_exit():
     text = read(SHARING)
     assert "\n## export `<skill>`\n" in text and "- export `<skill>`" in text
     section = re.sub(r"\s+", " ", text.split("\n## export `<skill>`\n", 1)[1])
-    assert '<ENGINE> export "<skill>" --json' in section
+    assert '<ENGINE> export "<skill>" [--force] --json' in section
+    assert "`--force` only when the user asked for it" in section
     for phrase in (
         "`Exported to Mem0.` for `mem0`",
         "`Wrote a note to <location>.` for `notes`",

@@ -148,3 +148,75 @@ def test_export_unknown_skill_is_exit_2(skill, fakes):
     r = CliRunner().invoke(app, ["export", "nope"])
     assert r.exit_code == ExitCode.UNSUPPORTED_SOURCE
     assert "no installed SkipWatch skill named nope" in r.stderr
+
+
+# ---- review M4: the skip key holds the destination; --force re-exports ----
+
+
+def notes_cfg(folder: Path) -> Config:
+    return Config.model_validate({"exports": {"notes": {"enabled": True, "folder": str(folder)}}})
+
+
+def test_export_notes_reexports_to_a_new_folder_or_a_deleted_note(skill, tmp_path, sw_home):
+    first, second = tmp_path / "vault-a", tmp_path / "vault-b"
+    first.mkdir()
+    second.mkdir()
+    ran = export.run_exports(skill, None, notes_cfg(first), NOW)
+    assert [i.skipped for i in ran.results] == [False]
+    assert [i.skipped for i in export.run_exports(skill, None, notes_cfg(first), NOW).results] == [
+        True
+    ]
+    moved = export.run_exports(skill, None, notes_cfg(second), NOW)
+    assert [(i.skipped, i.location) for i in moved.results] == [(False, str(second / "run-x.md"))]
+    (second / "run-x.md").unlink()
+    again = export.run_exports(skill, None, notes_cfg(second), NOW)
+    assert [i.skipped for i in again.results] == [False]
+    assert (second / "run-x.md").is_file()
+
+
+def test_export_mem0_reexports_for_a_new_user_id(skill, monkeypatch, sw_home):
+    from skipwatch.providers import export_mem0
+
+    calls: list[dict] = []
+
+    class Accepted:
+        status_code = 200
+
+        def json(self):
+            return {"event_id": f"ev-{len(calls)}"}
+
+    def post(url, **kwargs):
+        calls.append(kwargs["json"])
+        return Accepted()
+
+    monkeypatch.setattr(export_mem0.requests, "post", post)
+    monkeypatch.setenv("MEM0_API_KEY", "k")
+
+    def mem0(user_id: str) -> Config:
+        return Config.model_validate({"exports": {"mem0": {"enabled": True, "user_id": user_id}}})
+
+    export.run_exports(skill, None, mem0(""), NOW)
+    assert export.run_exports(skill, None, mem0(""), NOW).results[0].skipped
+    assert not export.run_exports(skill, None, mem0("someone"), NOW).results[0].skipped
+    assert export.run_exports(skill, None, mem0("someone"), NOW).results[0].skipped
+    assert [("user_id" in c, "agent_id" in c) for c in calls] == [(False, True), (True, False)]
+
+
+def test_export_force_reexports_an_unchanged_skill(skill, fakes, sw_home):
+    both = cfg(mem0=True, notes=True)
+    export.run_exports(skill, None, both, NOW)
+    forced = export.run_exports(skill, None, both, NOW, force=True)
+    assert [i.skipped for i in forced.results] == [False, False]
+    assert (fakes["mem0"].calls, fakes["notes"].calls) == (2, 2)
+    assert len(log(sw_home).entries) == 2
+
+
+def test_export_cli_force(skill, fakes, sw_home):
+    sw_home.mkdir(parents=True, exist_ok=True)
+    (sw_home / "config.toml").write_text("[exports.notes]\nenabled = true\n", encoding="utf-8")
+    assert CliRunner().invoke(app, ["export", "run-x"]).exit_code == 0
+    r = CliRunner().invoke(app, ["export", "run-x"])
+    assert "notes: unchanged since last export" in r.stderr
+    r = CliRunner().invoke(app, ["export", "run-x", "--force"])
+    assert r.exit_code == 0 and "notes: notes:run-x" in r.stderr
+    assert fakes["notes"].calls == 2
