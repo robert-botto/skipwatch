@@ -101,6 +101,10 @@ when the run moved) and prints nothing after that. Print its output line, if any
 
     <ENGINE> nudge
 
+Then the after-install export in `## export` of `sharing.md`:
+
+    <ENGINE> --log "<W>/logs/export.log" export "<installed path>" --json
+
 Then print:
 
     /skipwatch share <name> prints a thank-you post for the creator.

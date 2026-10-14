@@ -58,7 +58,7 @@ def mark_main(monkeypatch, w, stage, status):
 def test_mark_refuses_engine_stages_and_bad_status(tmp_path, monkeypatch):
     # engine stages mark themselves; a hand mark could hide a stage that never ran
     w = work(tmp_path)
-    for stage in ("ingest", "frames", "check"):
+    for stage in ("ingest", "frames", "check", "export"):
         assert mark_main(monkeypatch, w, stage, "done") == ExitCode.USAGE, stage
         assert state(w, stage)["status"] == "pending"
     assert mark_main(monkeypatch, w, "read", "pending") == ExitCode.USAGE

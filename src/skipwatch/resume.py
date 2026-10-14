@@ -4,14 +4,12 @@ A stage left `running` by a killed process counts as incomplete. Read-only: noth
 writes to the work folder.
 """
 
-import importlib.util
 import re
 from pathlib import Path
 
 from pydantic import ValidationError
 
 from skipwatch.checks.frontmatter import is_skill_name
-from skipwatch.config import load_config
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.models import IngestBundle, ResumeResult, RunFile, StageName, StagesFile
 from skipwatch.workdir import STAGE_ORDER, read_model
@@ -67,21 +65,6 @@ def _media_present(work: Path) -> bool:
     return (path if path.is_absolute() else work / path).is_file()
 
 
-def _export_command_exists() -> bool:
-    return importlib.util.find_spec("skipwatch.commands.export") is not None
-
-
-def _exports_enabled() -> bool:
-    """M6 seam: export is a stage to resume only once its command exists and is enabled."""
-    if not _export_command_exists():
-        return False
-    try:
-        exports = load_config().exports
-    except (OSError, ValueError):
-        return False
-    return exports.mem0.enabled or exports.notes.enabled
-
-
 # a text bundle has no media: these stages never run for it (run-protocol stage 3)
 VIDEO_STAGES: tuple[StageName, ...] = ("transcribe", "frames", "plan", "read")
 
@@ -94,23 +77,18 @@ def _is_text(work: Path) -> bool:
 
 
 def next_stage(work: Path) -> StageName | None:
-    """The first stage not done; a run whose only missing stage is export is complete
-    unless exports are on, since export never runs before M6. A text source skips the
-    video stages, which never run for it. Once install is done only export can remain:
-    cleanup deletes ingest.json, so a finished text run no longer reads as text."""
+    """The first stage not done, or None once install is done: export is never resumed,
+    since a missed export is covered by `/skipwatch export` (M6-R8). A text source skips
+    the video stages, which never run for it."""
     stages = _stages(work).stages
-    skip: tuple[StageName, ...] = VIDEO_STAGES if _is_text(work) else ()
     install = stages.get("install")
     if install is not None and install.status == "done":
-        skip = STAGE_ORDER[: STAGE_ORDER.index("export")]
-    stage: StageName | None = None
+        return None
+    skip: tuple[StageName, ...] = VIDEO_STAGES if _is_text(work) else ()
     for name in STAGE_ORDER:
         if name not in skip and (name not in stages or stages[name].status != "done"):
-            stage = name
-            break
-    if stage == "export" and not _exports_enabled():
-        return None
-    return stage
+            return name
+    return None
 
 
 def resume_info(work: Path) -> ResumeResult:

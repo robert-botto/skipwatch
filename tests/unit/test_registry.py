@@ -422,10 +422,10 @@ def test_export_registry_discovers_export_modules(monkeypatch, fresh_registries)
     assert list(registry.export_providers()) == ["mem0", "notes"]
 
 
-def test_export_registry_empty_before_m6(fresh_registries):
+def test_export_registry_has_mem0_and_notes(fresh_registries):
     from skipwatch.providers.registry import export_providers
 
-    assert export_providers() == {}
+    assert set(export_providers()) == {"mem0", "notes"}
 
 
 def test_export_module_file_is_discovered_and_duplicates_refused(extra_package_dir):
@@ -434,7 +434,7 @@ def test_export_module_file_is_discovered_and_duplicates_refused(extra_package_d
 
     body = "class P:\n    name = 'zz'\nPROVIDER = P()\n"
     extra_package_dir(providers, {"export_zz_one": body})
-    assert list(export_providers()) == ["zz"]
+    assert list(export_providers()) == ["mem0", "notes", "zz"]
     from skipwatch.providers import registry
 
     registry._export_providers.cache_clear()
