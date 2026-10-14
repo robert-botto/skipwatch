@@ -206,3 +206,12 @@ def test_missing_plain_name_has_no_https_hint(tmp_path, value):
     with pytest.raises(SkipwatchError) as e:
         detect(value, cwd=tmp_path)
     assert str(e.value) == f"not a URL and no such file: {value}"
+
+
+def test_existing_folder_with_a_domain_like_name_has_no_https_hint(tmp_path):
+    # notes.md is there, just not a file: telling the user to add https:// would mislead.
+    (tmp_path / "notes.md").mkdir()
+    with pytest.raises(SkipwatchError) as e:
+        detect("notes.md", cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert str(e.value) == "not a URL and no such file: notes.md"
