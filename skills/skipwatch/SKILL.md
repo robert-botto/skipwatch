@@ -90,6 +90,9 @@ When doctor's stderr ends with `Welcome to SkipWatch.`, Read
 `references/first-run-banner.md` and open your reply with its block, verbatim, inside a
 ```` ```text ```` fence.
 
+If the line before it starts with `Whisper offer:`, do that file's `## Whisper offer`
+next, before anything else runs.
+
 ## Run the pipeline
 
 Follow the run files in order, reading each when its stage starts:

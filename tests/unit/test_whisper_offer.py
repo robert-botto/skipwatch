@@ -1,0 +1,124 @@
+"""First run: doctor offers the platform's Whisper extra once, and the skill asks once."""
+
+import re
+from datetime import date
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from skipwatch import doctor, firstrun
+from skipwatch.cli import app
+
+ROOT = Path(__file__).resolve().parents[2]
+SKILL_MD = ROOT / "skills/skipwatch/SKILL.md"
+BANNER_MD = ROOT / "skills/skipwatch/references/first-run-banner.md"
+BASE = dict(
+    uv="0.9.30",
+    python="3.12.12",
+    ffmpeg="8.0.1",
+    ffmpeg_source="system",
+    ytdlp="2026.10.01",
+    node=None,
+    deno=None,
+    whisper_mlx=False,
+    whisper_faster=False,
+    apple_silicon=True,
+    cloud_keys=[],
+    treg_on_path=False,
+    mem0_key=False,
+)
+
+
+def P(**kw):
+    return doctor.Probe(**(BASE | kw))
+
+
+def _doctor(monkeypatch, probe, *args):
+    monkeypatch.setattr(doctor, "probe_machine", lambda: probe)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/plug")
+    result = CliRunner().invoke(app, ["doctor", "--json", *args])
+    assert result.exit_code == 0, result.output
+    return result.stderr.splitlines()
+
+
+def _offers(lines):
+    return [line for line in lines if line.startswith(doctor.WHISPER_OFFER)]
+
+
+@pytest.mark.parametrize(("apple", "extra"), [(True, "--extra mlx"), (False, "--extra whisper")])
+def test_first_run_offers_the_platform_extra_before_the_welcome(sw_home, monkeypatch, apple, extra):
+    lines = _doctor(monkeypatch, P(apple_silicon=apple))
+    assert lines[-1] == firstrun.WELCOME  # SKILL.md still keys on the last line
+    assert lines[-2] == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra}'
+
+
+def test_offer_is_printed_once_per_home(sw_home, monkeypatch):
+    assert len(_offers(_doctor(monkeypatch, P()))) == 1
+    assert _offers(_doctor(monkeypatch, P())) == []  # asked once, never again
+    assert _offers(_doctor(monkeypatch, P(), "--max-age-hours", "24")) == []
+
+
+@pytest.mark.parametrize(
+    "probe",
+    [
+        P(whisper_mlx=True),
+        P(whisper_faster=True),
+        P(apple_silicon=False, whisper_faster=True),
+        P(uv=None),  # the command needs uv; the uv advice comes first
+    ],
+)
+def test_no_offer_when_whisper_is_installed_or_uv_is_missing(sw_home, monkeypatch, probe):
+    lines = _doctor(monkeypatch, probe)
+    assert lines[-1] == firstrun.WELCOME and _offers(lines) == []
+
+
+def test_cloud_key_still_gets_the_local_offer(sw_home, monkeypatch):
+    assert len(_offers(_doctor(monkeypatch, P(cloud_keys=["OPENAI_API_KEY"])))) == 1
+
+
+def test_offer_from_a_cached_report(sw_home, monkeypatch):
+    # a doctor.json written before the marker (an older engine) still yields the offer
+    report = doctor.build_report(P(apple_silicon=False), date.today(), "/plug")
+    sw_home.mkdir(parents=True)
+    (sw_home / "doctor.json").write_text(report.model_dump_json(by_alias=True), "utf-8")
+    monkeypatch.setattr(doctor, "probe_machine", lambda: pytest.fail("cache not used"))
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/plug")
+    result = CliRunner().invoke(app, ["doctor", "--json", "--max-age-hours", "24"])
+    assert result.exit_code == 0, result.output
+    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper'
+    assert result.stderr.splitlines()[-2:] == [offer, firstrun.WELCOME]
+
+
+def test_offer_never_runs_anything(sw_home, monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: pytest.fail(f"ran {a}"))
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: pytest.fail(f"ran {a}"))
+    assert len(_offers(_doctor(monkeypatch, P()))) == 1
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def test_skill_asks_once_and_installs_only_on_yes():
+    skill = SKILL_MD.read_text(encoding="utf-8")
+    first_run = _flat(skill.split("\n## First run\n", 1)[1].split("\n## ", 1)[0])
+    assert f"`{doctor.WHISPER_OFFER.strip()}`" in first_run
+    assert "`## Whisper offer`" in first_run and "before anything else runs" in first_run
+    # the offer text lives in the file read once per home, outside the per-run word budget
+    offer = _flat(BANNER_MD.read_text(encoding="utf-8").split("\n## Whisper offer\n", 1)[1])
+    assert f"`{doctor.WHISPER_OFFER}`" in offer
+    assert "Ask once and wait" in offer and "Only on an explicit yes" in offer
+    assert "Never ask again" in offer
+    # a refreshed report after the install, so stage 1's tier is not a stale cache
+    assert "`<ENGINE> doctor --json`" in offer
+    # a no or a failed install keeps the run going: captions first, then frames only
+    assert "captions first, then frames only" in offer and "never a traceback" in offer
+
+
+def test_no_em_dash_in_offer_sources():
+    for path in (SKILL_MD, BANNER_MD, Path(doctor.__file__), Path(__file__)):
+        assert chr(0x2014) not in path.read_text(encoding="utf-8"), path
+    assert re.fullmatch(r"[A-Za-z ]+: ", doctor.WHISPER_OFFER)

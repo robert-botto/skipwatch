@@ -37,6 +37,8 @@ YTDLP_MAX_AGE_DAYS = 60
 NODE_MIN_MAJOR = 22
 UV_MIN = (0, 9, 29)  # older uv panics inside the macOS sandbox
 STATIC_UNFETCHED = "not fetched yet (downloads about 70 MB on first use)"
+# printed before the first-run welcome; SKILL.md `## First run` keys on it verbatim
+WHISPER_OFFER = "Whisper offer: "
 TREG_OFF = (
     "logged in, off: set [providers.treg] enabled = true in config.toml, or pass --provider treg"
 )
@@ -283,6 +285,16 @@ def extra_command(plugin_root: str | None, extra: str) -> str:
     if root:
         return _sync(root, f"--extra {extra}")
     return f'uv tool install "skipwatch[{extra}]"'
+
+
+def whisper_offer(r: DoctorReport, plugin_root: str | None) -> str | None:
+    """The Whisper extra a first run offers (mlx on Apple silicon, whisper elsewhere), or None
+    when a backend is installed or uv is missing (the command needs uv). Printed only; the
+    skill runs it after an explicit yes (M6-F)."""
+    found = {c.name for c in r.components if c.found}
+    if "uv" not in found or found & {"whisper-mlx", "whisper-faster"}:
+        return None
+    return extra_command(plugin_root, "mlx" if "apple-silicon" in found else "whisper")
 
 
 def ytdlp_upgrade_command(plugin_root: str | None) -> str:
