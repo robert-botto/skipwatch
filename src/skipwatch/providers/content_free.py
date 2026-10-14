@@ -490,8 +490,12 @@ def download_captions(
     if captions_hls.is_playlist(body):
         body, ext = _resolve_playlist(body, fetched_from), "vtt"
     folder = work.path / "captions"
-    folder.mkdir(parents=True, exist_ok=True)
     # the language code comes from the platform: sanitised like the id, never a path
     name = f"{_safe_name(str(info.get('id') or 'captions'))}.{_safe_name(lang)}.{ext}"
-    write_bytes_atomic(folder / name, body)  # a planted symlink is replaced, never followed
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        write_bytes_atomic(folder / name, body)  # a planted symlink is replaced, never followed
+    except OSError as exc:  # a folder planted at the file's path, or a file at the folder's
+        message = f"could not write captions/{name}: {exc.strerror or type(exc).__name__}"
+        raise FreeRouteError("captions", message) from exc
     return f"captions/{name}", lang, kind
