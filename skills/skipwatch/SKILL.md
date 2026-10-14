@@ -90,8 +90,9 @@ When doctor's stderr ends with `Welcome to SkipWatch.`, Read
 `references/first-run-banner.md` and open your reply with its block, verbatim, inside a
 ```` ```text ```` fence.
 
-If the line before it starts with `Whisper offer:`, do that file's `## Whisper offer`
-next, before anything else runs.
+If the line before it starts with `Whisper offer:`, then without `--yes` do that file's
+`## Whisper offer` next, before anything else runs; under `--yes` skip it (doctor keeps
+listing the command).
 
 ## Run the pipeline
 
@@ -136,6 +137,7 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 
 - The only question in a run is the review prompt, with one named exception, never asked
   under `--yes`: a video over 60 minutes gets one "continue?" question after probe.
+  The first-run Whisper offer comes before the run and is also never asked under `--yes`.
 - A missing optional dependency never fails a run: degrade, continue, and note it
   (`<ENGINE> --log "<W>/logs/note.log" note --work "<W>" --degradation "<line>"`,
   run-engine.md conventions); the review screen shows it under Unverified.

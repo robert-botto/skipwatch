@@ -132,6 +132,16 @@ def test_skill_asks_once_and_installs_only_on_yes():
     assert "captions first, then frames only" in offer and "never a traceback" in offer
 
 
+def test_offer_is_never_asked_under_yes():
+    # an unattended --yes run must not stall on the offer; doctor still uses up the marker
+    # and its "Missing for Tier 1" line keeps naming the command (M6F-FR1 I1)
+    skill = SKILL_MD.read_text(encoding="utf-8")
+    first_run = _flat(skill.split("\n## First run\n", 1)[1].split("\n## ", 1)[0])
+    assert "without `--yes`" in first_run and "doctor keeps listing the command" in first_run
+    rules = _flat(skill.split("\n## Rules that hold in every stage\n", 1)[1])
+    assert "The first-run Whisper offer comes before the run and is also never asked" in rules
+
+
 def test_no_em_dash_in_offer_sources():
     for path in (SKILL_MD, BANNER_MD, Path(doctor.__file__), Path(__file__)):
         assert chr(0x2014) not in path.read_text(encoding="utf-8"), path
