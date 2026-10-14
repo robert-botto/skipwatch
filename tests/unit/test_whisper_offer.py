@@ -130,6 +130,8 @@ def test_skill_asks_once_and_installs_only_on_yes():
     assert "`<ENGINE> doctor --json`" in offer
     # a no or a failed install keeps the run going: captions first, then frames only
     assert "captions first, then frames only" in offer and "never a traceback" in offer
+    # a declined permission prompt has no exit code to print
+    assert "with its exit code, if any" in offer
 
 
 def test_offer_is_never_asked_under_yes():
