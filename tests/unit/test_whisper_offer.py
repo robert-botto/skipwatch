@@ -50,10 +50,8 @@ def _offers(lines):
 def test_first_run_offers_the_platform_extra_before_the_welcome(sw_home, monkeypatch, apple, extra):
     lines = _doctor(monkeypatch, P(apple_silicon=apple))
     assert lines[-1] == firstrun.WELCOME  # SKILL.md still keys on the last line
-    assert (
-        lines[-2]
-        == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {extra} --locked --quiet --no-dev'
-    )
+    flags = f"{extra} --locked --quiet --no-dev"
+    assert lines[-2] == f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {flags}'
 
 
 def test_offer_is_printed_once_per_home(sw_home, monkeypatch):
@@ -89,7 +87,8 @@ def test_offer_from_a_cached_report(sw_home, monkeypatch):
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/plug")
     result = CliRunner().invoke(app, ["doctor", "--json", "--max-age-hours", "24"])
     assert result.exit_code == 0, result.output
-    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" --extra whisper --locked --quiet --no-dev'
+    flags = "--extra whisper --locked --quiet --no-dev"
+    offer = f'{doctor.WHISPER_OFFER}uv sync --inexact --project "/plug" {flags}'
     assert result.stderr.splitlines()[-2:] == [offer, firstrun.WELCOME]
 
 
