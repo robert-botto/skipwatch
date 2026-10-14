@@ -403,9 +403,18 @@ def test_issue_templates_parse_as_yaml():
     directory = ROOT / ".github/ISSUE_TEMPLATE"
     config = yaml.safe_load((directory / "config.yml").read_text(encoding="utf-8"))
     assert config["blank_issues_enabled"] is False and config["contact_links"]
-    for name in ("platform-failure.yml", "bad-skill.yml"):
+    required = {
+        "platform-failure.yml": {"url-shape", "platform", "doctor", "ytdlp-version", "failure"},
+        "bad-skill.yml": {"source", "check-report", "what-went-wrong"},
+    }
+    for name, ids in required.items():
         form = yaml.safe_load((directory / name).read_text(encoding="utf-8"))
-        assert form["name"] and form["body"], name
+        assert form["name"], name
+        fields = {item["id"]: item for item in form["body"]}
+        assert set(fields) == ids, name
+        for field_id, item in fields.items():
+            assert item["attributes"]["label"], (name, field_id)
+            assert item["validations"]["required"] is True, (name, field_id)
 
 
 def test_changelog_has_unreleased_and_the_first_release():
