@@ -203,7 +203,9 @@ def _skill_md_flags() -> set[str]:
     return set(re.findall(r"^\| `(--[a-z-]+)", text, flags=re.M))
 
 
-SLASH_WORDS = {"doctor", "resume", "list", "pack", "install", "share"}  # SKILL.md first tokens
+# SKILL.md first tokens
+SLASH_WORDS = {"doctor", "resume", "list", "pack", "install", "share", "export"}
+EXPORT_FLAGS = {"--force"}  # on the export line; documented in references/sharing.md
 
 
 def test_readme_has_tagline_and_install_lines():
@@ -253,7 +255,7 @@ def test_readme_slash_command_words_and_flags_are_in_skill_md():
             if words and re.fullmatch(r"[a-z]+", words[0]):
                 assert words[0] in SLASH_WORDS, words[0]
             for flag in re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", args):
-                assert flag in flags, flag
+                assert flag in flags | EXPORT_FLAGS, flag
             seen += 1
     assert seen >= 3
 
@@ -496,9 +498,11 @@ def test_issue_templates_parse_as_yaml():
 def test_changelog_has_unreleased_and_the_first_release():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "## [Unreleased]" in text and "## [0.1.0] - unreleased" in text
-    assert "Export installed skills to Mem0 or a notes folder" in text.split("## [0.1.0]")[0]
+    unreleased = text.split("## [Unreleased]")[1].split("## [0.1.0]")[0]
+    assert unreleased.strip() == ""
     section = _script("changelog_section").section(text, "0.1.0")
-    assert section and "export" not in section.lower()
+    assert section and "`export` writes a pointer" in section
+    assert "offers to install local Whisper once" in section
 
 
 def test_third_party_notices_list_every_direct_dependency():

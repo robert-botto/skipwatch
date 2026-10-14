@@ -53,7 +53,7 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 
 **Reads the video, not just the words**
 
-- Captions first. No captions: local Whisper (mlx-whisper on Apple silicon, faster-whisper elsewhere).
+- Captions first. No captions: local Whisper (mlx-whisper on Apple silicon, faster-whisper elsewhere). The first run offers to install it once.
 - Frames sampled once a second, with still screens collapsed to one frame and near-duplicates dropped, plus extra frames where the speaker says "paste", "click", "run" and the like.
 - `frame-reader` agents read the frames and copy commands, code and settings exactly as shown.
 
@@ -103,6 +103,8 @@ claude plugin marketplace add robert-botto/skipwatch#v0.1.0
 /skipwatch pack <skill>               a .skillpack.zip to share
 /skipwatch install <pack or url>      install someone else's pack, after checks and your review
 /skipwatch share <skill>              a ready-to-post thank-you that credits the creator
+/skipwatch export <skill> [--provider mem0|notes] [--force]
+                                      a pointer to an installed skill in Mem0 or a notes folder
 /skipwatch resume                     continue an interrupted run
 ```
 
@@ -261,6 +263,7 @@ skipwatch pack <skill> [-o <file>] [--json]
 skipwatch unpack <pack or https url> [--json]
 skipwatch list [--json]
 skipwatch share <skill> [--json]
+skipwatch export <skill> [--provider mem0|notes] [--force] [--json]
 skipwatch resume [<dir>] [--json]
 skipwatch cache [--clear] [--json]
 ```
@@ -291,7 +294,8 @@ No telemetry, no analytics, no update pings. The engine runs on your machine. Cl
 - the address you give `/skipwatch install <https url>`, to download that pack (https and public addresses only);
 - one-time downloads: Whisper model weights from Hugging Face, and an ffmpeg build if your machine has none;
 - treg, only at Tier 3 and only after you turn it on (`[providers.treg] enabled = true` in `config.toml`, or `--provider treg` for one run). Its calls are paid, capped at $0.05 per run by default, and listed on the review screen;
-- cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes.
+- cloud transcription (OpenAI, Groq or Deepgram), only after you say yes to that provider by name. `--yes` never counts as that yes;
+- Mem0 (`api.mem0.ai`), only when you enable it (`[exports.mem0] enabled = true` in `config.toml`, with your key in `MEM0_API_KEY`) or name it with `export --provider mem0`. It receives a pointer, never the procedure: the skill's name, purpose, source and path (with your home folder written as `~`). Optional `[exports.mem0]` fields are `tag` and `user_id`. The notes export writes one Markdown file per skill to the folder set in `[exports.notes] folder` and makes no network call.
 
 The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline, critique, transcript and post text, which can contain secrets shown or said in the video. A successful install deletes them, the drafts and the downloaded media (unless `--keep-media`); a cancelled or stopped run keeps them for `/skipwatch resume`, and SkipWatch says so. The run cache under `~/.skipwatch/cache/` keeps its own copy of the transcript and post text so a re-run within 7 days skips that work; `skipwatch cache --clear` removes it.
 
@@ -331,7 +335,8 @@ Inside `~/.skipwatch`:
 | `packs/` | packs being checked by `/skipwatch install` |
 | `backups/<name>-<time>/` | the old copy of a skill you chose to replace |
 | `config.toml` | your settings, when you made one |
-| `first-run.done` | an empty marker file made by the first `doctor` run, so the welcome line shows once |
+| `first-run.done` | an empty marker file made by the first `doctor` run, so the welcome line shows once and the Whisper install is offered once (never under `--yes`) |
+| `exports.json` | which skills were exported where, so exporting an unchanged skill again is a no-op (`--force` exports anyway) |
 | `doctor.json` | the last `doctor` report; the skill reuses it for up to a day |
 | `installs.json` | where SkipWatch installed each skill, so `list` finds `--to` installs |
 ## Uninstall
