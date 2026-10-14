@@ -52,6 +52,8 @@ class TranscriptionBackend(Protocol):
 
 
 class ExportProvider(Protocol):
+    """Optional hooks destination(cfg) and present(ref); export.py reads them with getattr."""
+
     name: str  # "mem0" | "notes"
 
     def enabled(self, cfg: Config) -> bool:

@@ -472,7 +472,9 @@ class InstallsFile(_Tagged):
 class ExportLogEntry(_Model):
     provider: str
     name: str
-    manifest_sha256: str  # "sha256:<hex>" of the skipwatch.json bytes that were exported
+    # "sha256:<hex>" of the skipwatch.json bytes that were exported, salted with the
+    # provider's destination (notes folder, Mem0 user) when it has one
+    manifest_sha256: str
     ref: str | None = None
     exported_at: str
 
