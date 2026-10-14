@@ -62,16 +62,24 @@ def _as_url(value: str) -> tuple[str, str] | None:
     return value.strip(), parts.hostname
 
 
-def _looks_like_scheme_less_url(value: str) -> bool:
-    """True for "youtube.com/watch?v=1", "youtube.com" or "example.com/post"; false for a file
-    name such as "clip.mov" or "notes.md" (ruling FU-R1). A host with nothing after it but a
-    query is a URL only when it is a known platform host, so a missing notes.md never turns into
-    a request to https://notes.md."""
-    value = value.strip()
-    first = re.split(r"[/?#]", value, maxsplit=1)[0]
+def _host_part(value: str) -> tuple[str, str] | None:
+    """(host, rest) when value starts with a bare host that is not a media file name."""
+    first, *rest = re.split(r"([/?#])", value.strip(), maxsplit=1)
     if not _HOST_RE.match(first) or Path(first).suffix.lower() in MEDIA_EXTENSIONS:
+        return None
+    return first, "".join(rest)
+
+
+def _looks_like_scheme_less_url(value: str) -> bool:
+    """True for "youtube.com/watch?v=1", "youtube.com" or "example.com/talk"; false for a file
+    name such as "clip.mov", "notes.md" or "notes.md/" (ruling FU-R1). A bare name is a URL only
+    when it is a known platform host, so a missing notes.md never turns into a request to
+    https://notes.md; any other host needs more than a lone "/" after it."""
+    found = _host_part(value)
+    if found is None:
         return False
-    return platform_for_host(first) != "generic" or value[len(first) :].startswith("/")
+    host, rest = found
+    return platform_for_host(host) != "generic" or rest.strip("/") != ""
 
 
 def detect(value: str, cwd: Path | None = None) -> Detected:

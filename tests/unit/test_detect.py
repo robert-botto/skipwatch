@@ -93,6 +93,7 @@ def test_missing_path_is_exit_2(tmp_path):
         ("x.com/u/status/1", "x"),
         ("youtu.be/abc123", "youtube"),
         ("vimeo.com/123", "generic"),
+        ("example.com?v=1", "generic"),  # anything but a lone "/" after the host
     ],
 )
 def test_r_det_1_scheme_less_urls(tmp_path, value, platform):
@@ -151,7 +152,17 @@ def test_missing_paths_without_a_domain_shape_are_exit_2(tmp_path, value):
 
 
 @pytest.mark.parametrize(
-    "value", ["notes.md", "report.pdf", "clip.mp4", "notes.txt", "example.com", "notes.md?x=1"]
+    "value",
+    [
+        "notes.md",
+        "report.pdf",
+        "clip.mp4",
+        "notes.txt",
+        "example.com",
+        "notes.md/",
+        "example.com/",
+        "vimeo.com",  # vimeo has no adapter of its own: generic, so a bare name is a file
+    ],
 )
 def test_missing_bare_name_is_a_missing_file_not_a_url(tmp_path, value):
     # Ruling FU-R1: a missing notes.md must not become a request to https://notes.md. With no
@@ -173,9 +184,12 @@ def test_missing_bare_name_is_a_missing_file_not_a_url(tmp_path, value):
         ("youtube.com", "youtube"),
         ("www.tiktok.com", "tiktok"),
         ("youtube.com?v=x", "youtube"),
-        ("example.com/", "generic"),
+        ("x.com", "x"),
+        ("example.com/talk", "generic"),
+        ("vimeo.com/123", "generic"),
     ],
 )
 def test_scheme_less_known_host_or_path_is_a_url(tmp_path, value, platform):
     d = detect(value, cwd=tmp_path)
     assert (d.kind, d.platform, d.value) == ("url", platform, "https://" + value)
+
