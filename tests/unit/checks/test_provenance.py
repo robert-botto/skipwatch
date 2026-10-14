@@ -783,6 +783,24 @@ def test_provenance_written_code_in_markdown_emphasis_or_autolink_passes(tmp_pat
     assert r.ok, r.items
 
 
+def test_provenance_written_code_before_a_quote_reply_in_the_thread_passes(tmp_path):
+    # Review I2: code never spans two sources, so a thread reply quoting with "> " is not a
+    # redirect after the post's last command.
+    staging, work = make_case(
+        tmp_path,
+        edit=lambda s: (
+            s.replace("[spoken 00:49]", "[written]")
+            .replace(S4_ACTION, "4. Then run `npm test`.")
+            .replace(S5_QUOTE, "> Pin the version in CI.")
+        ),
+    )
+    ingest = json.loads((work / "ingest.json").read_text(encoding="utf-8"))
+    ingest["context"]["post_text"] = PIN + "To finish, run npm test"
+    ingest["context"]["thread"] = ["> this saved me hours"]
+    (work / "ingest.json").write_text(json.dumps(ingest), encoding="utf-8")
+    r = provenance.run(context_for(staging, work))
+    assert r.ok, r.items
+
 
 @pytest.mark.parametrize(
     ("code", "post"),

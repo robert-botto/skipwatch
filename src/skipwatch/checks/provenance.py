@@ -364,7 +364,14 @@ def _written_items(ctx: CheckContext, step: Step) -> list[CheckItem]:
     sources += [link.text for link in context.links]
     written = _norm(" \n ".join(sources))
     missing = [q for q in step.quotes if not _norm(q) or not _contains_words(written, _norm(q))]
-    missing += [c for c in step.code_quotes + step.inline_code if not _contains_code(written, c)]
+    # Code never spans two sources: checked per source, a thread reply quoting with "> " is
+    # not read as a redirect after the post's last command.
+    each = [_norm(source) for source in sources]
+    missing += [
+        c
+        for c in step.code_quotes + step.inline_code
+        if not any(_contains_code(text, c) for text in each)
+    ]
     return [
         CheckItem(step=step.number, msg="[written] quote not found in the post, thread or links")
         for _ in missing
