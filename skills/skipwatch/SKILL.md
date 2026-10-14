@@ -166,7 +166,7 @@ retry a failed stage with different inputs to get past it.
 | 8 | any other stage | `Missing dependency: <the install command the engine printed>.` |
 | 1 | check, twice | the failing items, one line each, then the `Check failed twice.` line from stage 8 in `run-distill.md` |
 | 6 | install | show the review screen again with the collision prompt. |
-| 64 | any | the engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside `<W>/logs/` (no `rc=` line) or a `--home` not ending in `.skipwatch`. Fix it and retry once; a second 64 stops with `SkipWatch: engine could not start: <last 3 stderr lines>`. |
+| 64 | any | the engine refused the command: a malformed command, an invalid `--work` folder, a `--log` path outside `<W>/logs/` (no `rc=` line) or a `--home` not ending in `.skipwatch`. Fix it from its message and retry once; a second 64 stops with `SkipWatch: engine could not start: <last 3 stderr lines>`. |
 | 1 | install | `staging changed since check`: re-run check once, then install. Any other install exit 1: show its message and stop. |
 | 127 | doctor | stderr says "uv is not installed": show the wrapper's stderr lines exactly, then stop. Any other stderr: the last row. |
 | 78 | any | `SkipWatch: engine could not start: environment could not be created.` Then the wrapper's stderr ("could not create the Python environment" and its `uv sync` command). |
