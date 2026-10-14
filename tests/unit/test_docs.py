@@ -450,7 +450,6 @@ def test_readme_lists_the_first_run_marker_from_the_source():
     assert f"`{firstrun.MARKER}`" in where
 
 
-
 def test_readme_permissions_match_skill_md_allowed_tools():
     text = (ROOT / "skills/skipwatch/SKILL.md").read_text(encoding="utf-8")
     allowed = re.search(r"^allowed-tools: (.*)$", text, flags=re.M)
