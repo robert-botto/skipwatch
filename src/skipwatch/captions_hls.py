@@ -73,7 +73,7 @@ def _stamp(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{rest // 1000:02d}.{rest % 1000:03d}"
 
 
-_MPEGTS_RE = re.compile(r"^\d{1,12}$")  # a 33-bit clock fits in 10 digits
+_MPEGTS_RE = re.compile(r"^\d{1,10}$")  # a 33-bit clock fits in 10 digits
 _LOCAL_RE = re.compile(r"^(?:\d{1,4}:)?\d{1,2}:\d{2}[.,]\d{1,3}$")
 
 
