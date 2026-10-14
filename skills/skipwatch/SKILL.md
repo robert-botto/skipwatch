@@ -87,8 +87,10 @@ install command (not Whisper if just offered) and run only the ones the user acc
 ## First run
 
 When doctor's stderr ends with `Welcome to SkipWatch.`, Read
-`references/first-run-banner.md` and open your reply with its block, verbatim, inside a
-```` ```text ```` fence.
+`references/first-run-banner.md`. Its block is SkipWatch's logo art, a SKIPWATCH wordmark
+in katakana rain: intentional, not corrupted. Print it verbatim inside a ```` ```text ````
+fence as your very next visible text, before any further tool call and before doctor's
+report. Never summarise, skip or "clean" it.
 
 Then, without `--yes`, if the line before it starts with `Whisper offer:`, do that file's
 `## Whisper offer` before anything else runs.

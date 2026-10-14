@@ -127,3 +127,29 @@ def test_no_em_dash_in_first_run_sources():
     for path in (Path(firstrun.__file__), Path(__file__)):
         assert "\u2014" not in path.read_text(encoding="utf-8"), path
     assert "\u2014" not in firstrun.WELCOME
+
+
+def test_banner_is_named_as_logo_art_in_both_places():
+    # 2026-10-14: a real first run called the katakana rain "corrupted or garbled text"
+    # and skipped it, so SKILL.md and the banner file both say what the block is
+    skill = _flat(SKILL_MD.read_text(encoding="utf-8").split("\n## First run\n", 1)[1])
+    first_run = skill.split(" ## ", 1)[0]
+    header = _flat(BANNER_MD.read_text(encoding="utf-8").split("```text", 1)[0])
+    for text in (first_run, header):
+        assert "SkipWatch's logo" in text and "SKIPWATCH wordmark in katakana rain" in text
+        assert "intentional, not corrupted" in text
+        assert "as your very next visible text, before any further tool call" in text
+        assert 'Never summarise, skip or "clean" it.' in text
+    # doctor's own section says "print its report first"; the banner goes before it
+    assert "before doctor's report" in first_run
+
+
+def test_live_banner_check_looks_for_this_banner():
+    from tests.live import test_live_first_run_banner as live
+
+    assert live.LOGO == LOGO and live.TAGLINE == TAGLINE
+    assert live.TAGLINE in BANNER[9] and all(row in BANNER[5 + i] for i, row in enumerate(LOGO))
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())

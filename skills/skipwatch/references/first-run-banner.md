@@ -1,7 +1,8 @@
 # First-run banner
 
-Shown once per SkipWatch home (SKILL.md `## First run`). Print the block below
-verbatim, `text` fence included, as the start of your reply.
+The block is SkipWatch's logo, a SKIPWATCH wordmark in katakana rain: intentional, not corrupted.
+Print it verbatim, `text` fence included, as your very next visible text, before any
+further tool call. Never summarise, skip or "clean" it.
 
 ```text
 ﾁ ｦ ｽ ･ ﾃ ･   ﾌ   ｴ ｵ ﾏ ﾐ   ･       ｿ ﾜ ･   ﾑ ･ ﾑ ･   ･ ｽ ･ ﾁ     ｻ   ･
@@ -22,9 +23,8 @@ verbatim, `text` fence included, as the start of your reply.
 
 ## Whisper offer
 
-No Whisper backend is installed. Ask once and wait: `Install local Whisper to transcribe
-videos without captions? (yes/no)`. Only on an explicit yes, run the command after
-`Whisper offer: ` exactly, as one plain Bash call, then `<ENGINE> doctor --json` so the
-tier is current. Otherwise, or if it fails, print `Whisper not installed: captions first,
-then frames only.` with its exit code, if any, never a traceback, and carry on. Never ask
-again.
+Ask once and wait: `Install local Whisper to transcribe videos without captions? (yes/no)`.
+Only on an explicit yes, run the command after `Whisper offer: ` exactly, as one plain Bash
+call, then `<ENGINE> doctor --json`. Otherwise, or on failure, print `Whisper not installed:
+captions first, then frames only.` with its exit code, if any, never a traceback, and carry
+on. Never ask again.
