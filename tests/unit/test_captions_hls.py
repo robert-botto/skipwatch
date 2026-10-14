@@ -127,3 +127,12 @@ def test_a_cue_with_absurd_hours_is_left_alone():
     second = SEG.format(mpegts=900000, cue=huge, text="x")
     merged = merge_webvtt([first, second])  # no OverflowError
     assert huge in merged  # not a timing line SkipWatch shifts
+
+
+def test_mpegts_is_at_most_ten_digits():
+    # MPEGTS is a 33-bit clock (2**33 - 1 = 8589934591, ten digits); eleven digits is malformed.
+    first = SEG.format(mpegts=0, cue="00:00:00.000 --> 00:00:01.000", text="a")
+    widest = SEG.format(mpegts=2**33 - 1, cue="00:00:00.000 --> 00:00:01.000", text="b")
+    too_wide = SEG.format(mpegts="1" + "0" * 10, cue="00:00:05.000 --> 00:00:06.000", text="c")
+    segs = parse_vtt(merge_webvtt([first, widest, too_wide]))
+    assert [(s.start, s.text) for s in segs] == [(0.0, "a"), (95443.718, "b"), (5.0, "c")]
