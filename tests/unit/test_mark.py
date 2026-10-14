@@ -58,7 +58,7 @@ def mark_main(monkeypatch, w, stage, status):
 def test_mark_refuses_engine_stages_and_bad_status(tmp_path, monkeypatch):
     # engine stages mark themselves; a hand mark could hide a stage that never ran
     w = work(tmp_path)
-    for stage in ("ingest", "frames", "check"):
+    for stage in ("ingest", "frames", "check", "export"):
         assert mark_main(monkeypatch, w, stage, "done") == ExitCode.USAGE, stage
         assert state(w, stage)["status"] == "pending"
     assert mark_main(monkeypatch, w, "read", "pending") == ExitCode.USAGE
@@ -71,14 +71,6 @@ def test_mark_install_done(tmp_path):
     w = work(tmp_path)
     assert mark(w, "install", "done").exit_code == 0
     assert state(w, "install")["status"] == "done"
-
-
-def test_mark_export_done(tmp_path):
-    # export takes an installed skill, not --work; the orchestrator marks it done whatever
-    # its exit, so a finished run with exports enabled is not offered for resume
-    w = work(tmp_path)
-    assert mark(w, "export", "done").exit_code == 0
-    assert state(w, "export")["status"] == "done"
 
 
 def test_mark_needs_an_existing_work_folder(tmp_path):

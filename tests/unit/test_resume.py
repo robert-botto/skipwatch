@@ -213,7 +213,7 @@ FINISHED = (
 
 
 def test_finished_run_is_complete_without_the_export_feature(tmp_path, sw_home):
-    # export never runs before M6, so a run whose install is done has nothing left
+    # export is not a resumable stage, so a run whose install is done has nothing left
     w = work_at(sw_home / "work" / "w", done=FINISHED)
     r = resume_info(w.path)
     assert r.next_stage is None and r.completed[-1] == "install"
@@ -226,25 +226,13 @@ def test_install_not_done_is_still_next(tmp_path, sw_home):
     assert resume_info(w.path).next_stage == "install"
 
 
-def test_export_is_next_only_when_the_feature_exists_and_is_enabled(tmp_path, sw_home, monkeypatch):
-    import skipwatch.resume as resume_mod
-
+def test_finished_run_is_complete_with_exports_enabled(tmp_path, sw_home):
+    # a missed export is covered by /skipwatch export, so install done ends the run (M6-R8)
     w = work_at(tmp_path / "w", done=FINISHED)
     sw_home.mkdir(parents=True, exist_ok=True)
-    (sw_home / "config.toml").write_text("[exports.notes]\nenabled = true\n")
-    monkeypatch.setattr(resume_mod, "_export_command_exists", lambda: True)
-    assert resume_info(w.path).next_stage == "export"  # the M6 seam
-    (sw_home / "config.toml").write_text("[exports.notes]\nenabled = false\n")
-    assert resume_info(w.path).next_stage is None
-
-
-def test_export_marked_done_ends_a_run_with_exports_enabled(tmp_path, sw_home):
-    # the orchestrator marks export done whatever its exit, so a finished run is not resumed
-    w = work_at(tmp_path / "w", done=FINISHED)
-    sw_home.mkdir(parents=True, exist_ok=True)
-    (sw_home / "config.toml").write_text("[exports.mem0]\nenabled = true\n")
-    assert resume_info(w.path).next_stage == "export"
-    w.mark("export", "done")
+    (sw_home / "config.toml").write_text(
+        "[exports.notes]\nenabled = true\n[exports.mem0]\nenabled = true\n"
+    )
     assert resume_info(w.path).next_stage is None
 
 

@@ -2088,8 +2088,7 @@ def test_stage_10_exports_after_install_without_failing_the_run():
     assert _before(stage10, export, "/skipwatch share <name> prints")
     assert _before(stage10, export, logged("cleanup"))
     mark_export = logged("mark") + ' --work "<W>" --stage export --status done'
-    assert _before(stage10, export, mark_export)  # resume must not reopen a finished run
-    assert "marking it done on any exit" in stage10
+    assert mark_export not in stage10  # export is never resumed (M6-R8)
     for line in ("`Exported to Mem0.`", "`Wrote a note to <location>.`"):
         assert line in stage10
     assert (
