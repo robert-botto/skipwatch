@@ -148,3 +148,34 @@ def test_missing_paths_without_a_domain_shape_are_exit_2(tmp_path, value):
         detect(value, cwd=tmp_path)
     assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
     assert "no such file" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "value", ["notes.md", "report.pdf", "clip.mp4", "notes.txt", "example.com", "notes.md?x=1"]
+)
+def test_missing_bare_name_is_a_missing_file_not_a_url(tmp_path, value):
+    # Ruling FU-R1: a missing notes.md must not become a request to https://notes.md. With no
+    # "/" after it, only a known platform host is read as a URL.
+    with pytest.raises(SkipwatchError) as e:
+        detect(value, cwd=tmp_path)
+    assert e.value.code == ExitCode.UNSUPPORTED_SOURCE
+    assert "no such file" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "value,platform",
+    [
+        ("youtube.com/watch?v=x", "youtube"),
+        ("www.youtube.com/watch?v=x", "youtube"),
+        ("youtu.be/x", "youtube"),
+        ("x.com/u/status/1", "x"),
+        ("example.com/post", "generic"),
+        ("youtube.com", "youtube"),
+        ("www.tiktok.com", "tiktok"),
+        ("youtube.com?v=x", "youtube"),
+        ("example.com/", "generic"),
+    ],
+)
+def test_scheme_less_known_host_or_path_is_a_url(tmp_path, value, platform):
+    d = detect(value, cwd=tmp_path)
+    assert (d.kind, d.platform, d.value) == ("url", platform, "https://" + value)

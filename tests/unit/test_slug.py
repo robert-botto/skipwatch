@@ -89,3 +89,8 @@ def test_new_work_needs_from_or_slug(sw_home):
     r = new_work("--json")
     assert r.exit_code == ExitCode.USAGE
     assert not (sw_home / "work").exists()
+
+
+def test_a_missing_bare_file_name_is_a_file_slug(tmp_path):
+    # Ruling FU-R1: notes.md is a missing file, not https://notes.md.
+    assert slug_for("notes.md", cwd=tmp_path) == "notes"

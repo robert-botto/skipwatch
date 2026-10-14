@@ -63,11 +63,15 @@ def _as_url(value: str) -> tuple[str, str] | None:
 
 
 def _looks_like_scheme_less_url(value: str) -> bool:
-    """True for "youtube.com/watch?v=1" but not for a file name such as "clip.mov"."""
-    first = re.split(r"[/?#]", value.strip(), maxsplit=1)[0]
-    if not _HOST_RE.match(first):
+    """True for "youtube.com/watch?v=1", "youtube.com" or "example.com/post"; false for a file
+    name such as "clip.mov" or "notes.md" (ruling FU-R1). A host with nothing after it but a
+    query is a URL only when it is a known platform host, so a missing notes.md never turns into
+    a request to https://notes.md."""
+    value = value.strip()
+    first = re.split(r"[/?#]", value, maxsplit=1)[0]
+    if not _HOST_RE.match(first) or Path(first).suffix.lower() in MEDIA_EXTENSIONS:
         return False
-    return Path(first).suffix.lower() not in MEDIA_EXTENSIONS
+    return platform_for_host(first) != "generic" or value[len(first) :].startswith("/")
 
 
 def detect(value: str, cwd: Path | None = None) -> Detected:
