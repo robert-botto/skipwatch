@@ -449,3 +449,16 @@ def test_readme_lists_the_first_run_marker_from_the_source():
     where = _section(_readme(), "What gets installed where")
     assert f"`{firstrun.MARKER}`" in where
 
+
+
+def test_readme_permissions_match_skill_md_allowed_tools():
+    text = (ROOT / "skills/skipwatch/SKILL.md").read_text(encoding="utf-8")
+    allowed = re.search(r"^allowed-tools: (.*)$", text, flags=re.M)
+    assert allowed
+    perms = _section(_readme(), "Permissions")
+    for tool in ("Bash", "Read", "Write", "Agent"):
+        assert tool in allowed.group(1) and f"`{tool}" in perms, tool
+    assert "mkdir -p" in allowed.group(1) and "`mkdir -p`" in perms
+    privacy = _section(_readme(), "Privacy")
+    for destination in ("PyPI", "yt-dlp", "Hugging Face", "treg", "Deepgram"):
+        assert destination in privacy and destination in perms, destination

@@ -295,6 +295,19 @@ No telemetry, no analytics, no update pings. The engine runs on your machine. Cl
 
 The work folder under `~/.skipwatch/work/` holds the raw notes, frames, outline, critique, transcript and post text, which can contain secrets shown or said in the video. A successful install deletes them, the drafts and the downloaded media (unless `--keep-media`); a cancelled or stopped run keeps them for `/skipwatch resume`, and SkipWatch says so. The run cache under `~/.skipwatch/cache/` keeps its own copy of the transcript and post text so a re-run within 7 days skips that work; `skipwatch cache --clear` removes it.
 
+## Permissions
+
+SkipWatch asks for the least it needs. The skill's `allowed-tools` (in `skills/skipwatch/SKILL.md`) are:
+
+| Tool | What SkipWatch uses it for |
+|---|---|
+| `Bash` | Only the engine wrapper, `scripts/skipwatch`, and `mkdir -p`. The engine runs yt-dlp and ffmpeg itself, so they are never separate Bash commands. |
+| `Read` | Reading the run's files: the transcript, notes, outline and drafts. |
+| `Write` | The run's own files in its work folder under `~/.skipwatch/work/`: the outline, the draft skill and its notes. The engine's `install` step puts the finished skill in your skills folder, only after the review screen. |
+| `Agent` | Starting the `frame-reader`, `skill-critic` and, with `--test`, `skill-tester` agents. |
+
+Network access is listed under [Privacy](#privacy): PyPI for the plugin's Python environment, the platform your link points to through yt-dlp, the pages a post links to, the pack address you give `/skipwatch install`, Hugging Face and an ffmpeg build as one-time downloads, treg only when you turn it on, and cloud transcription (Deepgram, OpenAI or Groq) only after you name the provider.
+
 ## What gets installed where
 
 | What | Where |
