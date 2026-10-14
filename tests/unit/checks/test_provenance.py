@@ -828,6 +828,8 @@ def test_provenance_written_code_inside_a_longer_token_still_fails(tmp_path, cod
         ("npm run build", "Run npm run build>out.txt first."),
         ("build", "Then run rm -rf *build* to reset."),
         ("build", "Then run rm -rf <build to reset."),
+        ("npm test", "Run **npm test** --force now."),
+        ("npm test", "Run **npm test** > out.txt now."),
     ],
 )
 def test_provenance_written_code_cut_before_a_glob_or_redirect_fails(tmp_path, code, post):
