@@ -89,7 +89,7 @@ if ! is_fresh; then
   else
     printf '%s\n' "$sync_log" >&2
     echo "skipwatch: could not create the Python environment. Run this once outside any sandbox:" >&2
-    echo "  uv sync --project \"$root\"" >&2
+    echo "  uv sync $sync_args --project \"$root\"" >&2
     fail 78
   fi
 fi
