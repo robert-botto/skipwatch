@@ -175,5 +175,15 @@ length and free of characters the style rule forbids.
   `No installed SkipWatch skill named <skill>. /skipwatch list shows them.` Any other
   exit 2: the engine's line.
 - Exit 64 whose message says `pass the path instead`: the engine's line, then stop.
+- Exit 70 whose message contains `invalid config` or `TOMLDecodeError`:
+  `Your SkipWatch config.toml is not valid: <engine message>. Fix it and run /skipwatch export again.`
+  Any other exit 70: the failure table in SKILL.md.
+
+After an install (stage 10 of a run, or a pack install) the export call is the one that
+stage shows, and only the messages differ. Exit 0: one line per unskipped result,
+`Exported to Mem0.` or `Wrote a note to <location>.`, and nothing when there are none.
+Any other exit: one line,
+`Export did not complete: <engine message>. The skill is installed; run /skipwatch export later.`
+An export never undoes the install and never fails the run.
 
 An export only reads the installed skill; it never changes or reinstalls it.

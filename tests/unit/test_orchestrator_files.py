@@ -2089,13 +2089,18 @@ def test_stage_10_exports_after_install_without_failing_the_run():
     assert _before(stage10, export, logged("cleanup"))
     mark_export = logged("mark") + ' --work "<W>" --stage export --status done'
     assert mark_export not in stage10  # export is never resumed (M6-R8)
+    # the messages live in sharing.md, outside the per-run word budget (review I1)
+    assert "Then the after-install export in `## export` of `sharing.md`:" in stage10
+    assert "Export did not complete" not in stage10
+    section = flat(SHARING).split("## export `<skill>`", 1)[1]
+    after = section.split("After an install", 1)[1]
     for line in ("`Exported to Mem0.`", "`Wrote a note to <location>.`"):
-        assert line in stage10
+        assert line in after
     assert (
         "`Export did not complete: <engine message>. The skill is installed; run /skipwatch"
-        " export later.`" in stage10
+        " export later.`" in after
     )
-    assert "never undoes the install and never fails the run" in stage10  # R-TIER-2
+    assert "never undoes the install and never fails the run" in after  # R-TIER-2
     sharing = flat(SHARING)
     assert "run the export call exactly as `## Stage 10: install` in `run-review-install.md`" in (
         sharing
@@ -2119,6 +2124,9 @@ def test_sharing_export_section_maps_every_exit():
         "Exit 3: `Export did not complete: <engine message>.`",
         "`No installed SkipWatch skill named <skill>. /skipwatch list shows them.`",
         "Exit 64 whose message says `pass the path instead`",
+        "Exit 70 whose message contains `invalid config` or `TOMLDecodeError`:",
+        "`Your SkipWatch config.toml is not valid: <engine message>. Fix it and run"
+        " /skipwatch export again.`",
         "it never changes or reinstalls it",
     ):
         assert phrase in section, phrase

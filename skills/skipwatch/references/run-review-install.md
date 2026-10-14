@@ -101,13 +101,9 @@ when the run moved) and prints nothing after that. Print its output line, if any
 
     <ENGINE> nudge
 
-Then exports:
+Then the after-install export in `## export` of `sharing.md`:
 
     <ENGINE> --log "<W>/logs/export.log" export "<installed path>" --json
-
-Exit 0: per unskipped result, `Exported to Mem0.` or `Wrote a note to <location>.`
-Else: `Export did not complete: <engine message>. The skill is installed; run
-/skipwatch export later.` An export never undoes the install and never fails the run.
 
 Then print:
 
