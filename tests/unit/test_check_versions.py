@@ -96,14 +96,14 @@ def _set_marketplace_source(root, source):
     p.write_text(json.dumps(data))
 
 
-def test_marketplace_installs_from_the_checkout_until_the_release_pr():
-    """The tag does not exist before release, so main keeps a source that installs today."""
+PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0"}
+
+
+def test_marketplace_pins_the_release_tag():
+    """The release PR pins the tag; before it, main kept "./" because the tag did not exist."""
     data = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
     (entry,) = [e for e in data["plugins"] if e["name"] == "skipwatch"]
-    assert entry["source"] == "./"
-
-
-PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0"}
+    assert entry["source"] == PINNED
 
 
 @pytest.mark.parametrize(
