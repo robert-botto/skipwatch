@@ -14,7 +14,7 @@ import pytest
 from skipwatch import ingest
 from skipwatch.adapters.base import DownloadFailed, IngestOptions, NoMediaError
 from skipwatch.detect import Detected
-from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.errors import VIDEO_ONLY, ExitCode, SkipwatchError
 from skipwatch.models import (
     Config,
     IngestBundle,
@@ -469,6 +469,31 @@ def test_text_only_x_post_via_treg(tmp_path, treg_on, monkeypatch):
     treg_calls = [c for c in got.provider_calls if c.provider == "treg"]
     assert len(treg_calls) == len(endpoints)  # each call logged once
     assert all(c.review is not None for c in treg_calls)
+
+
+def test_text_only_x_post_with_treg_is_exit_7_and_never_looks_up_the_thread(
+    tmp_path, treg_on, monkeypatch
+):
+    """R-SCOPE-1: with text sources off (0.1.0), treg on does not read a text-only post:
+    exit 7 with the video-only message, and the paid thread lookup is never made."""
+    assert ingest.TEXT_SOURCES is False
+    runner = FakeRunner()
+    provider = TregProvider(runner=runner)
+    monkeypatch.setattr(ingest, "content_providers", lambda: [provider])
+
+    class NoVideo:
+        def build(self, detected, work_, opts):
+            raise NoMediaError(detected.value, "No video could be found in this tweet")
+
+    real_adapter_for = ingest.adapter_for
+    monkeypatch.setattr(
+        ingest, "adapter_for", lambda p: NoVideo() if p == "x" else real_adapter_for(p)
+    )
+    detected = Detected(kind="url", platform="x", value=G2_URL)
+    with pytest.raises(SkipwatchError) as e:
+        ingest._build(detected, work(tmp_path), IngestOptions(provider="treg"), Config())
+    assert e.value.code == ExitCode.NO_CONTENT and e.value.message == VIDEO_ONLY
+    assert "anyapi.twitter.thread" not in [a[2] for a in runner.calls()]
 
 
 def test_text_only_x_post_not_in_thread_is_none(tmp_path, treg_on):
