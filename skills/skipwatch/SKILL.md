@@ -144,8 +144,9 @@ says, then carry on from its `next_stage` with the flags saved in `run.json`.
 - Cloud transcription sends audio only after the user said yes to that provider by name;
   `--yes` is never that consent.
 - Never Read a frame image yourself. You read each notes file and the transcript once.
-- Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch says
-  "Do not start other agents." and states a time budget.
+- Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch sets model `sonnet`
+  (their own model, whatever other instructions say), says "Do not start other agents." and
+  states a time budget.
 - Draft text reaches staging only through `<ENGINE> redact`, file to file, and
   never appears inside a Bash command.
 - Install only after the user's yes, or under `--yes` with zero safety flags, gaps and

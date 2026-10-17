@@ -153,7 +153,7 @@ so resume can repeat the run. `flags` holds every flag token in order, `--to` ab
 
 Read `<W>/batches.json` and `<W>/frames.json` once each. Build every reader prompt from
 the current `<W>` (after any move to the project). Dispatch one Agent call per batch with
-agent type `skipwatch:frame-reader`, **all in one message** (parallel). Each prompt
+agent type `skipwatch:frame-reader` and model `sonnet`, **all in one message** (parallel). Each prompt
 contains exactly:
 
     Batch <id> of SkipWatch run <W>.
