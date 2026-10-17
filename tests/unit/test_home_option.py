@@ -28,6 +28,7 @@ def test_home_option_resolves_like_the_env_var(tmp_path, sw_home, monkeypatch):
     work = _new_work("--home", "rel/.skipwatch")
     assert work.parent == (tmp_path / "rel" / ".skipwatch" / "work").absolute()
     monkeypatch.setenv("HOME", str(tmp_path / "user"))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path / "user"))  # Path.home() on Windows
     work = _new_work("--home", "~/.skipwatch")
     assert work.parent == tmp_path / "user" / ".skipwatch" / "work"
 

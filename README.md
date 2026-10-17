@@ -324,6 +324,8 @@ Network access is listed under [Privacy](#privacy): PyPI for the plugin's Python
 | Work moved into a project | `<project>/.skipwatch`, only when a run cannot write to `~/.skipwatch` from your session; it gets a `.gitignore` of `*` so its files stay out of commits |
 | Your skills | `~/.claude/skills/<name>`; `./.claude/skills/<name>` with `--project`; `./.agents/skills/<name>` with `--agents`; `<dir>/<name>` with `--to <dir>`. `[install] scope` in `config.toml` changes the default. |
 
+`~` here is your user folder as Claude Code sees it: `$HOME` on macOS and Linux, `%USERPROFILE%` on Windows (so `~/.skipwatch` is `C:\Users\<you>\.skipwatch`). A `HOME` variable set on Windows, as Git Bash sets one, does not move it; set `SKIPWATCH_HOME` for that.
+
 Inside `~/.skipwatch`:
 
 | Entry | Holds |

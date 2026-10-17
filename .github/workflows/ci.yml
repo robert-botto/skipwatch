@@ -27,13 +27,14 @@ jobs:
     strategy:
       fail-fast: false
       # macOS bills 10x and Windows 2x on a private repo, so pull requests run Linux only
-      # (both Python versions) and push to main or workflow_dispatch runs every OS.
+      # (both Python versions) and push to main or workflow_dispatch runs every OS. Windows
+      # runs 3.11 to 3.13: nofollow's _winapi and msvcrt calls are private API.
       # Once the repo is public, restore all OSes on pull requests.
       matrix:
         include: >-
           ${{ fromJSON(github.event_name == 'pull_request'
           && '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"}]'
-          || '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"},{"os":"macos-latest","python":"3.12"},{"os":"windows-latest","python":"3.12"}]') }}
+          || '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"},{"os":"macos-latest","python":"3.12"},{"os":"windows-latest","python":"3.11"},{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:

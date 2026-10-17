@@ -33,7 +33,10 @@ def _scaled(source: Path) -> bytes:
 
 
 def _resolve(path: Path) -> Path | None:
-    """path resolved, or None when it cannot be (a NUL byte or other invalid path)."""
+    """path resolved, or None when it cannot be (a NUL byte or other invalid path). NUL is
+    checked here: resolve() raises for it on POSIX, but not on Windows from Python 3.13."""
+    if "\x00" in str(path):
+        return None
     try:
         return path.resolve()
     except ValueError:

@@ -7,6 +7,7 @@ import typer
 
 from skipwatch.commands.workfiles import home_work_or_pack_folder, path_under
 from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.nofollow import open_nofollow
 from skipwatch.output import progress
 from skipwatch.redact import redact_text
 from skipwatch.runner import run_command
@@ -40,7 +41,7 @@ def _redact_file(work: Path, src: Path, out: Path) -> int:
     if out.is_dir():
         raise SkipwatchError(ExitCode.USAGE, f"--out {out} is a folder")
     try:
-        fd = os.open(src, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        fd = open_nofollow(src, os.O_RDONLY)
         with os.fdopen(fd, "rb") as stream:
             raw = stream.read()
     except OSError as exc:

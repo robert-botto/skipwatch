@@ -37,11 +37,22 @@ def home_work_or_pack_folder(work: Path, require_stages: bool = True) -> Path:
             raise work_error from None
 
 
+def _given(path: Path) -> Path:
+    """path absolute, spelled as given. resolve() folds case on Windows (not on macOS), so a
+    rule about names checks this spelling too, and a case variant fails on every OS."""
+    return Path(os.path.abspath(path))
+
+
+def _case_variant(name: str, expected: str) -> bool:
+    return name != expected and name.casefold() == expected.casefold()
+
+
 def _home_folder(work: Path, area: str, require_stages: bool = True) -> Path:
     """home_work_folder's rule for the home's work/ or packs/ folder."""
     root = (skipwatch_home() / area).resolve()
     resolved = work.resolve()
-    if work.is_symlink() or resolved.parent != root or ".." in work.parts:
+    bad = work.is_symlink() or resolved.parent != root
+    if bad or _case_variant(_given(work).parent.name, area) or ".." in work.parts:
         raise SkipwatchError(ExitCode.USAGE, f"{work} is not a work folder directly under {root}")
     if not require_stages:
         return resolved
@@ -135,10 +146,12 @@ def _inside(work: Path, path: Path) -> bool:
 def _scratch_folder(work: Path, scratch: Path) -> Path:
     """--scratch resolved: this project's <cwd>/.skipwatch/test-run-<name> only. Never a
     symlink, never another project's folder, never one holding the work folder."""
-    resolved = scratch.resolve()
+    resolved, given = scratch.resolve(), _given(scratch)
     tester = (
         resolved.parent == Path.cwd().resolve() / ".skipwatch"
+        and not _case_variant(given.parent.name, ".skipwatch")
         and resolved.name.startswith(SCRATCH_PREFIX)
+        and given.name.startswith(SCRATCH_PREFIX)
         and len(resolved.name) > len(SCRATCH_PREFIX)
     )
     if tester and not scratch.is_symlink() and not work.is_relative_to(resolved):
@@ -177,7 +190,11 @@ def _discard_work(work: Path) -> int:
     def refuse(why: str) -> SkipwatchError:
         return SkipwatchError(ExitCode.USAGE, f"will not discard {work}: {why}")
 
-    if work.is_symlink() or resolved.parent != root:
+    if (
+        work.is_symlink()
+        or resolved.parent != root
+        or _case_variant(_given(work).parent.name, "work")
+    ):
         raise refuse(f"not a work folder directly under {root}")
     try:
         stages = WorkDir(resolved).stages().stages
