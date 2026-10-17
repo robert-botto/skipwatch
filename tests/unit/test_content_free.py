@@ -1,4 +1,5 @@
 import json
+import socket
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from skipwatch.adapters.base import IngestOptions
 from skipwatch.errors import ExitCode
 from skipwatch.models import MediaInfo
 from skipwatch.providers import content_free as cf
+from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
 from tests.unit._work import home_work
 
@@ -93,6 +95,17 @@ def test_ydl_params_always_pass_js_runtimes_and_download_paths(tmp_path, monkeyp
 )
 def test_r_ing_6_error_classification(msg, code):
     assert cf.classify_error(msg) == code
+
+
+@pytest.fixture(autouse=True)
+def _public_caption_hosts(monkeypatch):
+    """Caption fetches are vetted (links.get_vetted): every test host resolves to a public
+    address here; sockets stay blocked."""
+
+    def resolve(host, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
 
 
 class FakeDL:
@@ -268,18 +281,11 @@ def test_download_captions_prefers_json3_and_writes_under_captions(tmp_path, mon
     work.ensure()
     fetched = []
 
-    class DL(FakeDL):
-        def urlopen(self, req):
-            fetched.append(req.url)
+    def fetch_track(url):
+        fetched.append(url)
+        return b'{"events": []}', url
 
-            class Resp:
-                def read(self):
-                    return b'{"events": []}'
-
-            return Resp()
-
-    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", DL)
-    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    monkeypatch.setattr(cf, "fetch_track", fetch_track)
     info = {
         "id": "abc",
         "subtitles": {
@@ -574,3 +580,72 @@ def test_r_cli_1_without_a_duration_a_silent_source_reuses_its_video_only_file(
     }
     assert cf.download(silent, work, IngestOptions()).path == "media/video.mp4"
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:8080/captions.vtt",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://localhost/captions.vtt",
+        "file:///etc/passwd",
+    ],
+)
+def test_download_captions_refuses_a_private_track_url(tmp_path, monkeypatch, url):
+    """A page-controlled <track src> must not reach localhost, the LAN or cloud metadata."""
+    opened = []
+
+    class DL(FakeDL):
+        def urlopen(self, req):
+            opened.append(req.url)
+            raise AssertionError("a private caption URL was opened")
+
+    def resolve(host, *args, **kwargs):
+        address = "127.0.0.1" if host == "localhost" else host
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))]
+
+    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", DL)
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
+    info = {"id": "abc", "subtitles": {"en": [{"ext": "vtt", "url": url}]}}
+    with pytest.raises(cf.FreeRouteError) as e:
+        cf.download_captions(info, WorkDir(tmp_path / "w"), IngestOptions(), ("en", "manual"))
+    assert opened == [] and "refused" in str(e.value)
+
+
+def test_a_public_track_url_that_redirects_to_a_private_address_is_refused(tmp_path, monkeypatch):
+    """Every hop is vetted: a 302 from a public caption host to cloud metadata never connects
+    there, whoever follows the redirect."""
+    public, private = "https://captions.example.com/t.vtt", "http://169.254.169.254/latest/"
+    sent: list[tuple[str, str]] = []
+
+    class Redirect:
+        status_code = 302
+        headers = {"Location": private}
+        url = public
+
+        def close(self):
+            pass
+
+    def send(method, url, address, deadline):
+        sent.append((url, address))
+        return Redirect()
+
+    class DL(FakeDL):
+        def urlopen(self, req):
+            sent.append((req.url, "yt-dlp"))  # yt-dlp would follow the redirect unchecked
+            raise cf.DownloadError("redirected")
+
+    def resolve(host, *args, **kwargs):
+        address = host if host[0].isdigit() else "93.184.216.34"  # a literal is itself
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(links, "_send", send)
+    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", DL)
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    info = {"id": "abc", "subtitles": {"en": [{"ext": "vtt", "url": public}]}}
+    with pytest.raises(cf.FreeRouteError) as e:
+        cf.download_captions(info, WorkDir(tmp_path / "w"), IngestOptions(), ("en", "manual"))
+    assert sent == [(public, "93.184.216.34")]  # only the vetted first hop, pinned
+    assert "private or local address" in str(e.value)
