@@ -86,7 +86,8 @@ the review screen then reports `critic not run` by itself.
 
        <ENGINE> --log "<W>/logs/snapshot-draft.log" snapshot-draft --work "<W>"
 
-2. Dispatch one Agent call with agent type `skipwatch:skill-critic` and no other. The
+2. Dispatch one Agent call with agent type `skipwatch:skill-critic` and model `sonnet`, and
+   no other. The
    prompt contains exactly these lines, filled in:
 
        Critique the SkipWatch skill at <W>/staging/<name>/.

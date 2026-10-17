@@ -53,7 +53,8 @@ unless `--test` was also given.
 3. With safety flags, ask once, even under `--test`:
    `Test it anyway? The tester stops before steps <list>. [yes / no]`. No: show the
    prompt line again without a test.
-4. Dispatch one Agent call with agent type `skipwatch:skill-tester` and no other. The
+4. Dispatch one Agent call with agent type `skipwatch:skill-tester` and model `sonnet`, and
+   no other. The
    prompt contains exactly these lines, filled in:
 
        Test the SkipWatch skill at <W>/staging/<name>/ (read it; never change it).

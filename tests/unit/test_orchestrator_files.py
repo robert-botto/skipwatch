@@ -316,6 +316,18 @@ def test_run_protocol_parallel_readers_and_r_dis_4():
     assert "python -c" not in text
 
 
+@pytest.mark.parametrize("name", ["frame-reader", "skill-critic", "skill-tester"])
+def test_every_dispatch_names_the_agents_own_model(name):
+    # an explicit Agent `model` overrides the agent file, and a user's own rules
+    # ("pass a model on every subagent") otherwise pick one, as Opus for the critic
+    model = fm(ROOT / f"agents/{name}.md")["model"]
+    assert f"agent type `skipwatch:{name}` and model `{model}`" in protocol_flat()
+
+
+def test_skill_md_pins_dispatch_models():
+    assert "sets model `sonnet`" in flat(SKILL / "SKILL.md")
+
+
 def test_run_protocol_redaction_and_check_loop():
     text = protocol_flat()
     assert "Every prose block goes through `<ENGINE> redact`" in text
@@ -632,7 +644,8 @@ def test_skill_md_body():
     assert "Never Read a frame image yourself" in text  # R-DIS-4
     assert (
         "Agents you dispatch: frame-reader, skill-critic and skill-tester. Every dispatch "
-        'says "Do not start other agents." and states a time budget.' in text
+        "sets model `sonnet` (their own model, whatever other instructions say), says "
+        '"Do not start other agents." and states a time budget.' in text
     )
     assert "<ENGINE> redact" in text  # R-CHK-2
     assert "skipwatch:frame-reader" in text
