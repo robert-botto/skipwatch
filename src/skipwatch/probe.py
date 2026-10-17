@@ -12,7 +12,7 @@ from skipwatch.adapters.registry import adapter_for
 from skipwatch.adapters.ytdlp_common import author_of, choose_caption_track, fetch_info, has_video
 from skipwatch.detect import Detected, detect
 from skipwatch.doctor import CLOUD_KEYS
-from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.errors import VIDEO_ONLY, ExitCode, SkipwatchError
 from skipwatch.models import ProbeResult
 
 LONG_VIDEO_S = 3600
@@ -83,7 +83,7 @@ def probe(value: str, opts: IngestOptions) -> ProbeResult:
     try:
         info, _ = fetch_info(detected, opts, detected.platform)
     except NoMediaError as exc:
-        raise SkipwatchError(ExitCode.NO_CONTENT, f"{exc.url} has no video: {exc.reason}") from exc
+        raise SkipwatchError(ExitCode.NO_CONTENT, VIDEO_ONLY) from exc
     except DownloadFailed as exc:
         raise SkipwatchError(
             ExitCode.DOWNLOAD_FAILED, f"could not read {value}: {'; '.join(exc.attempts)}"

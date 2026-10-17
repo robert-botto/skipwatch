@@ -89,18 +89,21 @@ def test_text_page_that_cannot_be_fetched_is_exit_7(tmp_path, pages):
     assert e.value.code == ExitCode.NO_CONTENT and PAGE in e.value.message
 
 
-def test_unsupported_page_via_cli_becomes_a_text_bundle(tmp_path, monkeypatch, pages, sw_home):
+def test_a_page_without_video_via_cli_is_exit_7_video_only(tmp_path, monkeypatch, pages, sw_home):
+    """0.1.0 reads videos only: a page with no video exits 7, however much text it has."""
+
     def extract(url, opts):
         raise cf.FreeRouteError("metadata", f"ERROR: Unsupported URL: {url}")
 
     monkeypatch.setattr(cf, "extract", extract)
-    pages(LinkContext(url=PAGE, title="How I ship", text=words(300)))
+    seen = pages(LinkContext(url=PAGE, title="How I ship", text=words(300)))
     r = CliRunner().invoke(
         app, ["ingest", PAGE, "--work", str(home_work("w")), "--provider", "free", "--json"]
     )
-    assert r.exit_code == 0, r.output
-    bundle = IngestBundle.model_validate_json(r.stdout)
-    assert bundle.source.kind == "text" and bundle.media is None
+    assert r.exit_code == ExitCode.NO_CONTENT
+    assert "SkipWatch 0.1.0 reads videos only." in r.output
+    assert "Article support is planned for a later release." in r.output
+    assert seen["link"] == []  # the page is never fetched as text
 
 
 def test_x_text_post_without_providers_is_exit_7_naming_treg(tmp_path, pages):

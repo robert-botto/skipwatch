@@ -202,7 +202,8 @@ def test_x_text_only_post_raises_no_media(tmp_path, free_route):
         build(error["url"], tmp_path / "w")
 
 
-def test_x_text_only_free_route_is_exit_7_naming_treg(tmp_path, free_route, sw_home):
+def test_x_text_only_free_route_is_exit_7_naming_treg(tmp_path, free_route, sw_home, monkeypatch):
+    monkeypatch.setattr("skipwatch.ingest.TEXT_SOURCES", True)  # the parked text route
     error = json.loads((REC / "text" / "text-only-reply.error.json").read_text(encoding="utf-8"))
     free_route({error["url"]: cf.FreeRouteError("metadata", error["message"])})
     r = CliRunner().invoke(

@@ -15,7 +15,7 @@ from skipwatch.adapters.registry import adapter_for
 from skipwatch.config import load_config
 from skipwatch.detect import Detected, detect
 from skipwatch.doctor import ytdlp_upgrade_command
-from skipwatch.errors import ExitCode, SkipwatchError
+from skipwatch.errors import VIDEO_ONLY, ExitCode, SkipwatchError
 from skipwatch.models import (
     CallsFile,
     Config,
@@ -28,6 +28,11 @@ from skipwatch.models import (
 from skipwatch.providers.base import ContentProvider
 from skipwatch.providers.registry import content_providers
 from skipwatch.workdir import WorkDir, run_stage, write_model
+
+# 0.1.0 reads videos only: a source with no video or audio exits 7 (VIDEO_ONLY) instead of
+# becoming a text source. The text route (adapters/text.py, treg's text-only X posts) stays
+# in the code and its tests, for the release that turns this back on.
+TEXT_SOURCES = False
 
 # YouTube's CDN answers 403 or 429 intermittently; content_free has already retried once.
 TRANSIENT_HTTP = re.compile(r"HTTP Error (403|429)|connection reset", re.IGNORECASE)
@@ -151,11 +156,9 @@ def _build_with(
     try:
         bundle = adapter.build(detected, work, opts)
     except NoMediaError as exc:
-        text = adapter_for("text")
+        text = adapter_for("text") if TEXT_SOURCES else None
         if text is None:
-            raise SkipwatchError(
-                ExitCode.NO_CONTENT, f"{exc.url} has no video: {exc.reason}"
-            ) from exc
+            raise SkipwatchError(ExitCode.NO_CONTENT, VIDEO_ONLY) from exc
         bundle = text.build(detected, work, opts)
     except DownloadFailed as exc:
         bundle = _media_fallback(detected, work, opts, providers, exc)

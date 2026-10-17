@@ -17,6 +17,10 @@ from tests.unit._work import home_work
 
 REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "generic"
 PAGE = "https://example.com/post"
+VIDEO_ONLY = (
+    "SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article support is "
+    "planned for a later release."
+)
 
 
 def raise_from_ytdlp(monkeypatch, message: str):
@@ -53,7 +57,7 @@ def test_generic_unsupported_url_via_cli_is_exit_7_naming_the_url(tmp_path, monk
         app, ["ingest", PAGE, "--work", str(home_work("w")), "--provider", "free"]
     )
     assert r.exit_code == ExitCode.NO_CONTENT
-    assert PAGE in r.output
+    assert VIDEO_ONLY in r.output
 
 
 def test_generic_login_wall_names_the_host(tmp_path, monkeypatch, sw_home):
