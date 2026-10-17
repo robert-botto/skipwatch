@@ -1,9 +1,8 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
-  <img src="docs/assets/hero.svg" alt="SkipWatch. Paste a video. Claude knows kung fu." width="100%">
-</picture>
+<a href="docs/film/skipwatch-readme.mp4"><img src="docs/film/skipwatch-readme.gif" alt="SkipWatch launch film: a kung fu tutorial video becomes an installed Claude skill, shown on SkipWatch's review screen" width="100%"></a>
+
+<p><b>Paste a video. Claude knows kung fu.</b></p>
 
 A Claude Code plugin that turns a tutorial video into an installed Agent Skill,<br>
 with every step traced to the moment in the video it came from.
@@ -16,10 +15,6 @@ with every step traced to the moment in the video it came from.
 [Quickstart](#quickstart) · [Use it](#use-it) · [How it works](#how-it-works) · [What you get](#what-you-get) · [Capability tiers](#capability-tiers) · [Privacy](#privacy) · [Uninstall](#uninstall) · [Troubleshooting](docs/troubleshooting.md) · [FAQ](#faq)
 
 <code>/skipwatch &lt;video link&gt;</code>
-
-<br>
-
-<img src="docs/demo/demo.gif" alt="A real /skipwatch run on a TypeScript tip posted on X: the review screen, then the installed skill" width="100%">
 
 </div>
 
@@ -158,6 +153,8 @@ Every step ends with exactly one tag:
 | `[on-screen mm:ss]` | it was on screen at that time; a frame-reader agent copied it |
 | `[written]` | it came from the post, its thread or a page it links to |
 | `[inferred]` | Claude filled a gap; the review screen and the skill list it under Unverified |
+
+<img src="docs/demo/demo.gif" alt="A real /skipwatch run on a TypeScript tip posted on X: the review screen, then the installed skill" width="100%">
 
 Here is an excerpt of a real skill made from [a TypeScript tip Matt Pocock posted on X](https://x.com/mattpocockuk/status/1505892984658743300), the run in the GIF above. `[...]` marks the parts left out. The name `g2-skill` came from `--name` in a test run.
 
