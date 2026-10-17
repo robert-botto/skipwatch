@@ -11,7 +11,7 @@ First release.
 ### Added
 
 - `/skipwatch <url or path>` turns a tutorial video into an installed Agent Skill whose steps cite where in the video they came from.
-- Sources: links from YouTube, X, TikTok, Instagram and Facebook, any other site yt-dlp supports, local screen recordings and audio files (with an optional `.srt` or `.vtt` sidecar), and the pages an X, TikTok, Instagram or Facebook video post links to. 0.1.0 reads videos only: a URL with no video or audio exits 7 with a message saying so, and articles are planned for a later release.
+- Sources: links from YouTube, X, TikTok, Instagram and Facebook, any other site yt-dlp supports, and local screen recordings and audio files (with an optional `.srt` or `.vtt` sidecar). The pages an X, TikTok, Instagram or Facebook video post links to are read as context. 0.1.0 reads videos only: a URL with no video or audio exits 7 with a message saying so, and articles are planned for a later release.
 - Transcription from captions first, then local Whisper (mlx-whisper on Apple silicon, faster-whisper elsewhere), or a cloud provider (OpenAI, Groq or Deepgram) only after you say yes to that provider by name.
 - Frame sampling once a second with still screens collapsed and near-duplicates dropped, read by `frame-reader` agents that copy commands, code and settings as shown.
 - Provenance tags on every step: `[spoken mm:ss]`, `[on-screen mm:ss]`, `[written]` and `[inferred]`, each checked against the transcript, the frame notes or the post.
