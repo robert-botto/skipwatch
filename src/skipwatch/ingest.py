@@ -25,6 +25,7 @@ from skipwatch.models import (
     SourceFile,
     SourceInfo,
 )
+from skipwatch.output import progress
 from skipwatch.providers.base import ContentProvider
 from skipwatch.providers.registry import content_providers
 from skipwatch.workdir import WorkDir, run_stage, write_model
@@ -158,6 +159,7 @@ def _build_with(
     except NoMediaError as exc:
         text = adapter_for("text") if TEXT_SOURCES else None
         if text is None:
+            progress(f"No video or audio at {exc.url}: {exc.reason}")  # the why, for ingest.log
             raise SkipwatchError(ExitCode.NO_CONTENT, VIDEO_ONLY) from exc
         bundle = text.build(detected, work, opts)
     except DownloadFailed as exc:

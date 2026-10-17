@@ -96,3 +96,16 @@ def test_recorded_generic_fixtures_build_bundles(tmp_path, monkeypatch, name, ki
 
 def test_generic_registers_itself():
     assert adapter_for("generic") is ADAPTER
+
+
+def test_the_video_only_exit_logs_the_url_and_yt_dlp_reason(tmp_path, monkeypatch, sw_home):
+    log = home_work("w") / "logs" / "ingest.log"
+    raise_from_ytdlp(monkeypatch, f"ERROR: Unsupported URL: {PAGE}")
+    r = CliRunner().invoke(
+        app,
+        ["--log", str(log), "ingest", PAGE, "--work", str(home_work("w")), "--provider", "free"],
+    )
+    assert r.exit_code == ExitCode.NO_CONTENT
+    text = log.read_text(encoding="utf-8")
+    assert f"No video or audio at {PAGE}: Unsupported URL: {PAGE}" in text
+    assert VIDEO_ONLY in text  # the user message itself is unchanged

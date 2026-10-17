@@ -241,3 +241,11 @@ def test_probe_out_refuses_before_probing_and_writes_nothing(monkeypatch, tmp_pa
     assert not (run_folder / "probe.json").exists()
     assert not (elsewhere / "logs" / "probe.json").exists()
     assert (run_folder / "stages.json").read_bytes() == stages
+
+
+def test_probe_video_only_exit_names_the_reason_on_stderr(extract, capsys):
+    extract(error="ERROR: Unsupported URL: https://example.com/post")
+    with pytest.raises(SkipwatchError):
+        probe("https://example.com/post", IngestOptions())
+    err = capsys.readouterr().err
+    assert "No video or audio at https://example.com/post: Unsupported URL" in err

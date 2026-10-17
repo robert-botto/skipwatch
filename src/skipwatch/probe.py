@@ -14,6 +14,7 @@ from skipwatch.detect import Detected, detect
 from skipwatch.doctor import CLOUD_KEYS
 from skipwatch.errors import VIDEO_ONLY, ExitCode, SkipwatchError
 from skipwatch.models import ProbeResult
+from skipwatch.output import progress
 
 LONG_VIDEO_S = 3600
 BASE_RUN_S = 30
@@ -83,6 +84,7 @@ def probe(value: str, opts: IngestOptions) -> ProbeResult:
     try:
         info, _ = fetch_info(detected, opts, detected.platform)
     except NoMediaError as exc:
+        progress(f"No video or audio at {exc.url}: {exc.reason}")  # the why, for probe.log
         raise SkipwatchError(ExitCode.NO_CONTENT, VIDEO_ONLY) from exc
     except DownloadFailed as exc:
         raise SkipwatchError(
