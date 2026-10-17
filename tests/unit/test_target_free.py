@@ -1,6 +1,7 @@
 """target-free: say whether an install target is free in one stdout line, so the skill never
 reads `test -e` exit codes (live finding). Read-only; HOME is a fake under tmp_path."""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ def home(tmp_path, monkeypatch, sw_home) -> Path:
     home = tmp_path / "fakehome"
     (home / ".claude" / "skills").mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # Path.home() on Windows
     return home
 
 
@@ -38,6 +40,18 @@ def test_a_missing_target_is_free_and_nothing_is_created(home):
 def test_tilde_and_home_are_resolved(home, to):
     r = free("--to", to, "--name", "fix-bugs")
     assert r.stdout == f"target free: {home / '.claude' / 'skills' / 'fix-bugs'}\n"
+
+
+@pytest.mark.parametrize("to", ["~/.claude/skills", "$HOME/.claude/skills"])
+def test_home_is_path_home_not_a_stray_home_variable(tmp_path, monkeypatch, sw_home, to):
+    """Home means Path.home(), as install's user scope does: HOME on POSIX, USERPROFILE on
+    Windows (where Git Bash may also set a HOME that differs)."""
+    monkeypatch.setenv("HOME", str(tmp_path / "posix"))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path / "windows"))
+    expected = tmp_path / ("windows" if sys.platform == "win32" else "posix")
+    assert Path.home() == expected
+    r = free("--to", to, "--name", "fix-bugs")
+    assert r.stdout == f"target free: {expected / '.claude' / 'skills' / 'fix-bugs'}\n"
 
 
 def test_an_existing_folder_exists(home):

@@ -25,6 +25,7 @@ def fake_home(tmp_path, monkeypatch) -> Path:
     (home / ".zshrc").write_text(ZSHRC, encoding="utf-8")
     (home / ".ssh" / "id_rsa").write_text(KEY, encoding="utf-8")
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # Path.home() on Windows
     return home
 
 

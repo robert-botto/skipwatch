@@ -17,7 +17,8 @@ _HOME_VAR = re.compile(r"^\$(HOME|\{HOME\})(?=/|$)")
 
 
 def _expand(raw: str) -> Path:
-    """~ and a leading $HOME or ${HOME} resolved here, so the skill never quotes a tilde."""
+    """~ and a leading $HOME or ${HOME} resolved here, so the skill never quotes a tilde. Both
+    mean Path.home(), the home install uses: %USERPROFILE% on Windows, not a HOME variable."""
     return Path(_HOME_VAR.sub(lambda _: str(Path.home()), raw)).expanduser()
 
 
