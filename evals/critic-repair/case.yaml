@@ -1,0 +1,20 @@
+# Runner note: Bash and Write are gated tools. Run this case with
+#   --scaffold --allow-tools Bash Write
+# --scaffold copies the critic-work fixture into ./.skipwatch/work/critic-demo/ in the
+# sandbox cwd; without the tool grant the skill cannot reach the engine or write the draft.
+# --case is not repeatable (the last one wins), so run this case on its own:
+# --case critic-repair.
+# The slash prompt does not go through the Skill tool, so no grader scores Skill use.
+# The fixture is a run paused before stage 7 with one planted flaw (M5-M6 issue 19):
+# step 2 is [inferred] and listed under "Unverified and gaps", while outline.md and the
+# notes carry its verbatim prompt at 00:25. check passes it as is, so only the critic
+# (dispatched as skipwatch:skill-critic) can lead to the promotion the graders look for.
+schema_version: "1.0"
+name: critic-repair
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: "/skipwatch resume ./.skipwatch/work/critic-demo"
+  max_turns: 120
+  timeout_seconds: 1500
+  allowed_tools: [Skill, Bash, Read, Write, Agent, Glob]

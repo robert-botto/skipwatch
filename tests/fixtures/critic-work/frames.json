@@ -1,0 +1,59 @@
+{
+  "schema": "skipwatch/frames/1",
+  "sampling": {
+    "per_minute": 3,
+    "max": 60,
+    "dense": false,
+    "cue_terms": [
+      "paste",
+      "prompt",
+      "settings",
+      "click",
+      "type",
+      "run",
+      "copy"
+    ]
+  },
+  "frames": [
+    {
+      "id": "f000100",
+      "t": 10.0,
+      "path": "frames/f000100.jpg",
+      "reason": "cue",
+      "transcript_window": "In this tutorial we set up a tiny demo project in the terminal. First, type this command in the terminal and run it. You should see the words project ready.",
+      "dhash": "6060a05858800000"
+    },
+    {
+      "id": "f000250",
+      "t": 25.0,
+      "path": "frames/f000250.jpg",
+      "reason": "cue",
+      "transcript_window": "Next, paste this prompt into the prompt box. The assistant answers with a short poem.",
+      "dhash": "6068004e0e000000"
+    },
+    {
+      "id": "f000400",
+      "t": 40.0,
+      "path": "frames/f000400.jpg",
+      "reason": "cue",
+      "transcript_window": "Then copy your API key into the settings panel.",
+      "dhash": "6061024141000000"
+    },
+    {
+      "id": "f000500",
+      "t": 50.0,
+      "path": "frames/f000500.jpg",
+      "reason": "cue",
+      "transcript_window": "Finally, click run to see the result. That is the whole workflow.",
+      "dhash": "6020882323000000"
+    },
+    {
+      "id": "f000560",
+      "t": 56.0,
+      "path": "frames/f000560.jpg",
+      "reason": "scene",
+      "transcript_window": "Finally, click run to see the result. That is the whole workflow.",
+      "dhash": "6040000000000000"
+    }
+  ]
+}

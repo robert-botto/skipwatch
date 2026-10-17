@@ -1,0 +1,4 @@
+scripts/skipwatch text eol=lf
+*.sh text eol=lf
+# shipped example skills: skipwatch.json hashes these exact bytes, so never convert line endings
+examples/** -text

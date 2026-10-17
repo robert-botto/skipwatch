@@ -1,0 +1,36 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "install_line": {
+      "title": "Install Line",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "schema": {
+      "const": "skipwatch/share/1",
+      "default": "skipwatch/share/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "weighted_length": {
+      "title": "Weighted Length",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "text",
+    "weighted_length",
+    "install_line"
+  ],
+  "title": "ShareResult",
+  "type": "object"
+}

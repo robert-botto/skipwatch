@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "NotesError": {
+      "additionalProperties": false,
+      "properties": {
+        "batch": {
+          "minimum": 1,
+          "title": "Batch",
+          "type": "integer"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "frame": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frame"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "batch",
+        "message"
+      ],
+      "title": "NotesError",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "validate-notes --json: every batch is checked in one run, so each error names its batch.",
+  "properties": {
+    "batches": {
+      "minimum": 0,
+      "title": "Batches",
+      "type": "integer"
+    },
+    "errors": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NotesError"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "schema": {
+      "const": "skipwatch/validate-notes/1",
+      "default": "skipwatch/validate-notes/1",
+      "title": "Schema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "ok",
+    "batches"
+  ],
+  "title": "ValidateNotesResult",
+  "type": "object"
+}

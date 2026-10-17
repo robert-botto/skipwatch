@@ -1,0 +1,821 @@
+{
+  "$defs": {
+    "Counts": {
+      "additionalProperties": false,
+      "properties": {
+        "gaps": {
+          "default": 0,
+          "title": "Gaps",
+          "type": "integer"
+        },
+        "illegible": {
+          "default": 0,
+          "title": "Illegible",
+          "type": "integer"
+        },
+        "inferred": {
+          "default": 0,
+          "title": "Inferred",
+          "type": "integer"
+        },
+        "on_screen": {
+          "default": 0,
+          "title": "On Screen",
+          "type": "integer"
+        },
+        "spoken": {
+          "default": 0,
+          "title": "Spoken",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "written": {
+          "default": 0,
+          "title": "Written",
+          "type": "integer"
+        }
+      },
+      "title": "Counts",
+      "type": "object"
+    },
+    "IngestContext": {
+      "additionalProperties": false,
+      "properties": {
+        "author_replies": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Author Replies",
+          "type": "array"
+        },
+        "captions_available": {
+          "default": false,
+          "title": "Captions Available",
+          "type": "boolean"
+        },
+        "captions_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "manual",
+                "auto"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Kind"
+        },
+        "captions_lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Lang"
+        },
+        "captions_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captions Path"
+        },
+        "links": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LinkContext"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "post_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Text"
+        },
+        "thread": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Thread",
+          "type": "array"
+        }
+      },
+      "title": "IngestContext",
+      "type": "object"
+    },
+    "LinkContext": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "default": "",
+          "maxLength": 20000,
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "LinkContext",
+      "type": "object"
+    },
+    "Manifest": {
+      "additionalProperties": false,
+      "properties": {
+        "checks_passed": {
+          "title": "Checks Passed",
+          "type": "boolean"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "counts": {
+          "$ref": "#/$defs/Counts"
+        },
+        "critic_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Critic Score"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "extracted_at": {
+          "title": "Extracted At",
+          "type": "string"
+        },
+        "fetched_with_cookies": {
+          "default": false,
+          "title": "Fetched With Cookies",
+          "type": "boolean"
+        },
+        "files": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Files",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "safety_flags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SafetyFlag"
+          },
+          "title": "Safety Flags",
+          "type": "array"
+        },
+        "schema": {
+          "const": "skipwatch/manifest/1",
+          "default": "skipwatch/manifest/1",
+          "title": "Schema",
+          "type": "string"
+        },
+        "skipwatch_version": {
+          "title": "Skipwatch Version",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ManifestSource"
+        }
+      },
+      "required": [
+        "schema",
+        "name",
+        "description",
+        "skipwatch_version",
+        "source",
+        "extracted_at",
+        "counts",
+        "confidence",
+        "checks_passed"
+      ],
+      "title": "Manifest",
+      "type": "object"
+    },
+    "ManifestSource": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Url"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "posted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Posted At"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "platform"
+      ],
+      "title": "ManifestSource",
+      "type": "object"
+    },
+    "MediaInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fps"
+        },
+        "has_audio": {
+          "default": false,
+          "title": "Has Audio",
+          "type": "boolean"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "MediaInfo",
+      "type": "object"
+    },
+    "PackOrigin": {
+      "additionalProperties": false,
+      "description": "Where an unpacked skill came from (M5-M6 issue 1): carried in a pack work folder's\ningest.json so check and manifest building know they are looking at a shared pack.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "manifest": {
+          "$ref": "#/$defs/Manifest"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "manifest"
+      ],
+      "title": "PackOrigin",
+      "type": "object"
+    },
+    "ProviderCall": {
+      "additionalProperties": false,
+      "properties": {
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Id"
+        },
+        "cost_usd": {
+          "default": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "ms": {
+          "default": 0,
+          "title": "Ms",
+          "type": "integer"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "enum": [
+                "useful",
+                "partly",
+                "not_useful",
+                "not_sure"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
+        }
+      },
+      "required": [
+        "provider",
+        "op",
+        "ok"
+      ],
+      "title": "ProviderCall",
+      "type": "object"
+    },
+    "Route": {
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "title": "Context",
+          "type": "string"
+        },
+        "fallbacks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallbacks",
+          "type": "array"
+        },
+        "media": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media"
+        }
+      },
+      "required": [
+        "context"
+      ],
+      "title": "Route",
+      "type": "object"
+    },
+    "SafetyFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "severity"
+      ],
+      "title": "SafetyFlag",
+      "type": "object"
+    },
+    "SourceInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "author_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author Name"
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Url"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "kind": {
+          "enum": [
+            "video",
+            "audio",
+            "text",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "posted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Posted At"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "kind",
+        "platform"
+      ],
+      "title": "SourceInfo",
+      "type": "object"
+    },
+    "TranscriptHint": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "default": "none",
+          "title": "Origin",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "title": "TranscriptHint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cached_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cached At"
+    },
+    "context": {
+      "$ref": "#/$defs/IngestContext",
+      "default": {
+        "author_replies": [],
+        "captions_available": false,
+        "captions_kind": null,
+        "captions_lang": null,
+        "captions_path": null,
+        "links": [],
+        "post_text": null,
+        "thread": []
+      }
+    },
+    "fetched_with_cookies": {
+      "default": false,
+      "title": "Fetched With Cookies",
+      "type": "boolean"
+    },
+    "from_cache": {
+      "default": false,
+      "title": "From Cache",
+      "type": "boolean"
+    },
+    "media": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "pack": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackOrigin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "provider_calls": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProviderCall"
+      },
+      "title": "Provider Calls",
+      "type": "array"
+    },
+    "route": {
+      "$ref": "#/$defs/Route"
+    },
+    "schema": {
+      "const": "skipwatch/ingest/1",
+      "default": "skipwatch/ingest/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceInfo"
+    },
+    "transcript_hint": {
+      "$ref": "#/$defs/TranscriptHint",
+      "default": {
+        "origin": "none",
+        "text": null
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "source",
+    "route"
+  ],
+  "title": "IngestBundle",
+  "type": "object"
+}

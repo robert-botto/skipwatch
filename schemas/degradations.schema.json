@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "description": "degradations.json: what `note` recorded during the run, for the review screen.\n\nKept in the work folder so a resumed run still shows them (skill audit 4 fix 2).",
+  "properties": {
+    "degradations": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Degradations",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/degradations/1",
+      "default": "skipwatch/degradations/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "unread": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Unread",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "DegradationsFile",
+  "type": "object"
+}

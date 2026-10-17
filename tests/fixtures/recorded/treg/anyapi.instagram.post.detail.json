@@ -1,0 +1,24 @@
+{
+  "costUsd": 0.0008,
+  "items": 1,
+  "output": {
+    "data": {
+      "displayUrl": "https://scontent-scrubbed.cdninstagram.com",
+      "id": "3998823293960582777",
+      "likes": 3429,
+      "owner": "github",
+      "shortcode": "Dd-rJlkE_Z5",
+      "type": "XDTGraphVideo",
+      "videoUrl": "https://scontent-scrubbed.cdninstagram.com"
+    },
+    "found": true
+  },
+  "provider": "AnyAPI",
+  "replayed": false,
+  "resultId": "00000000-0000-0000-0000-000000000000",
+  "source": {
+    "id": "anonymous-quokka",
+    "kind": "anonymous",
+    "name": "Quokka"
+  }
+}

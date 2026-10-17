@@ -1,0 +1,10 @@
+{
+  "name": "skipwatch",
+  "version": "0.1.0",
+  "description": "Paste a tutorial video link or a screen recording and get an installed Agent Skill with every step traced to a timestamp.",
+  "author": { "name": "SkipWatch contributors" },
+  "homepage": "https://github.com/robert-botto/skipwatch",
+  "repository": "https://github.com/robert-botto/skipwatch",
+  "license": "MIT",
+  "keywords": ["skills", "video", "tutorial", "youtube", "screen-recording"]
+}

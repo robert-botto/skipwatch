@@ -1,0 +1,101 @@
+#!/bin/sh
+# Run the SkipWatch engine from this plugin's uv project.
+#
+# The skill calls this script instead of `uv run` because uv older than 0.9.29
+# panics inside macOS sandboxes (Claude Code's Bash sandbox, `claude plugin eval`)
+# before Python starts, and any uv needs a writable cache and usually network.
+# A synced venv needs neither, so the fast path runs its entry point directly.
+#
+# Bash tool commands do not receive CLAUDE_PLUGIN_ROOT, so derive the root from
+# this script's own location (scripts/ sits directly under the plugin root).
+
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd) || exit 1
+venv="$root/.venv"
+stamp="$venv/.skipwatch-synced"
+
+if [ -x "$venv/bin/skipwatch" ]; then
+  engine="$venv/bin/skipwatch"
+else
+  engine="$venv/Scripts/skipwatch.exe" # Windows venv layout (Git Bash)
+fi
+
+# The venv counts as fresh when it was last synced against these exact files.
+is_fresh() {
+  [ -x "$engine" ] && [ -f "$stamp" ] &&
+    cat "$root/uv.lock" "$root/pyproject.toml" | cmp -s - "$stamp"
+}
+
+# Exit codes of the wrapper itself (the engine never ran): 127 uv missing, 78 (EX_CONFIG)
+# no environment. 70 belongs to the engine (internal error), so it is not reused here. In SKIPWATCH_SYNC_ONLY mode (the SessionStart hook) it always exits 0,
+# so a session in a project that never uses SkipWatch is never failed by this hook.
+# Claude Code never shows stderr from a hook that exits 0, while any other exit prints a
+# "hook error" notice at every session start, and SessionStart stdout becomes Claude's
+# context. So the hook stays silent and the user sees the uv advice on first real use.
+fail() {
+  [ -n "$SKIPWATCH_SYNC_ONLY" ] && exit 0
+  exit "$1"
+}
+
+# The official one-line installers for this OS. Printed only: the wrapper never installs.
+no_uv_help() {
+  echo "skipwatch: uv is not installed. Install it with one of these, then retry:"
+  case $(uname -s 2>/dev/null) in
+    Darwin)
+      echo "  brew install uv"
+      echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+      ;;
+    MINGW* | MSYS* | CYGWIN*)
+      echo '  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+      ;;
+    *)
+      echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+      ;;
+  esac
+  echo "Other ways: https://docs.astral.sh/uv/getting-started/installation/"
+}
+
+# --inexact keeps extras the user added (whisper, mlx); --no-dev skips pytest, ruff and
+# pyright on marketplace installs, which have no .git.
+sync_args="--quiet --locked --inexact"
+[ -e "$root/.git" ] || sync_args="$sync_args --no-dev"
+
+# The standalone installers put uv in ~/.local/bin (older ones ~/.cargo/bin), which only new
+# shells have on PATH. Add it here so a retry in the same Claude Code session, and doctor's
+# uv check in the engine, both find it.
+if ! command -v uv >/dev/null 2>&1; then
+  for dir in "$HOME/.local/bin" "$HOME/.cargo/bin"; do
+    if [ -x "$dir/uv" ] && [ -f "$dir/uv" ]; then
+      PATH="$PATH:$dir"
+      export PATH
+      break
+    fi
+  done
+fi
+
+if ! is_fresh; then
+  if ! command -v uv >/dev/null 2>&1; then
+    no_uv_help >&2
+    fail 127
+  fi
+  # shellcheck disable=SC2086 # sync_args is a fixed list of flags
+  if sync_log=$(uv sync $sync_args --project "$root" 2>&1); then
+    cat "$root/uv.lock" "$root/pyproject.toml" >"$stamp.tmp.$$" 2>/dev/null &&
+      mv -f "$stamp.tmp.$$" "$stamp" 2>/dev/null
+    rm -f "$stamp.tmp.$$" 2>/dev/null
+    [ -x "$venv/bin/skipwatch" ] && engine="$venv/bin/skipwatch"
+  elif [ -x "$engine" ]; then
+    first=$(printf '%s\n' "$sync_log" | sed -n '1p')
+    echo "skipwatch: could not refresh the environment ($first), using the existing one." >&2
+  else
+    printf '%s\n' "$sync_log" >&2
+    echo "skipwatch: could not create the Python environment. Run this once outside any sandbox:" >&2
+    echo "  uv sync $sync_args --project \"$root\"" >&2
+    fail 78
+  fi
+fi
+
+[ -n "$SKIPWATCH_SYNC_ONLY" ] && exit 0
+# doctor and transcribe build install advice from CLAUDE_PLUGIN_ROOT; point it at this plugin.
+CLAUDE_PLUGIN_ROOT="$root"
+export CLAUDE_PLUGIN_ROOT
+exec "$engine" "$@"

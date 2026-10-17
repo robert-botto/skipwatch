@@ -1,0 +1,13 @@
+{
+  "schema": "skipwatch/run/1",
+  "input": "__CWD__/tutorial-60s.mp4",
+  "flags": [
+    "--yes",
+    "--to",
+    "__CWD__/installed",
+    "--name",
+    "run-skipdemo-tutorial"
+  ],
+  "name": "run-skipdemo-tutorial",
+  "started_at": "2026-10-11T00:00:00Z"
+}

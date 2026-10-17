@@ -1,0 +1,13 @@
+{
+  "name": "skipwatch",
+  "description": "SkipWatch: turn tutorial videos into Agent Skills.",
+  "owner": { "name": "SkipWatch contributors" },
+  "plugins": [
+    {
+      "name": "skipwatch",
+      "source": { "source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0" },
+      "description": "Turn tutorial videos into Agent Skills.",
+      "version": "0.1.0"
+    }
+  ]
+}

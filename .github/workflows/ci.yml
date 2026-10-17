@@ -1,0 +1,304 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**"]
+  pull_request:
+    # labeled: adding run-whisper to an open PR starts the whisper job without a new push.
+    types: [opened, synchronize, reopened, labeled]
+    paths-ignore: ["docs/**"]
+  workflow_dispatch:
+
+# Labeled runs get their own group (suffix -labeled) so adding a label cannot cancel the
+# in-flight full run of an opened or synchronize event on the same PR. A new push still
+# cancels the older full run, and a newer label event cancels an older label run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && '-labeled' || '' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      # macOS bills 10x and Windows 2x on a private repo, so pull requests run Linux only
+      # (both Python versions) and push to main or workflow_dispatch runs every OS. Windows
+      # runs 3.11 to 3.13: nofollow's _winapi and msvcrt calls are private API.
+      # Once the repo is public, restore all OSes on pull requests.
+      matrix:
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"}]'
+          || '[{"os":"ubuntu-latest","python":"3.11"},{"os":"ubuntu-latest","python":"3.12"},{"os":"macos-latest","python":"3.12"},{"os":"windows-latest","python":"3.11"},{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"}]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run python scripts/export_schemas.py --check
+      - run: uv run python scripts/check_versions.py
+      - run: uv run pytest -m "not pipeline and not live" --cov --cov-report=term --cov-fail-under=85
+
+  # Spec 11.2 engine half: the real CLI on the committed fixture video (macOS and Linux).
+  # Whisper tests run in the whisper job, which has the extras and the models.
+  # Pull requests run Linux only (macOS bills 10x on a private repo); main runs both.
+  pipeline:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --dev
+      # Prefer the runner's ffmpeg; fetch static-ffmpeg (about 70 MB) only when it has none.
+      - name: ffmpeg
+        run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+            echo "system ffmpeg: $(command -v ffmpeg)"
+          else
+            echo "no system ffmpeg; fetching static-ffmpeg"
+            uv run python -c "from static_ffmpeg import run; print(run.get_or_fetch_platform_executables_else_raise())"
+          fi
+      - run: uv run pytest -m "pipeline and not whisper and not live" -v
+
+  # Spec 8.4 and 11.2: local Whisper end to end. The tests run offline (HF_HUB_OFFLINE), so the
+  # models are fetched in an earlier step and cached. tests/pipeline/test_whisper_pipeline.py
+  # pins the default models: faster-whisper small (about 480 MB) everywhere, and mlx-whisper
+  # large-v3-turbo (about 1.6 GB) on Apple Silicon only.
+  # macOS bills 10x and a cold cache downloads about 2 GB, so both legs run only on push to
+  # main, on workflow_dispatch, and on pull requests labelled run-whisper. A labeled event
+  # starts it only when the label just added is run-whisper.
+  whisper:
+    if: >-
+      github.event_name != 'pull_request'
+      || (github.event.action == 'labeled' && github.event.label.name == 'run-whisper')
+      || (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'run-whisper'))
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            extras: --extra whisper
+            models: faster-whisper-small
+            passed: 3  # the two mlx cases skip: mlx needs Apple Silicon
+          - os: macos-latest
+            extras: --extra whisper --extra mlx
+            models: faster-whisper-small mlx-whisper-large-v3-turbo
+            passed: 5
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --dev ${{ matrix.extras }}
+      # The tests skip without ffmpeg on PATH, so put static-ffmpeg there when the runner has none.
+      - name: ffmpeg
+        run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+            echo "system ffmpeg: $(command -v ffmpeg)"
+          else
+            echo "no system ffmpeg; fetching static-ffmpeg"
+            uv run python -c "import os; from static_ffmpeg import run; print(os.path.dirname(run.get_or_fetch_platform_executables_else_raise()[0]))" >> "$GITHUB_PATH"
+          fi
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-${{ runner.os }}-${{ runner.arch }}-${{ matrix.models }}
+      - name: Whisper models (network allowed here only)
+        run: |
+          uv run python -c "from faster_whisper.utils import download_model; print(download_model('small'))"
+          if [[ "${{ matrix.models }}" == *mlx* ]]; then
+            uv run python -c "from huggingface_hub import snapshot_download; print(snapshot_download('mlx-community/whisper-large-v3-turbo'))"
+          fi
+      # A skipped test is not a pass: require the exact count this OS can run.
+      - name: pytest (pipeline and whisper)
+        run: |
+          set -o pipefail
+          uv run pytest -m "pipeline and whisper and not live" -v -rs | tee whisper.log
+          grep -Eq "[^0-9]${{ matrix.passed }} passed" whisper.log || {
+            echo "::error::expected ${{ matrix.passed }} Whisper tests to pass"; exit 1; }
+
+  plugin-validate:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      - run: claude plugin validate --strict .
+      - run: claude plugin validate --strict .claude-plugin/plugin.json
+
+  # Spec 13 and issue 13: the release artifacts build, and the sdist holds only the allowlist
+  # (tests/unit/test_release_files.py asserts the same, as a pipeline test).
+  build:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv build --out-dir dist
+      - name: sdist and wheel contents
+        run: |
+          uv run --no-project python - <<'PY'
+          import pathlib, sys, tarfile, zipfile
+          dist = pathlib.Path("dist")
+          (sdist,) = dist.glob("*.tar.gz")
+          (wheel,) = dist.glob("*.whl")
+          with tarfile.open(sdist) as tf:
+              tops = {pathlib.PurePosixPath(n).parts[1] for n in tf.getnames() if "/" in n}
+          forbidden = {"tests", "docs", "evals", ".github", "examples", "scripts", "skills"}
+          strays = [n for n in zipfile.ZipFile(wheel).namelist()
+                    if not n.startswith(("skipwatch/", "skipwatch-"))]
+          size = sdist.stat().st_size
+          print(f"sdist {sdist.name}: {size} bytes, top level {sorted(tops)}")
+          errors = []
+          if tops & forbidden:
+              errors.append(f"sdist holds {sorted(tops & forbidden)}")
+          if size >= 200 * 1024:
+              errors.append(f"sdist is {size} bytes, limit 204800")
+          if strays:
+              errors.append(f"wheel holds {strays}")
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY
+
+  # Install acceptance item 4: install the plugin from this checkout into an empty
+  # CLAUDE_CONFIG_DIR with no venv, run doctor through the wrapper, then repeat on a second
+  # fresh install with uv hidden from PATH. The published marketplace.json pins the release tag
+  # (issue 11), which does not exist until after the release PR merges, so the job installs from
+  # a copy of this checkout whose skipwatch source is rewritten to "./": it tests exactly this
+  # code, and the published file stays pinned.
+  # Pull requests run Linux only (billing); push to main and workflow_dispatch run every OS.
+  clean-machine:
+    # A labeled event exists only to start whisper; it runs nothing else.
+    if: github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      # Paths in the mixed form (D:/a/_temp on Windows) work in Git Bash and in claude. The
+      # marketplace is a temp copy of this checkout as committed, with the skipwatch source
+      # rewritten from the release pin to "./". Install copies tracked and untracked files but
+      # not .git, and the copy and the logs below live in the temp folder so the checkout stays
+      # clean.
+      - name: Paths
+        run: |
+          tmp=$RUNNER_TEMP
+          workspace=$GITHUB_WORKSPACE
+          if command -v cygpath >/dev/null; then
+            tmp=$(cygpath -m "$tmp")
+            workspace=$(cygpath -m "$workspace")
+          fi
+          market=$tmp/market
+          mkdir -p "$market"
+          cp -R "$workspace/." "$market"
+          (cd "$market" && node -e '
+            const fs = require("fs");
+            const file = ".claude-plugin/marketplace.json";
+            const data = JSON.parse(fs.readFileSync(file, "utf8"));
+            data.plugins.find((p) => p.name === "skipwatch").source = "./";
+            fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");')
+          echo "TMP_DIR=$tmp" >> "$GITHUB_ENV"
+          echo "MARKET=$market" >> "$GITHUB_ENV"
+      - name: Fresh install, then doctor through the wrapper
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config" SKIPWATCH_HOME="$TMP_DIR/sw-home"
+          SECONDS=0
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          test ! -e "$root/.venv" || { echo "::error::the fresh install already has a venv"; exit 1; }
+          set +e
+          "$root/scripts/skipwatch" doctor > "$TMP_DIR/doctor.log" 2>&1
+          code=$?
+          set -e
+          cat "$TMP_DIR/doctor.log"
+          echo "install to first doctor output: ${SECONDS}s"
+          test "$code" -eq 0 || { echo "::error::doctor exited $code, expected 0"; exit 1; }
+          grep -Eq '^Tier [0-9]' "$TMP_DIR/doctor.log" || { echo "::error::no Tier line"; exit 1; }
+          rows=$(grep -Ec '^[* ] [0-9]c? ' "$TMP_DIR/doctor.log" || true)
+          test "$rows" -ge 3 || { echo "::error::tier table has $rows rows"; exit 1; }
+      - name: Fresh install without uv on PATH
+        run: |
+          export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config-nouv" SKIPWATCH_HOME="$TMP_DIR/sw-home-nouv"
+          claude plugin marketplace add "$MARKET"
+          claude plugin install skipwatch@skipwatch
+          root=$(claude plugin list --json | node -e '
+            const list = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            process.stdout.write(list.find((p) => p.id === "skipwatch@skipwatch").installPath);')
+          if command -v cygpath >/dev/null; then root=$(cygpath -u "$root"); fi
+          nouv=""
+          IFS=: read -ra dirs <<< "$PATH"
+          for d in "${dirs[@]}"; do
+            [ -e "$d/uv" ] || [ -e "$d/uv.exe" ] || nouv="$nouv${nouv:+:}$d"
+          done
+          if PATH="$nouv" command -v uv; then echo "::error::uv is still on PATH"; exit 1; fi
+          set +e
+          PATH="$nouv" "$root/scripts/skipwatch" doctor > "$TMP_DIR/nouv.log" 2>&1
+          code=$?
+          set -e
+          cat "$TMP_DIR/nouv.log"
+          test "$code" -eq 127 || { echo "::error::exit $code, expected 127"; exit 1; }
+          grep -qi 'uv is not installed' "$TMP_DIR/nouv.log" || { echo "::error::no uv message"; exit 1; }
+          if grep -q 'Traceback' "$TMP_DIR/nouv.log"; then echo "::error::traceback"; exit 1; fi

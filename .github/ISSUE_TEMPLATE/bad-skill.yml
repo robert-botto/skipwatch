@@ -1,0 +1,25 @@
+name: Bad skill
+description: SkipWatch generated a skill that is wrong, misleading or unsafe.
+labels: ["bad-skill"]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source URL
+      description: The video or post the skill was made from. Say so if it was a local file.
+    validations:
+      required: true
+  - type: textarea
+    id: check-report
+    attributes:
+      label: check-report.json
+      description: Attach or paste the run's `check-report.json`. Remove anything personal.
+    validations:
+      required: true
+  - type: textarea
+    id: what-went-wrong
+    attributes:
+      label: What went wrong
+      description: Which step or file is wrong, and what the video actually shows.
+    validations:
+      required: true

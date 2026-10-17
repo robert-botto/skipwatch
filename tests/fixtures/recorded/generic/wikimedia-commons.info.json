@@ -1,0 +1,244 @@
+{
+  "age_limit": null,
+  "automatic_captions": {},
+  "availability": null,
+  "channel": null,
+  "description": "Wikipedia: #Edit2014",
+  "duration": 172.312,
+  "extractor_key": "Wikimedia",
+  "formats": [
+    {
+      "acodec": "opus",
+      "ext": "webm",
+      "filesize": null,
+      "filesize_approx": 5578601,
+      "format_id": "0",
+      "height": 240,
+      "tbr": 259,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": "vp9",
+      "width": 426
+    },
+    {
+      "acodec": "none",
+      "ext": "mov",
+      "filesize": null,
+      "filesize_approx": 20203582,
+      "format_id": "1",
+      "height": 360,
+      "tbr": 938,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": "mp4v",
+      "width": 640
+    },
+    {
+      "acodec": "opus",
+      "ext": "webm",
+      "filesize": null,
+      "filesize_approx": 13160329,
+      "format_id": "2",
+      "height": 480,
+      "tbr": 611,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": "vp9",
+      "width": 854
+    },
+    {
+      "acodec": "vorbis",
+      "ext": "webm",
+      "filesize": null,
+      "filesize_approx": 95870089,
+      "format_id": "3",
+      "height": 1080,
+      "tbr": 4451,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": "vp8",
+      "width": 1920
+    },
+    {
+      "acodec": "opus",
+      "ext": "webm",
+      "filesize": null,
+      "filesize_approx": 43422624,
+      "format_id": "4",
+      "height": 1080,
+      "tbr": 2016,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": "vp9",
+      "width": 1920
+    },
+    {
+      "acodec": null,
+      "ext": "webm",
+      "filesize": 95885836,
+      "filesize_approx": null,
+      "format_id": "source",
+      "height": 1080,
+      "tbr": null,
+      "url": "https://upload.wikimedia.org",
+      "vcodec": null,
+      "width": 1920
+    }
+  ],
+  "id": "37354539",
+  "is_live": null,
+  "language": null,
+  "subtitles": {
+    "ar": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "bn": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "ca": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "cs": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "de": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "en": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "eo": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "es": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "fr": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "he": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "is": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "it": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "ja": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "ko": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "nl": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "pl": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "pnb": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "pt": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "ro": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "ru": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "sv": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "tr": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "uk": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "yo": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ],
+    "zh": [
+      {
+        "ext": "vtt",
+        "url": "https://commons.wikimedia.org"
+      }
+    ]
+  },
+  "timestamp": 1539711235,
+  "title": "Wikipedia Edit 2014",
+  "upload_date": "20181016",
+  "uploader": "Victorgrigas",
+  "uploader_id": null,
+  "webpage_url": "https://commons.wikimedia.org/wiki/File:Wikipedia_Edit_2014.webm"
+}

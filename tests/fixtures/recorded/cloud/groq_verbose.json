@@ -1,0 +1,86 @@
+{
+  "_handmade": "shape from provider docs and SDK types, 2026-10-09",
+  "duration": 9.5,
+  "language": "English",
+  "segments": [
+    {
+      "avg_logprob": -0.21,
+      "compression_ratio": 1.1,
+      "end": 4.2,
+      "id": 0,
+      "no_speech_prob": 0.01,
+      "seek": 0,
+      "start": 1.0,
+      "temperature": 0.0,
+      "text": " First type this command."
+    },
+    {
+      "avg_logprob": -0.19,
+      "compression_ratio": 1.1,
+      "end": 9.0,
+      "id": 1,
+      "no_speech_prob": 0.01,
+      "seek": 0,
+      "start": 5.0,
+      "temperature": 0.0,
+      "text": " Then paste the prompt."
+    }
+  ],
+  "task": "transcribe",
+  "text": "First type this command. Then paste the prompt.",
+  "words": [
+    {
+      "end": 1.5,
+      "start": 1.0,
+      "word": "First"
+    },
+    {
+      "end": 2.0,
+      "start": 1.6,
+      "word": "type"
+    },
+    {
+      "end": 2.5,
+      "start": 2.1,
+      "word": "this"
+    },
+    {
+      "end": 3.4,
+      "start": 2.6,
+      "word": "command"
+    },
+    {
+      "end": 4.2,
+      "start": 3.5,
+      "word": "okay"
+    },
+    {
+      "end": 5.4,
+      "start": 5.0,
+      "word": "Then"
+    },
+    {
+      "end": 6.1,
+      "start": 5.5,
+      "word": "paste"
+    },
+    {
+      "end": 6.4,
+      "start": 6.2,
+      "word": "the"
+    },
+    {
+      "end": 7.4,
+      "start": 6.5,
+      "word": "prompt"
+    },
+    {
+      "end": 9.0,
+      "start": 7.5,
+      "word": "now"
+    }
+  ],
+  "x_groq": {
+    "id": "req_SCRUBBED"
+  }
+}

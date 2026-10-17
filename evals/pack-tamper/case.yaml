@@ -1,0 +1,18 @@
+# Runner note: Bash and Write are gated tools. Run this case with
+#   --scaffold --allow-tools Bash Write
+# --scaffold copies both fixture packs (tests/fixtures/packs) into the sandbox cwd; without
+# the tool grant the skill cannot reach the engine. --case is not repeatable (the last one
+# wins), so run this case on its own: --case pack-tamper.
+# The slash prompt does not go through the Skill tool, so no grader scores Skill use.
+# The tampered pack has one byte of step 2's prompt changed in SKILL.md with the manifest
+# untouched: unpack must refuse it (exit 9) before anything is written, and the skill
+# must report the integrity failure and install nothing.
+schema_version: "1.0"
+name: pack-tamper
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: "/skipwatch install run-skipdemo-tutorial-tampered.skillpack.zip --to ./installed"
+  max_turns: 40
+  timeout_seconds: 600
+  allowed_tools: [Skill, Bash, Read, Write, Agent, Glob]

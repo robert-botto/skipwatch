@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "ExportsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "mem0": {
+          "$ref": "#/$defs/Mem0Config",
+          "default": {
+            "enabled": false,
+            "tag": "skipwatch",
+            "user_id": ""
+          }
+        },
+        "notes": {
+          "$ref": "#/$defs/NotesConfig",
+          "default": {
+            "enabled": false,
+            "folder": ""
+          }
+        }
+      },
+      "title": "ExportsConfig",
+      "type": "object"
+    },
+    "FramesConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "default": 60,
+          "minimum": 1,
+          "title": "Max",
+          "type": "integer"
+        },
+        "per_minute": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Per Minute",
+          "type": "integer"
+        }
+      },
+      "title": "FramesConfig",
+      "type": "object"
+    },
+    "InstallConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "default": "user",
+          "enum": [
+            "user",
+            "project",
+            "agents"
+          ],
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "title": "InstallConfig",
+      "type": "object"
+    },
+    "Mem0Config": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "tag": {
+          "default": "skipwatch",
+          "title": "Tag",
+          "type": "string"
+        },
+        "user_id": {
+          "default": "",
+          "title": "User Id",
+          "type": "string"
+        }
+      },
+      "title": "Mem0Config",
+      "type": "object"
+    },
+    "NotesConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "folder": {
+          "default": "",
+          "title": "Folder",
+          "type": "string"
+        }
+      },
+      "title": "NotesConfig",
+      "type": "object"
+    },
+    "ProvidersConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "treg": {
+          "$ref": "#/$defs/TregConfig",
+          "default": {
+            "enabled": false,
+            "max_cost_usd": 0.05
+          }
+        }
+      },
+      "title": "ProvidersConfig",
+      "type": "object"
+    },
+    "StyleConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "forbid": {
+          "default": [
+            "em-dash"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbid",
+          "type": "array"
+        }
+      },
+      "title": "StyleConfig",
+      "type": "object"
+    },
+    "TranscribeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "captions",
+            "mlx",
+            "faster",
+            "openai",
+            "groq",
+            "deepgram"
+          ],
+          "title": "Backend",
+          "type": "string"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "title": "TranscribeConfig",
+      "type": "object"
+    },
+    "TregConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "enum": [
+            "auto",
+            true,
+            false
+          ],
+          "title": "Enabled"
+        },
+        "max_cost_usd": {
+          "default": 0.05,
+          "minimum": 0,
+          "title": "Max Cost Usd",
+          "type": "number"
+        }
+      },
+      "title": "TregConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "exports": {
+      "$ref": "#/$defs/ExportsConfig",
+      "default": {
+        "mem0": {
+          "enabled": false,
+          "tag": "skipwatch",
+          "user_id": ""
+        },
+        "notes": {
+          "enabled": false,
+          "folder": ""
+        }
+      }
+    },
+    "frames": {
+      "$ref": "#/$defs/FramesConfig",
+      "default": {
+        "max": 60,
+        "per_minute": 3
+      }
+    },
+    "install": {
+      "$ref": "#/$defs/InstallConfig",
+      "default": {
+        "scope": "user"
+      }
+    },
+    "providers": {
+      "$ref": "#/$defs/ProvidersConfig",
+      "default": {
+        "treg": {
+          "enabled": false,
+          "max_cost_usd": 0.05
+        }
+      }
+    },
+    "style": {
+      "$ref": "#/$defs/StyleConfig",
+      "default": {
+        "forbid": [
+          "em-dash"
+        ]
+      }
+    },
+    "transcribe": {
+      "$ref": "#/$defs/TranscribeConfig",
+      "default": {
+        "backend": "auto",
+        "model": ""
+      }
+    }
+  },
+  "title": "Config",
+  "type": "object"
+}

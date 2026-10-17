@@ -1,0 +1,77 @@
+{
+  "schema": "skipwatch/stages/1",
+  "stages": {
+    "detect": {
+      "status": "done",
+      "started_at": "2026-10-11T00:00:00Z",
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "ingest": {
+      "status": "done",
+      "started_at": "2026-10-11T00:00:00Z",
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "transcribe": {
+      "status": "done",
+      "started_at": "2026-10-11T00:00:00Z",
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "frames": {
+      "status": "done",
+      "started_at": "2026-10-11T00:00:00Z",
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "plan": {
+      "status": "done",
+      "started_at": "2026-10-11T00:00:00Z",
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "read": {
+      "status": "done",
+      "started_at": null,
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "distill": {
+      "status": "done",
+      "started_at": null,
+      "finished_at": "2026-10-11T00:00:00Z",
+      "error": null
+    },
+    "critique": {
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "error": null
+    },
+    "check": {
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "error": null
+    },
+    "review": {
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "error": null
+    },
+    "install": {
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "error": null
+    },
+    "export": {
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "error": null
+    }
+  }
+}

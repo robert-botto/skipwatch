@@ -1,0 +1,32 @@
+{
+  "costUsd": 0.0012,
+  "items": 1,
+  "output": {
+    "data": {
+      "authorId": "100064718678925",
+      "authorImage": "",
+      "authorName": "gov.sg",
+      "authorVerified": false,
+      "comments": 4,
+      "createdUtc": 1472184808,
+      "durationSeconds": 0,
+      "id": "10154383743583686",
+      "image": "",
+      "likes": 165,
+      "shares": 0,
+      "text": "Worried about the haze? Here's what you need to know in 60 seconds, to keep yourself safe and healthy. #sghaze",
+      "url": "https://www.facebook.com/gov.sg/videos/10154383743583686/",
+      "videoId": null,
+      "views": 30098
+    },
+    "found": true
+  },
+  "provider": "AnyAPI",
+  "replayed": false,
+  "resultId": "00000000-0000-0000-0000-000000000000",
+  "source": {
+    "id": "anonymous-giraffe",
+    "kind": "anonymous",
+    "name": "Giraffe"
+  }
+}

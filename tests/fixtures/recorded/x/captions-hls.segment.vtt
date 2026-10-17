@@ -1,0 +1,20 @@
+WEBVTT
+
+00:00:00.120 --> 00:00:01.120
+<X-word-ms ms=1000 index=1 character_ranges=0-8>Yesterday</X-word-ms>
+
+00:00:00.760 --> 00:00:02.961
+<X-word-ms ms=20,499,180,300,60,199,240,119 index=2 character_ranges=0-0,1-11,12-15,16-20,21-23,24-26,27-32,33-36>a completely new kind of AI model was</X-word-ms>
+
+00:00:03.001 --> 00:00:06.102
+<X-word-ms ms=419,260,439,120,440,339,480 index=3 character_ranges=0-7,8-14,15-17,18-20,21-24,25-30,31-37>released that's 20 to 200 times faster</X-word-ms>
+
+00:00:06.322 --> 00:00:09.303
+<X-word-ms ms=139,440,139,359,300,359,159,200 index=4 character_ranges=0-2,3-5,6-8,9-12,13-18,19-26,27-31,32-37>and 40 to 400 times cheaper than other</X-word-ms>
+
+00:00:09.463 --> 00:00:11.944
+<X-word-ms ms=500,219,400,139,300,340 index=5 character_ranges=0-7,8-10,11-18,19-23,24-30,31-34>frontier AI models. It's called JEV</X-word-ms>
+
+00:00:12.204 --> 00:00:14.625
+<X-word-ms ms=160,160,300,19,461,339,320,60 index=6 character_ranges=0-2,3-7,8-16,17-18,19-29,30-39,40-44,45-47>and it's actually a completely different kind of</X-word-ms>
+

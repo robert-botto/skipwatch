@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "cache_entries": {
+      "default": 0,
+      "title": "Cache Entries",
+      "type": "integer"
+    },
+    "cleared": {
+      "title": "Cleared",
+      "type": "boolean"
+    },
+    "removed": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Removed",
+      "type": "array"
+    },
+    "schema": {
+      "const": "skipwatch/cache/1",
+      "default": "skipwatch/cache/1",
+      "title": "Schema",
+      "type": "string"
+    },
+    "work_folders": {
+      "default": 0,
+      "title": "Work Folders",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "cleared"
+  ],
+  "title": "CacheResult",
+  "type": "object"
+}

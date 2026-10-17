@@ -1,0 +1,34 @@
+{
+  "schema": "skipwatch/manifest/1",
+  "name": "build-with-jev",
+  "description": "Builds an app that uses TypeSafe's Jev decision model through a coding agent such as Cursor, from getting an API key to a running demo. Use when the user wants to build something on the Jev API, for example \"build an app with the Jev API\", \"set up Jev in my project\", \"use Jev to make fast decisions in my app\", \"improve my agent's memory with Jev\". Not for apps that need a model to write text or code, or for training or fine-tuning a model.",
+  "skipwatch_version": "0.1.0",
+  "source": {
+    "url": "https://x.com/moritzkremb/status/2100715237267660873",
+    "canonical_url": "https://x.com/i/status/2100715237267660873",
+    "platform": "x",
+    "author": "@moritzkremb",
+    "title": "Moritz Kremb - Full Jev Tutorial  What it is, how you can build with it and what new...",
+    "posted_at": "2026-09-17T22:35:16Z"
+  },
+  "extracted_at": "2026-10-13T04:07:15Z",
+  "fetched_with_cookies": false,
+  "counts": {
+    "steps": 13,
+    "spoken": 4,
+    "on_screen": 9,
+    "written": 0,
+    "inferred": 0,
+    "gaps": 2,
+    "illegible": 0
+  },
+  "confidence": "low",
+  "critic_score": 8.6,
+  "checks_passed": true,
+  "safety_flags": [],
+  "files": {
+    "SKILL.md": "sha256:fb1a777a7e941510f6da0c344df04259b5db9063d07f37c2c5e7cf5d35097305",
+    "references/source.md": "sha256:c61f295ca4e8c0e3cd2ff8de940249b1c8218ebeb722f33c1ea032530cddbd57",
+    "references/transcript.md": "sha256:ad70670a472f68369ee2ce1e5de139ef91655093442056d7a6a7f9eba4567b42"
+  }
+}

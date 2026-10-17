@@ -1,0 +1,235 @@
+"""download_captions on an HLS caption playlist (X): recorded fixtures, fully offline."""
+
+import io
+import socket
+from pathlib import Path
+
+import pytest
+
+from skipwatch.adapters.base import IngestOptions
+from skipwatch.captions import parse_file
+from skipwatch.providers import content_free as cf
+from skipwatch.providers import links
+from skipwatch.workdir import WorkDir
+
+REC = Path(__file__).resolve().parents[1] / "fixtures" / "recorded" / "x"
+PLAYLIST_URL = "https://video.twimg.com/amplify_video/2100714561389129730/pl/s0/DMUX4.m3u8"
+SEGMENT_URL = (
+    "https://video.twimg.com/subtitles/amplify_video/2100714561389129730/0/JWjpF_z1GMS3dPwx.vtt"
+)
+INFO = {
+    "id": "2100714561389129730",
+    "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt", "protocol": "m3u8_native"}]},
+}
+
+
+@pytest.fixture(autouse=True)
+def _public_caption_hosts(monkeypatch):
+    """Caption fetches are vetted (links.get_vetted): every test host resolves to a public
+    address here; sockets stay blocked."""
+
+    def resolve(host, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
+
+
+def _track_serving(body: bytes, url: str):
+    """Stands in for cf.fetch_track (the vetted caption fetch): (body, the URL it ended at)."""
+
+    def fetch_track(requested: str) -> tuple[bytes, str]:
+        assert requested == PLAYLIST_URL
+        return body, url
+
+    return fetch_track
+
+
+class _Raw:
+    def __init__(self, body: bytes):
+        self._io = io.BytesIO(body)
+
+    def read1(self, n, decode_content=True):
+        return self._io.read(n)
+
+
+class _Vetted:
+    def __init__(self, body: bytes, status: int = 200, raw=None):
+        self.status_code, self.raw, self.headers = status, raw or _Raw(body), {}
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def x_playlist(monkeypatch):
+    playlist = (REC / "captions-hls.m3u8").read_bytes()
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+
+
+def _serve_segments(monkeypatch, bodies: dict[str, _Vetted]) -> list[str]:
+    fetched: list[str] = []
+
+    def get_vetted(url, deadline):
+        fetched.append(url)
+        return bodies[url]
+
+    monkeypatch.setattr(links, "get_vetted", get_vetted)
+    return fetched
+
+
+def test_an_x_caption_playlist_is_resolved_into_parseable_webvtt(tmp_path, monkeypatch, x_playlist):
+    segment = _Vetted((REC / "captions-hls.segment.vtt").read_bytes())
+    fetched = _serve_segments(monkeypatch, {SEGMENT_URL: segment})
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    got = cf.download_captions(INFO, work, IngestOptions(), ("en", "manual"))
+    assert got == ("captions/2100714561389129730.en.vtt", "en", "manual")
+    assert fetched == [SEGMENT_URL]  # the segment went through the vetted transport
+    assert segment.closed
+    segs = parse_file(work.path / got[0])
+    assert len(segs) == 6
+    assert (segs[0].start, segs[0].text) == (0.12, "Yesterday")
+
+
+def test_segment_urls_resolve_against_the_url_the_playlist_came_from(tmp_path, monkeypatch):
+    # After a redirect, a relative segment path belongs to the final playlist URL.
+    moved = "https://cdn2.example/subs/pl/index.m3u8"
+    playlist = b"#EXTM3U\n#EXTINF:6,\nseg0.vtt\n#EXT-X-ENDLIST\n"
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, moved))
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    body = b"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nhi\n"
+    fetched = _serve_segments(monkeypatch, {"https://cdn2.example/subs/pl/seg0.vtt": _Vetted(body)})
+    cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+    assert fetched == ["https://cdn2.example/subs/pl/seg0.vtt"]
+
+
+def test_a_segment_on_a_private_address_is_refused(tmp_path, monkeypatch, x_playlist):
+    # The real guard: video.twimg.com "resolving" to loopback is never fetched.
+    def resolve(host, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
+    with pytest.raises(cf.FreeRouteError, match="private or local address") as e:
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+    assert e.value.op == "captions"
+    assert not (tmp_path / "captions").exists()
+
+
+def test_segments_over_the_size_cap_are_refused(tmp_path, monkeypatch, x_playlist):
+    monkeypatch.setattr(cf, "MAX_CAPTION_BYTES", 100)
+    segment = _Vetted((REC / "captions-hls.segment.vtt").read_bytes())
+    _serve_segments(monkeypatch, {SEGMENT_URL: segment})
+    with pytest.raises(cf.FreeRouteError, match="cap"):
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+    assert segment.closed
+
+
+def test_a_failed_segment_is_a_captions_error(tmp_path, monkeypatch, x_playlist):
+    _serve_segments(monkeypatch, {SEGMENT_URL: _Vetted(b"gone", status=404)})
+    with pytest.raises(cf.FreeRouteError, match="HTTP 404"):
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+
+
+def test_a_master_playlist_is_a_captions_error(tmp_path, monkeypatch):
+    playlist = b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nvideo.m3u8\n"
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+    with pytest.raises(cf.FreeRouteError, match="master playlist"):
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+
+
+def _broken_reads():
+    from urllib3.exceptions import DecodeError, IncompleteRead, ProtocolError, ReadTimeoutError
+
+    return [
+        ProtocolError("Connection broken", IncompleteRead(8, 992)),
+        ReadTimeoutError(None, "/a.vtt", "Read timed out."),  # pyright: ignore[reportArgumentType]
+        DecodeError("Received response with content-encoding: gzip, but failed to decode it."),
+    ]
+
+
+class _BrokenRaw:
+    def __init__(self, error: Exception):
+        self.error = error
+
+    def read1(self, n, decode_content=True):
+        raise self.error
+
+
+@pytest.mark.parametrize("error", _broken_reads(), ids=["short-body", "stall", "bad-gzip"])
+def test_a_broken_segment_body_is_a_captions_error(tmp_path, monkeypatch, x_playlist, error):
+    # p2.py: urllib3 errors from read1 used to escape and end ingest with exit 70.
+    segment = _Vetted(b"", raw=_BrokenRaw(error))
+    _serve_segments(monkeypatch, {SEGMENT_URL: segment})
+    with pytest.raises(cf.FreeRouteError, match="caption playlist") as e:
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+    assert e.value.op == "captions" and segment.closed
+
+
+def test_any_merge_failure_is_a_captions_error(tmp_path, monkeypatch, x_playlist):
+    # "a caption failure never ends ingest": whatever merge_webvtt raises becomes a captions
+    # error, so ingest records it and carries on without captions.
+    _serve_segments(monkeypatch, {SEGMENT_URL: _Vetted(b"WEBVTT\n")})
+
+    def boom(segments):
+        raise OverflowError("int too large to convert to float")
+
+    monkeypatch.setattr(cf.captions_hls, "merge_webvtt", boom)
+    with pytest.raises(cf.FreeRouteError, match="could not merge the segments"):
+        cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
+
+
+def _plain_captions(monkeypatch, body: bytes = b"WEBVTT\n"):
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(body, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "js_runtime", lambda: {})
+
+
+def test_a_hostile_language_code_never_leaves_captions(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    lang = "../../../escape"
+    info = {"id": "v1", "subtitles": {lang: [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    got = cf.download_captions(info, work, IngestOptions(), (lang, "manual"))
+    assert got is not None and got[0] == "captions/v1.escape.vtt"
+    assert (work.path / got[0]).read_bytes() == b"WEBVTT\n"
+    assert not (tmp_path / "escape.vtt").exists()
+
+
+def test_a_planted_symlink_is_replaced_not_followed(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    (work.path / "captions").mkdir(parents=True)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep", encoding="utf-8")
+    (work.path / "captions" / "v1.en.vtt").symlink_to(outside)
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    cf.download_captions(info, work, IngestOptions(), ("en", "manual"))
+    assert outside.read_text(encoding="utf-8") == "keep"
+    target = work.path / "captions" / "v1.en.vtt"
+    assert not target.is_symlink() and target.read_bytes() == b"WEBVTT\n"
+
+
+def test_a_directory_planted_at_the_captions_path_is_a_captions_error(tmp_path, monkeypatch):
+    # IsADirectoryError used to escape download_captions and end ingest with a traceback.
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    (work.path / "captions" / "v1.en.vtt").mkdir(parents=True)
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    with pytest.raises(cf.FreeRouteError, match="could not write captions/v1.en.vtt") as e:
+        cf.download_captions(info, work, IngestOptions(), ("en", "manual"))
+    assert e.value.op == "captions"
+    assert (work.path / "captions" / "v1.en.vtt").is_dir()
+    assert [p.name for p in (work.path / "captions").iterdir()] == ["v1.en.vtt"]  # no temp left
+
+
+def test_a_file_planted_at_the_captions_folder_is_a_captions_error(tmp_path, monkeypatch):
+    _plain_captions(monkeypatch)
+    work = WorkDir(tmp_path / "w")
+    work.ensure()
+    (work.path / "captions").write_text("not a folder", encoding="utf-8")
+    info = {"id": "v1", "subtitles": {"en": [{"url": PLAYLIST_URL, "ext": "vtt"}]}}
+    with pytest.raises(cf.FreeRouteError, match="could not write captions/v1.en.vtt"):
+        cf.download_captions(info, work, IngestOptions(), ("en", "manual"))

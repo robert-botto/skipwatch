@@ -1,0 +1,40 @@
+name: Platform failure
+description: A link from a supported platform failed to ingest.
+labels: ["platform-failure"]
+body:
+  - type: input
+    id: url-shape
+    attributes:
+      label: URL shape
+      description: The URL with the video or post id replaced, for example https://x.com/i/status/<id>.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: YouTube, X, TikTok, Instagram, Facebook, other
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: skipwatch doctor output
+      description: Paste the output of `/skipwatch doctor`. Remove anything personal.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: ytdlp-version
+    attributes:
+      label: yt-dlp version
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Exit code and message
+      description: The exit code and the one-line message SkipWatch printed.
+      render: text
+    validations:
+      required: true
