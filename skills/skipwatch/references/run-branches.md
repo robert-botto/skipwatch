@@ -42,9 +42,9 @@ says `ingest.log`; nothing was downloaded.
 - Exit 4: the engine's message, then
   `Re-run with --cookies-from-browser <browser> if you can open it logged in.`; on
   Instagram `Instagram often needs a login. Re-run with --cookies-from-browser <browser>.`
-- Exit 7: stop with `No usable content in <input>: no video, audio or text.` A
-  text-only X post says so itself; quote it:
-  `This post has no video. Enable treg (Tier 3) to read text posts.`
+- Exit 7: stop with `No usable content in <input>: no video, audio or text.` A page or
+  post with no video says so itself; quote the engine's message instead:
+  `SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article support is planned for a later release.`
 - Any other exit: the failure table in SKILL.md.
 
 ## Sources

@@ -126,7 +126,7 @@ is a complete pipeline; higher tiers add sources and accuracy.
 
 | Tier | Requires | Unlocks |
 |---|---|---|
-| 0 | uv | Local files with a captions sidecar, YouTube videos with captions, text-only posts, frame sampling on everything (ffmpeg and yt-dlp come as dependencies) |
+| 0 | uv | Local files with a captions sidecar, YouTube videos with captions, frame sampling on everything (ffmpeg and yt-dlp come as dependencies) |
 | 1 | Tier 0 plus a Whisper backend (uv extra `whisper` or `mlx`) | Any video or audio without captions: X, TikTok, Instagram, Facebook, screen recordings, podcasts |
 | 1c | Tier 0 plus a cloud transcription key | Same as Tier 1 without local compute |
 | 2 | Tier 1 plus node 22+ or deno | Full YouTube format list, fewer YouTube failures |
@@ -604,7 +604,13 @@ missing piece. The orchestrator offers installs and runs only the ones the user 
 youtu.be and music.youtube.com; tiktok.com and vm.tiktok.com; instagram.com; facebook.com,
 fb.watch and fb.com; local paths with video or audio extensions; otherwise `generic` for
 any URL. A URL whose yt-dlp metadata reports no media and whose page text exceeds 200
-words becomes kind `text`.
+words becomes kind `text` once text sources ship; 0.1.0 reads videos only (R-SCOPE-1).
+
+- R-SCOPE-1: 0.1.0 reads videos only. A URL with no video or audio exits 7 at probe and
+  ingest with "SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article
+  support is planned for a later release." The text route (kind `text`, the text adapter,
+  treg's text-only X posts) stays in the code behind `ingest.TEXT_SOURCES = False`. Links
+  inside a video post are still read as context (R-ING-1).
 
 - R-DET-1: Detection is pure string logic with a fixture test per URL shape, including
   mobile and share-link variants.
@@ -623,7 +629,7 @@ Every adapter builds the same `IngestBundle`. The content provider order is `fre
 | Facebook | yt-dlp: metadata, video | post detail, media URL |
 | Generic | yt-dlp: metadata, captions, video | none |
 | Local file | ffprobe metadata; a sidecar `.vtt` or `.srt` with the same stem is used as captions | none |
-| Text | page or post text, links fetched | thread and replies for X |
+| Text (off in 0.1.0, R-SCOPE-1) | page or post text, links fetched | thread and replies for X |
 
 Rules:
 - R-ING-1: Post text is stored in full. Links in the post are fetched (plain GET, 20k

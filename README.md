@@ -49,7 +49,8 @@ SkipWatch watches it once for you. It reads the captions or transcribes the audi
 
 - Links from YouTube, X, TikTok, Instagram and Facebook, plus any other site yt-dlp supports.
 - Local screen recordings and audio files (`.mp4`, `.mov`, `.mkv`, `.webm`, `.mp3`, `.m4a` and more), with an `.srt` or `.vtt` sidecar if you have one.
-- Text-only posts, and the READMEs, gists and docs pages a post links to.
+- For X, TikTok, Instagram and Facebook video posts, the READMEs, gists and docs pages the post links to are read as context.
+- Videos only in 0.1.0: a page or post with no video or audio stops with a clear message. Articles and text-only posts are planned for a later release.
 
 **Reads the video, not just the words**
 
@@ -234,7 +235,7 @@ SkipWatch is not affiliated with the creators whose videos it reads. Every skill
 
 | Tier | Requires | Unlocks |
 |---|---|---|
-| 0 | uv | Local files with a captions sidecar, YouTube videos with captions, text-only posts, frame sampling on everything (ffmpeg and yt-dlp come as dependencies) |
+| 0 | uv | Local files with a captions sidecar, YouTube videos with captions, frame sampling on everything (ffmpeg and yt-dlp come as dependencies) |
 | 1 | Tier 0 plus a Whisper backend (uv extra `whisper` or `mlx`) | Any video or audio without captions: X, TikTok, Instagram, Facebook, screen recordings, podcasts |
 | 1c | Tier 0 plus a cloud transcription key (OpenAI, Groq or Deepgram) | Same as Tier 1 without local compute |
 | 2 | Tier 1 plus node 22+ or deno | Full YouTube format list, fewer YouTube failures |

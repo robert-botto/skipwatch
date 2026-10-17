@@ -126,6 +126,6 @@ def test_live_x_text_only_post_is_exit_7_on_the_free_route(tmp_path, sw_home):
     try:
         r = run("ingest", TEXT_ONLY_REPLY, "--work", str(work), "--provider", "free")
         assert r.exit_code == 7, r.output
-        assert "Enable treg (Tier 3) to read text posts." in r.output
+        assert "SkipWatch 0.1.0 reads videos only." in r.output  # R-SCOPE-1
     finally:
         shutil.rmtree(work, ignore_errors=True)

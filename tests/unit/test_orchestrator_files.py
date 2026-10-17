@@ -1677,7 +1677,8 @@ def test_cookies_runs_cannot_be_packed():
 def test_platform_specific_failures():
     text = protocol_flat()
     assert "Instagram often needs a login. Re-run with --cookies-from-browser <browser>." in text
-    assert "This post has no video. Enable treg (Tier 3) to read text posts." in text
+    # 0.1.0 reads videos only (R-SCOPE-1): the engine's exit 7 message is quoted
+    assert "SkipWatch 0.1.0 reads videos only. This page has no video or audio." in text
     # Facebook media comes from the free route only (spike decision 4)
     assert "never offer `--provider treg` for Facebook" in text
     # Instagram reels have no duration logged out
