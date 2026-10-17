@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
+from skipwatch.nofollow import open_nofollow
+
 TAIL_LINES = 3
 
 
@@ -32,8 +34,7 @@ def start(path: Path) -> None:
     global _active
     path.parent.mkdir(parents=True, exist_ok=True)
     # never follows a symlink swapped in after cli checked the path (adversarial review REV6)
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(path, flags, 0o644)
+    fd = open_nofollow(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
     stream = os.fdopen(fd, "w", encoding="utf-8", buffering=1)  # line-buffered, readable live
     _active = _Log(path=path, started=time.monotonic(), stream=stream, saved_stderr=sys.stderr)
     sys.stderr = stream
@@ -57,8 +58,8 @@ def append(text: str) -> None:
     """Add text to the --log file after stop(); a no-op without --log."""
     if _active is None:
         return
-    flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
-    with os.fdopen(os.open(_active.path, flags), "a", encoding="utf-8") as stream:
+    fd = open_nofollow(_active.path, os.O_WRONLY | os.O_APPEND)
+    with os.fdopen(fd, "a", encoding="utf-8") as stream:
         stream.write(text if text.endswith("\n") else text + "\n")
 
 
