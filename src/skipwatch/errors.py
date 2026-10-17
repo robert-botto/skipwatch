@@ -16,6 +16,13 @@ class ExitCode(IntEnum):
     INTERNAL_ERROR = 70  # an engine bug, not a user error (EX_SOFTWARE in sysexits.h)
 
 
+# 0.1.0 reads videos only: a URL with no video or audio exits 7 with this, at probe and ingest.
+VIDEO_ONLY = (
+    "SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article support is "
+    "planned for a later release."
+)
+
+
 class SkipwatchError(Exception):
     def __init__(self, code: ExitCode, message: str):
         super().__init__(message)

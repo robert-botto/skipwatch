@@ -27,8 +27,6 @@ from typing import Any, Literal, TypeVar
 import requests
 import urllib3.exceptions
 import yt_dlp
-from yt_dlp.networking import Request
-from yt_dlp.networking.exceptions import RequestError
 from yt_dlp.utils import DownloadError
 
 from skipwatch import captions_hls, media
@@ -411,32 +409,54 @@ def _caption_error(message: str) -> FreeRouteError:
     return FreeRouteError("captions", f"caption playlist: {message}")
 
 
-def _read_segment(url: str, deadline: float, room: int) -> bytes:
-    """One segment through the vetted transport, at most `room` bytes, never past deadline."""
+def _read_vetted(
+    url: str, deadline: float, room: int, error: Callable[[str], FreeRouteError], status: str
+) -> tuple[bytes, str]:
+    """(body, URL of the last hop) through the vetted transport: every redirect hop checked
+    and pinned to its vetted address, at most `room` bytes, never past deadline."""
     try:
         response = links.get_vetted(url, deadline)
     except links.Refused as exc:
-        raise _caption_error(str(exc)) from exc
+        raise error(str(exc)) from exc
     except requests.RequestException as exc:
-        raise _caption_error(type(exc).__name__) from exc
+        raise error(type(exc).__name__) from exc
     try:
         if response.status_code != 200:
-            raise _caption_error(f"HTTP {response.status_code} for a segment")
+            raise error(status.format(code=response.status_code))
         body = bytearray()
         while True:
             if time.monotonic() >= deadline:
-                raise _caption_error(f"over the {CAPTION_SEGMENTS_DEADLINE_S:g} s deadline")
+                raise error(f"over the {CAPTION_SEGMENTS_DEADLINE_S:g} s deadline")
             chunk = response.raw.read1(links.CHUNK, decode_content=True)
             if not chunk:
-                return bytes(body)
+                return bytes(body), str(getattr(response, "url", None) or url)
             body.extend(chunk)
             if len(body) > room:
-                raise _caption_error(f"over the {MAX_CAPTION_BYTES:,} byte cap")
+                raise error(f"over the {MAX_CAPTION_BYTES:,} byte cap")
     except (requests.RequestException, urllib3.exceptions.HTTPError) as exc:
         # read1 raises urllib3's own errors (a short body, a read timeout, bad gzip)
-        raise _caption_error(type(exc).__name__) from exc
+        raise error(type(exc).__name__) from exc
     finally:
         links.close_vetted(response)
+
+
+def _read_segment(url: str, deadline: float, room: int) -> bytes:
+    """One segment of an HLS caption playlist."""
+    return _read_vetted(url, deadline, room, _caption_error, "HTTP {code} for a segment")[0]
+
+
+def _track_error(message: str) -> FreeRouteError:
+    return FreeRouteError("captions", f"caption track: {message}")
+
+
+def fetch_track(url: str) -> tuple[bytes, str]:
+    """(body, final URL) of one caption track. The URL comes from the page yt-dlp read (on a
+    generic site, a page-controlled <track src>), so it goes through the vetted transport
+    like any link (R-ING-1): no localhost, LAN or metadata host on any redirect hop, and no
+    second DNS answer."""
+    deadline = time.monotonic() + CAPTION_SEGMENTS_DEADLINE_S
+    # "HTTP Error 403" and "429" read as transient, so _retry_once tries them once more
+    return _read_vetted(url, deadline, MAX_CAPTION_BYTES, _track_error, "HTTP Error {code}")
 
 
 def _resolve_playlist(playlist: bytes, playlist_url: str) -> bytes:
@@ -476,17 +496,7 @@ def download_captions(
     if ext is None:
         return None
     entry = by_ext[ext]
-
-    def attempt() -> tuple[bytes, str]:
-        try:
-            with yt_dlp.YoutubeDL(ydl_params(None, opts, download=False)) as ydl:  # pyright: ignore[reportArgumentType]
-                request = Request(entry["url"], headers=entry.get("http_headers"))
-                response = ydl.urlopen(request)  # pyright: ignore[reportArgumentType]
-                return response.read(), getattr(response, "url", None) or entry["url"]
-        except (DownloadError, RequestError) as exc:
-            raise FreeRouteError("captions", str(exc)) from exc
-
-    body, fetched_from = _retry_once("captions", attempt, failed)
+    body, fetched_from = _retry_once("captions", lambda: fetch_track(str(entry["url"])), failed)
     if captions_hls.is_playlist(body):
         body, ext = _resolve_playlist(body, fetched_from), "vtt"
     folder = work.path / "captions"

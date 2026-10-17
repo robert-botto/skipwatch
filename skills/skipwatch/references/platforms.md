@@ -10,7 +10,7 @@
 - TikTok
 - Instagram
 - Facebook
-- Text posts
+- Pages with no video
 
 What each source kind needs without cookies, how it fails, and the exact line to tell the
 user. The engine makes every download and every provider call; you never run yt-dlp or
@@ -62,7 +62,8 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
 
 - Without cookies: archive.org and Wikimedia Commons work. Vimeo usually needs a login and
   exits 4 without `--cookies-from-browser`.
-- Fails: "Unsupported URL" exits 2. For an article page, the text route may still read it.
+- Fails: a page with no video or audio (an article, a docs page) exits 7; see
+  `## Pages with no video`.
 
 ## X
 
@@ -71,9 +72,8 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
   engine says so in `notes` (`video came from a linked post: <url>`) and credits the
   linked post's author.
 - Captions: none.
-- Fails: a text-only post exits 7 on the free route; tell the user
-  `This post has no video. Enable treg (Tier 3) to read text posts.` Protected posts
-  exit 4.
+- Fails: a text-only post exits 7 with the video-only message (`## Pages with no video`),
+  with or without treg. Protected posts exit 4.
 
 ### treg (Tier 3)
 
@@ -81,8 +81,7 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
   transcript; links in the thread are fetched.
 - Adds: the author's later posts in `context.thread`, the author's own replies (never
   anyone else's) in `context.author_replies`, expanded links, and the untimed transcript
-  for the cross-check. A text-only post becomes a `text` source from the thread. When
-  yt-dlp is blocked, the thread's video is the media fallback.
+  for the cross-check. When yt-dlp is blocked, the thread's video is the media fallback.
 
 ## TikTok
 
@@ -124,8 +123,10 @@ Local files: sidecar captions `<stem>.vtt|.srt|.<lang>.vtt|.<lang>.srt`; no capt
 - Adds: the post text in that case, and never a media fallback: the lookup returns no
   media, so never offer `--provider treg` for a Facebook download failure.
 
-## Text posts
+## Pages with no video
 
-- X text-only post: exit 7 on the free route (see X). With treg, the thread lookup returns
-  the text and its continuations.
-- Other pages: fetched by the text route; under 200 words exits 7.
+0.1.0 reads videos only. A URL with no video or audio (an article, a docs page, a text-only
+post on any platform) exits 7 at probe or ingest with
+`SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article support is planned for a later release.`
+Quote it and stop. Links inside a video post are still read as context (X, TikTok,
+Instagram, Facebook).

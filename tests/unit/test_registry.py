@@ -184,6 +184,7 @@ def test_media_fallback_uses_provider_media_and_records_attempts(tmp_path, monke
 
 
 def test_no_media_retries_as_text_source(tmp_path, monkeypatch):
+    monkeypatch.setattr("skipwatch.ingest.TEXT_SOURCES", True)  # the parked text route
     from skipwatch.adapters.base import IngestOptions, NoMediaError
     from skipwatch.config import load_config
     from skipwatch.ingest import build_bundle

@@ -110,7 +110,7 @@ stage), `references/run-distill.md` (5 to 8) and `references/run-review-install.
 - `references/review-screen.md` before printing the review screen.
 - `references/sharing.md` for `list`, `pack`, `install <pack or url>`, `share` and `export`.
 - `references/platforms.md` for per-platform failures (X, TikTok, Instagram, Facebook,
-  text posts) and whenever a source behaves unexpectedly.
+  pages with no video) and whenever a source behaves unexpectedly.
 
 Copy this checklist and tick it as the run goes; the numbers are the run files' stages:
 

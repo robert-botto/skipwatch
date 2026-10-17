@@ -1,5 +1,6 @@
 """One retry for transient yt-dlp failures (HTTP 403, 429, connection reset)."""
 
+import socket
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from skipwatch.adapters.youtube import ADAPTER
 from skipwatch.detect import Detected
 from skipwatch.errors import ExitCode, SkipwatchError
 from skipwatch.providers import content_free as cf
+from skipwatch.providers import links
 from skipwatch.workdir import WorkDir
 
 FORBIDDEN = "ERROR: unable to download video data: HTTP Error 403: Forbidden"
@@ -29,7 +31,7 @@ INFO = {
 
 
 class Script:
-    """A fake yt_dlp.YoutubeDL whose download and urlopen fail with the queued errors first."""
+    """A fake yt_dlp.YoutubeDL and caption fetch that fail with the queued errors first."""
 
     def __init__(self, failures: list[str]):
         self.failures = list(failures)
@@ -56,18 +58,14 @@ class Script:
                 out.write_bytes(b"x")
                 return dict(info, requested_downloads=[{"filepath": str(out)}])
 
-            def urlopen(self, req):
-                script.fetches += 1
-                if script.failures:
-                    raise cf.DownloadError(script.failures.pop(0))
-
-                class Resp:
-                    def read(self):
-                        return b"WEBVTT\n\n00:00.000 --> 00:01.000\nhi\n"
-
-                return Resp()
-
         self.cls = DL
+
+    def fetch_track(self, url: str) -> tuple[bytes, str]:
+        """Stands in for cf.fetch_track (the vetted caption fetch)."""
+        self.fetches += 1
+        if self.failures:
+            raise cf.FreeRouteError("captions", self.failures.pop(0))
+        return b"WEBVTT\n\n00:00.000 --> 00:01.000\nhi\n", url
 
 
 @pytest.fixture
@@ -77,10 +75,17 @@ def ytdlp(monkeypatch):
     def install(failures: list[str]) -> Script:
         script = Script(failures)
         monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", script.cls)
+        monkeypatch.setattr(cf, "fetch_track", script.fetch_track)
         return script
 
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
     monkeypatch.setattr(cf.time, "sleep", sleeps.append)
+    # caption fetches are vetted (links.get_vetted): resolve hosts to a public address
+    monkeypatch.setattr(
+        links.socket,
+        "getaddrinfo",
+        lambda host, *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+    )
     monkeypatch.setattr(cf.media, "ffmpeg_paths", lambda: (Path("/x/ffmpeg"), Path("/x/ffprobe")))
     monkeypatch.setattr(
         cf.media,

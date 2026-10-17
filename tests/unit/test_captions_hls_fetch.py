@@ -23,30 +23,25 @@ INFO = {
 }
 
 
-class _Resp:
-    def __init__(self, body: bytes, url: str):
-        self._body, self.url = body, url
+@pytest.fixture(autouse=True)
+def _public_caption_hosts(monkeypatch):
+    """Caption fetches are vetted (links.get_vetted): every test host resolves to a public
+    address here; sockets stay blocked."""
 
-    def read(self):
-        return self._body
+    def resolve(host, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+
+    monkeypatch.setattr(links.socket, "getaddrinfo", resolve)
 
 
-def _ydl_serving(body: bytes, url: str):
-    class DL:
-        def __init__(self, params):
-            self.params = params
+def _track_serving(body: bytes, url: str):
+    """Stands in for cf.fetch_track (the vetted caption fetch): (body, the URL it ended at)."""
 
-        def __enter__(self):
-            return self
+    def fetch_track(requested: str) -> tuple[bytes, str]:
+        assert requested == PLAYLIST_URL
+        return body, url
 
-        def __exit__(self, *exc):
-            return False
-
-        def urlopen(self, request):
-            assert request.url == PLAYLIST_URL
-            return _Resp(body, url)
-
-    return DL
+    return fetch_track
 
 
 class _Raw:
@@ -69,7 +64,7 @@ class _Vetted:
 @pytest.fixture
 def x_playlist(monkeypatch):
     playlist = (REC / "captions-hls.m3u8").read_bytes()
-    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", _ydl_serving(playlist, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, PLAYLIST_URL))
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
 
 
@@ -102,7 +97,7 @@ def test_segment_urls_resolve_against_the_url_the_playlist_came_from(tmp_path, m
     # After a redirect, a relative segment path belongs to the final playlist URL.
     moved = "https://cdn2.example/subs/pl/index.m3u8"
     playlist = b"#EXTM3U\n#EXTINF:6,\nseg0.vtt\n#EXT-X-ENDLIST\n"
-    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", _ydl_serving(playlist, moved))
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, moved))
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
     body = b"WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nhi\n"
     fetched = _serve_segments(monkeypatch, {"https://cdn2.example/subs/pl/seg0.vtt": _Vetted(body)})
@@ -139,7 +134,7 @@ def test_a_failed_segment_is_a_captions_error(tmp_path, monkeypatch, x_playlist)
 
 def test_a_master_playlist_is_a_captions_error(tmp_path, monkeypatch):
     playlist = b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nvideo.m3u8\n"
-    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", _ydl_serving(playlist, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(playlist, PLAYLIST_URL))
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
     with pytest.raises(cf.FreeRouteError, match="master playlist"):
         cf.download_captions(INFO, WorkDir(tmp_path), IngestOptions(), ("en", "manual"))
@@ -187,7 +182,7 @@ def test_any_merge_failure_is_a_captions_error(tmp_path, monkeypatch, x_playlist
 
 
 def _plain_captions(monkeypatch, body: bytes = b"WEBVTT\n"):
-    monkeypatch.setattr(cf.yt_dlp, "YoutubeDL", _ydl_serving(body, PLAYLIST_URL))
+    monkeypatch.setattr(cf, "fetch_track", _track_serving(body, PLAYLIST_URL))
     monkeypatch.setattr(cf, "js_runtime", lambda: {})
 
 

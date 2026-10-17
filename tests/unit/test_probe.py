@@ -113,6 +113,10 @@ def test_probe_page_without_video_is_exit_7(extract):
     with pytest.raises(SkipwatchError) as e:
         probe("https://example.com/post", IngestOptions())
     assert e.value.code == ExitCode.NO_CONTENT
+    assert e.value.message == (
+        "SkipWatch 0.1.0 reads videos only. This page has no video or audio. Article support "
+        "is planned for a later release."
+    )
 
 
 def test_probe_platform_without_adapter_is_exit_2(monkeypatch):
@@ -237,3 +241,11 @@ def test_probe_out_refuses_before_probing_and_writes_nothing(monkeypatch, tmp_pa
     assert not (run_folder / "probe.json").exists()
     assert not (elsewhere / "logs" / "probe.json").exists()
     assert (run_folder / "stages.json").read_bytes() == stages
+
+
+def test_probe_video_only_exit_names_the_reason_on_stderr(extract, capsys):
+    extract(error="ERROR: Unsupported URL: https://example.com/post")
+    with pytest.raises(SkipwatchError):
+        probe("https://example.com/post", IngestOptions())
+    err = capsys.readouterr().err
+    assert "No video or audio at https://example.com/post: Unsupported URL" in err
