@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -322,9 +323,22 @@ def test_resume_ignores_a_forged_run_json_name(tmp_path, name):
     assert f"Resume: skill fix-bugs ({w.path / 'staging' / 'fix-bugs'})" in r.stderr
 
 
-def test_resume_never_prints_a_staging_folder_that_is_not_a_skill_name(tmp_path):
+NO_CONTROL_CHARS = "Windows forbids control characters such as ESC in file names"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param(
+            "bad\x1b[31m",
+            marks=pytest.mark.skipif(sys.platform == "win32", reason=NO_CONTROL_CHARS),
+        ),
+        "Bad[31m",  # the same refusal with a name every OS allows
+    ],
+)
+def test_resume_never_prints_a_staging_folder_that_is_not_a_skill_name(tmp_path, name):
     w = work_at(tmp_path / "w", done=("detect",), run_json=True)
-    (w.path / "staging" / "bad\x1b[31m").mkdir(parents=True)
+    (w.path / "staging" / name).mkdir(parents=True)
     r = resume(str(w.path))
     assert r.exit_code == 0, r.output
-    assert "\x1b" not in r.stderr and "Resume: skill" not in r.stderr
+    assert name not in r.stderr and "\x1b" not in r.stderr and "Resume: skill" not in r.stderr
