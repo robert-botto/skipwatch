@@ -87,9 +87,6 @@ To pin a specific version:
 claude plugin marketplace add robert-botto/skipwatch#v0.1.0
 ```
 
-> [!NOTE]
-> SkipWatch 0.1.0 is not released yet. These install lines work once the repository is public.
-
 ## Use it
 
 ```text
