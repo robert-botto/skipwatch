@@ -497,7 +497,7 @@ def test_issue_templates_parse_as_yaml():
 
 def test_changelog_has_unreleased_and_the_first_release():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert "## [Unreleased]" in text and "## [0.1.0] - unreleased" in text
+    assert "## [Unreleased]" in text and "## [0.1.0] - 2026-10-17" in text
     unreleased = text.split("## [Unreleased]")[1].split("## [0.1.0]")[0]
     assert unreleased.strip() == ""
     section = _script("changelog_section").section(text, "0.1.0")
