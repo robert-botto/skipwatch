@@ -5,7 +5,6 @@ import os
 import stat
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -90,43 +89,45 @@ def test_an_unsupported_flag_is_a_value_error_and_nothing_is_created(tmp_path, f
     assert not os.path.lexists(tmp_path / "x")
 
 
-def _st(tag: int, attributes: int = stat.FILE_ATTRIBUTE_REPARSE_POINT) -> SimpleNamespace:
-    return SimpleNamespace(st_file_attributes=attributes, st_reparse_tag=tag)
-
-
 SYMLINK, JUNCTION = 0xA000000C, 0xA0000003  # IO_REPARSE_TAG_SYMLINK, _MOUNT_POINT
 ONEDRIVE, DEDUP = 0x9000001A, 0x80000013  # IO_REPARSE_TAG_CLOUD_6, _DEDUP
 
 
+REPARSE = stat.FILE_ATTRIBUTE_REPARSE_POINT
+
+
 @pytest.mark.parametrize(
-    ("st", "refused"),
+    ("attributes", "tag", "refused"),
     [
-        (_st(SYMLINK), True),
-        (_st(JUNCTION), True),
-        (_st(ONEDRIVE), False),  # a OneDrive placeholder is an ordinary file to open
-        (_st(DEDUP), False),
-        (_st(0, attributes=0), False),
-        (SimpleNamespace(), False),  # a POSIX stat result has neither field
+        (REPARSE, SYMLINK, True),
+        (REPARSE, JUNCTION, True),
+        (REPARSE, ONEDRIVE, False),  # a OneDrive placeholder is an ordinary file to open
+        (REPARSE, DEDUP, False),
+        (0, 0, False),
     ],
 )
-def test_only_a_name_surrogate_reparse_point_is_a_link(st, refused):
-    assert is_link(st) is refused  # pyright: ignore[reportArgumentType]
+def test_only_a_name_surrogate_reparse_point_is_a_link(attributes, tag, refused):
+    assert is_link(attributes, tag) is refused
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the Windows open path checks the tag")
+def test_windows_reads_the_real_tag_of_a_link_and_a_file(tmp_path, victim):
+    import _winapi
+
+    lnk = tmp_path / "lnk"
+    link(lnk, victim)
+    for path, expected in ((lnk, True), (victim, False)):
+        handle = _winapi.CreateFile(str(path), 0x80000000, 7, 0, 3, 0x00200000, 0)
+        try:
+            assert is_link(*nofollow.attribute_tag(handle)) is expected
+        finally:
+            _winapi.CloseHandle(handle)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="the Windows open path checks the tag")
 @pytest.mark.parametrize(("tag", "refused"), [(SYMLINK, True), (ONEDRIVE, False)])
-def test_windows_open_refuses_by_the_tag_of_the_handle(tmp_path, victim, monkeypatch, tag, refused):
-    real_fstat = os.fstat
-
-    def fstat(fd):
-        st = real_fstat(fd)
-        return SimpleNamespace(
-            st_file_attributes=stat.FILE_ATTRIBUTE_REPARSE_POINT,
-            st_reparse_tag=tag,
-            st_size=st.st_size,
-        )
-
-    monkeypatch.setattr(nofollow.os, "fstat", fstat)
+def test_windows_open_refuses_by_the_tag_of_the_handle(victim, monkeypatch, tag, refused):
+    monkeypatch.setattr(nofollow, "attribute_tag", lambda handle: (REPARSE, tag))
     if refused:
         with pytest.raises(OSError, match="symlink or junction"):
             open_nofollow(victim, os.O_RDONLY)

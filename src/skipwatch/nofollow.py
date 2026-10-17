@@ -33,10 +33,8 @@ def check_flags(flags: int) -> int:
     return access
 
 
-def is_link(st: os.stat_result) -> bool:
-    """Whether a Windows fstat result is a name-surrogate reparse point."""
-    attributes = getattr(st, "st_file_attributes", 0)
-    tag = getattr(st, "st_reparse_tag", 0)
+def is_link(attributes: int, tag: int) -> bool:
+    """Whether a Windows file's attributes and reparse tag make it a name surrogate."""
     return bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT and tag & NAME_SURROGATE_BIT)
 
 
@@ -46,7 +44,29 @@ def _refuse(path: Path) -> OSError:
 
 if sys.platform == "win32":
     import _winapi
+    import ctypes
     import msvcrt
+    from ctypes import wintypes
+
+    class _AttributeTagInfo(ctypes.Structure):
+        _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _FILE_ATTRIBUTE_TAG_INFO = 9  # FILE_INFO_BY_HANDLE_CLASS FileAttributeTagInfo
+
+    def attribute_tag(handle: int) -> tuple[int, int]:
+        """The handle's file attributes and reparse tag. os.fstat leaves st_reparse_tag 0, so
+        this asks GetFileInformationByHandleEx directly."""
+        info = _AttributeTagInfo()
+        ok = _kernel32.GetFileInformationByHandleEx(
+            wintypes.HANDLE(handle),
+            _FILE_ATTRIBUTE_TAG_INFO,
+            ctypes.byref(info),
+            ctypes.sizeof(info),
+        )
+        if not ok:
+            raise ctypes.WinError(ctypes.get_last_error())
+        return info.FileAttributes, info.ReparseTag
 
     _GENERIC_READ = 0x80000000
     _GENERIC_WRITE = 0x40000000
@@ -83,13 +103,13 @@ if sys.platform == "win32":
             0,
         )
         try:
+            if is_link(*attribute_tag(handle)):
+                raise _refuse(path)
             fd = msvcrt.open_osfhandle(handle, access | (flags & os.O_APPEND))
         except OSError:
             _winapi.CloseHandle(handle)
             raise
         try:
-            if is_link(os.fstat(fd)):
-                raise _refuse(path)
             if flags & os.O_TRUNC:
                 os.ftruncate(fd, 0)
         except OSError:
