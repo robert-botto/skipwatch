@@ -207,8 +207,10 @@ jobs:
 
   # Install acceptance item 4: install the plugin from this checkout into an empty
   # CLAUDE_CONFIG_DIR with no venv, run doctor through the wrapper, then repeat on a second
-  # fresh install with uv hidden from PATH. main's marketplace.json installs from "./"; the
-  # release PR pins the tag (issue 11), so this job tests the real file.
+  # fresh install with uv hidden from PATH. The published marketplace.json pins the release tag
+  # (issue 11), which does not exist until after the release PR merges, so the job installs from
+  # a copy of this checkout whose skipwatch source is rewritten to "./": it tests exactly this
+  # code, and the published file stays pinned.
   # Pull requests run Linux only (billing); push to main and workflow_dispatch run every OS.
   clean-machine:
     # A labeled event exists only to start whisper; it runs nothing else.
@@ -232,16 +234,27 @@ jobs:
           python-version: "3.12"
       - run: npm install -g @anthropic-ai/claude-code@2.1.295
       # Paths in the mixed form (D:/a/_temp on Windows) work in Git Bash and in claude. The
-      # marketplace is this checkout as committed: install copies tracked and untracked files
-      # but not .git, and the logs below go to the temp folder so the checkout stays clean.
+      # marketplace is a temp copy of this checkout as committed, with the skipwatch source
+      # rewritten from the release pin to "./". Install copies tracked and untracked files but
+      # not .git, and the copy and the logs below live in the temp folder so the checkout stays
+      # clean.
       - name: Paths
         run: |
           tmp=$RUNNER_TEMP
-          market=$GITHUB_WORKSPACE
+          workspace=$GITHUB_WORKSPACE
           if command -v cygpath >/dev/null; then
             tmp=$(cygpath -m "$tmp")
-            market=$(cygpath -m "$market")
+            workspace=$(cygpath -m "$workspace")
           fi
+          market=$tmp/market
+          mkdir -p "$market"
+          cp -R "$workspace/." "$market"
+          (cd "$market" && node -e '
+            const fs = require("fs");
+            const file = ".claude-plugin/marketplace.json";
+            const data = JSON.parse(fs.readFileSync(file, "utf8"));
+            data.plugins.find((p) => p.name === "skipwatch").source = "./";
+            fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");')
           echo "TMP_DIR=$tmp" >> "$GITHUB_ENV"
           echo "MARKET=$market" >> "$GITHUB_ENV"
       - name: Fresh install, then doctor through the wrapper

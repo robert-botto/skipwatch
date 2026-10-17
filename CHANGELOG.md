@@ -4,7 +4,7 @@ All notable changes to SkipWatch are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-10-17
 
 First release.
 
