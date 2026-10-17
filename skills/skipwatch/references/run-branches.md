@@ -54,10 +54,8 @@ says `ingest.log`; nothing was downloaded.
 - Linked video: when the video came from a linked post (the engine notes it and the
   review screen shows it), `source` describes the linked post and the requested
   post's text is in `context.thread`.
-- Text source: when `source.kind` is `"text"` in `<W>/ingest.json`, skip transcribe,
-  frames, plan and read and go to stage 5. Print
-  `Reading the post: <n> words, <k> links (<n>s)`. A transcribe exit 7 with
-  `text source: nothing to transcribe` (a resume) is not a failure.
+- Text source: not in 0.1.0. A page or post with no video exits 7 at probe or ingest
+  (`## Probe and ingest exits`); no run reaches `source.kind` `"text"`.
 
 ## No transcript or silent video
 
@@ -147,7 +145,3 @@ adding `; may hold a step` as `distill-rules.md` says.
      `<W>/staging/`.
    - `check`: stage 8 when that `SKILL.md` exists, otherwise stage 5.
    - `review` or `install`: stage 8 (staging may have been edited), then stage 9.
-   - a text source never runs transcribe, frames, plan or read; the engine's
-     `next_stage` already skips them: it is the first of distill, critique, check, review
-     and install not yet done, and `distill` (or `critique` with nothing staged) goes
-     straight to stage 5 with no `validate-notes`.
