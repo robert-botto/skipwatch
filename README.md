@@ -237,7 +237,7 @@ SkipWatch is not affiliated with the creators whose videos it reads. Every skill
 
 ## Without Claude Code
 
-The engine is a plain command line tool. It does the mechanical stages; reading the frames and writing the skill need Claude. Once SkipWatch is on PyPI:
+The engine is a plain command line tool. It does the mechanical stages; reading the frames and writing the skill need Claude. SkipWatch is not on PyPI yet; once it is, these will work:
 
 ```bash
 uvx skipwatch doctor
