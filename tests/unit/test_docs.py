@@ -332,11 +332,15 @@ def test_readme_quickstart_is_near_the_top_and_complete():
     assert text.index("## Quickstart") < text.index("## Why")
     assert "Claude Code" in quickstart and "uv" in quickstart
     for line in (
+        "claude plugin install skipwatch --marketplace robert-botto/skipwatch",
         "/plugin marketplace add robert-botto/skipwatch",
         "/plugin install skipwatch@skipwatch",
         "/skipwatch <video link>",
     ):
         assert line in quickstart, line
+    # every code block is one line a user can paste as is
+    for block in re.findall(r"```[a-z]*\n(.*?)```", quickstart, re.S):
+        assert len(block.strip().splitlines()) == 1 and "<" not in block, block
 
 
 def test_readme_install_locations_match_the_code():
