@@ -77,7 +77,7 @@ def test_build_reads_source_and_frontmatter(tmp_path):
     assert m.name == "run-skipdemo-tutorial"
     assert m.description.startswith("Use when the user wants")
     assert m.source.title == "tutorial-60s" and m.source.platform == "local"
-    assert m.skipwatch_version == "0.1.0"
+    assert m.skipwatch_version == "0.1.1"
     assert m.confidence == "medium" and m.critic_score is None
     assert m.checks_passed is True and m.safety_flags == [flag]
     assert m.files == {}
@@ -210,7 +210,7 @@ def test_manifest_forged_pack_in_run_folder_builds_as_a_run(sw_home, tmp_path):
     assert m.fetched_with_cookies is True
     assert m.source.title == "tutorial-60s" and m.source.platform == "local"
     assert m.confidence == "medium" and m.critic_score is None
-    assert m.skipwatch_version == "0.1.0"
+    assert m.skipwatch_version == "0.1.1"
 
 
 def test_manifest_pack_mode_cookies_from_ingest_are_never_dropped(sw_home):
@@ -222,7 +222,7 @@ def test_manifest_pack_mode_cookies_from_ingest_are_never_dropped(sw_home):
 def test_manifest_run_mode_unchanged_by_pack_helpers(tmp_path):
     staging, work = _copy(tmp_path)
     m = build(staging, work, _report())
-    assert m.skipwatch_version == "0.1.0" and m.confidence == "medium"
+    assert m.skipwatch_version == "0.1.1" and m.confidence == "medium"
     assert m.source.title == "tutorial-60s"
 
 
@@ -237,4 +237,4 @@ def test_manifest_pack_folder_with_edited_skill_md_builds_as_a_run(sw_home):
     skill_md.write_text(skill_md.read_text(encoding="utf-8") + "\nEdited.\n", encoding="utf-8")
     m = build(staging, work, _report())
     assert m.confidence == "medium" and m.critic_score is None
-    assert m.skipwatch_version == "0.1.0" and m.source.title == "tutorial-60s"
+    assert m.skipwatch_version == "0.1.1" and m.source.title == "tutorial-60s"

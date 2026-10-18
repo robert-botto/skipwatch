@@ -4,6 +4,17 @@ All notable changes to SkipWatch are recorded here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-18
+
+### Fixed
+
+- Every agent dispatch (frame readers, critic, tester) now names model `sonnet`, so a session's own rules can no longer start them on a bigger, slower model.
+- A skill-only install, such as `npx skills add robert-botto/skipwatch`, has no engine. `/skipwatch` now runs nothing and prints the two commands that install the plugin.
+
+### Changed
+
+- The README says plainly that SkipWatch is not on PyPI yet.
+
 ## [0.1.0] - 2026-10-17
 
 First release.

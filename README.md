@@ -84,7 +84,7 @@ Installing the plugin also installs a SessionStart hook. At the start of a sessi
 To pin a specific version:
 
 ```bash
-claude plugin marketplace add robert-botto/skipwatch#v0.1.0
+claude plugin marketplace add robert-botto/skipwatch#v0.1.1
 ```
 
 ## Use it

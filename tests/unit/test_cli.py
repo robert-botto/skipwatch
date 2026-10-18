@@ -49,7 +49,7 @@ def test_r_ux_2_progress_is_one_line(capsys):
 def test_version_flag_prints_version_with_no_command():
     r = CliRunner().invoke(cli.app, ["--version"])
     assert r.exit_code == 0
-    assert r.stdout.strip() == "0.1.0"
+    assert r.stdout.strip() == "0.1.1"
 
 
 def _register_fake_commands(tmp_path, monkeypatch):

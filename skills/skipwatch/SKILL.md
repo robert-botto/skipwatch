@@ -19,6 +19,10 @@ draft and test it.
 
 Plugin root: ${CLAUDE_PLUGIN_ROOT}
 
+If it does not start with `/`, the engine is missing: run nothing and
+reply `SkipWatch needs its plugin: /plugin marketplace add robert-botto/skipwatch, then
+/plugin install skipwatch@skipwatch.` and stop.
+
 The references write that path as `<ROOT>`: use the literal path, never a shell variable
 (the Bash tool does not have it). The engine command is defined here and nowhere else;
 expand every `<ENGINE>` to exactly this, with `<ROOT>` filled in:
