@@ -5,7 +5,7 @@
   "plugins": [
     {
       "name": "skipwatch",
-      "source": { "source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.1" },
+      "source": { "source": "url", "url": "https://github.com/robert-botto/skipwatch.git", "ref": "v0.1.1" },
       "description": "Turn tutorial videos into Agent Skills.",
       "version": "0.1.1"
     }
