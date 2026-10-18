@@ -215,7 +215,7 @@ def test_readme_has_tagline_and_install_lines():
         "/plugin marketplace add robert-botto/skipwatch",
         "/plugin install skipwatch@skipwatch",
         "claude plugin install skipwatch --marketplace robert-botto/skipwatch",
-        "claude plugin marketplace add robert-botto/skipwatch#v0.1.0",
+        "claude plugin marketplace add robert-botto/skipwatch#v0.1.1",
     ):
         assert line in text, line
 
@@ -498,7 +498,7 @@ def test_issue_templates_parse_as_yaml():
 def test_changelog_has_unreleased_and_the_first_release():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "## [Unreleased]" in text and "## [0.1.0] - 2026-10-17" in text
-    unreleased = text.split("## [Unreleased]")[1].split("## [0.1.0]")[0]
+    unreleased = text.split("## [Unreleased]")[1].split("\n## [")[0]
     assert unreleased.strip() == ""
     section = _script("changelog_section").section(text, "0.1.0")
     assert section and "`export` writes a pointer" in section

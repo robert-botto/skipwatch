@@ -25,7 +25,7 @@ def _copy(tmp_path):
 
 def _bump_pyproject(root):
     p = root / "pyproject.toml"
-    p.write_text(p.read_text().replace('version = "0.1.0"', 'version = "9.9.9"', 1))
+    p.write_text(p.read_text().replace('version = "0.1.1"', 'version = "9.9.9"', 1))
 
 
 def _bump_plugin(root):
@@ -44,7 +44,7 @@ def _bump_marketplace(root):
 
 def _bump_init(root):
     p = root / "src/skipwatch/__init__.py"
-    p.write_text(p.read_text().replace('__version__ = "0.1.0"', '__version__ = "9.9.9"'))
+    p.write_text(p.read_text().replace('__version__ = "0.1.1"', '__version__ = "9.9.9"'))
 
 
 def _run(root):
@@ -96,7 +96,7 @@ def _set_marketplace_source(root, source):
     p.write_text(json.dumps(data))
 
 
-PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.0"}
+PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.1"}
 
 
 def test_marketplace_pins_the_release_tag():
@@ -116,17 +116,17 @@ def test_marketplace_pins_the_release_tag():
 )
 def test_r_arch_3_release_fails_on_ref_drift(tmp_path, source):
     root = _copy(tmp_path)
-    (root / "CHANGELOG.md").write_text("## [0.1.0] - 2026-10-12\n\n- First.\n")
+    (root / "CHANGELOG.md").write_text("## [0.1.1] - 2026-10-12\n\n- First.\n")
     _set_marketplace_source(root, source)
     assert _run(root).returncode == 0  # the pin is checked only for a release
-    r = _run_release(root, "v0.1.0")
+    r = _run_release(root, "v0.1.1")
     assert r.returncode == 1, r.stdout
     assert any(
         line.startswith("MISMATCH marketplace.json plugins[skipwatch].source.ref")
         for line in r.stdout.splitlines()
     ), r.stdout
     _set_marketplace_source(root, PINNED)
-    assert _run_release(root, "v0.1.0").returncode == 0
+    assert _run_release(root, "v0.1.1").returncode == 0
 
 
 def _run_release(root, tag):
@@ -142,16 +142,16 @@ def test_release_flag_requires_tag_and_changelog_section(tmp_path):
     _set_marketplace_source(root, PINNED)
     changelog = root / "CHANGELOG.md"
     changelog.write_text("# Changelog\n\n## [0.0.9] - 2026-01-01\n\n- Older.\n")
-    r = _run_release(root, "v0.1.0")
+    r = _run_release(root, "v0.1.1")
     assert r.returncode == 1 and "CHANGELOG.md" in r.stdout, r.stdout
 
-    changelog.write_text("# Changelog\n\n## [0.1.0] - 2026-10-12\n\n- First release.\n")
-    assert _run_release(root, "v0.1.0").returncode == 0
-    r = _run_release(root, "v0.1.1")
+    changelog.write_text("# Changelog\n\n## [0.1.1] - 2026-10-12\n\n- First release.\n")
+    assert _run_release(root, "v0.1.1").returncode == 0
+    r = _run_release(root, "v0.1.2")
     assert r.returncode == 1 and "tag" in r.stdout, r.stdout
-    r = _run_release(root, "0.1.0")
+    r = _run_release(root, "0.1.1")
     assert r.returncode == 1 and "tag" in r.stdout, r.stdout
 
     changelog.unlink()
-    r = _run_release(root, "v0.1.0")
+    r = _run_release(root, "v0.1.1")
     assert r.returncode == 1 and "CHANGELOG.md" in r.stdout, r.stdout
