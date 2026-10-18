@@ -96,7 +96,7 @@ def _set_marketplace_source(root, source):
     p.write_text(json.dumps(data))
 
 
-PINNED = {"source": "github", "repo": "robert-botto/skipwatch", "ref": "v0.1.1"}
+PINNED = {"source": "url", "url": "https://github.com/robert-botto/skipwatch.git", "ref": "v0.1.1"}
 
 
 def test_marketplace_pins_the_release_tag():
