@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="docs/film/skipwatch-readme.mp4"><img src="docs/film/skipwatch-readme.gif" alt="SkipWatch launch film: a kung fu tutorial video becomes an installed Claude skill, shown on SkipWatch's review screen" width="100%"></a>
+<a href="docs/film/skipwatch-readme.mp4"><img src="docs/film/skipwatch-readme.gif" alt="SkipWatch launch film: a 48-minute kung fu video becomes a Claude skill in one command, every step traced to a timestamp" width="100%"></a>
 
 <p><b>Paste a video. Claude knows kung fu.</b></p>
 
